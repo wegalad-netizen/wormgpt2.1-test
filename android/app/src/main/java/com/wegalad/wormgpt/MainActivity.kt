@@ -1151,6 +1151,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         val tools = arrayOf(
             "AUTHORIZED TARGET SCOPE",
             "WEB CONFIGURATION CHECK",
+            "MOCK CALL FLOW (NO SENDING)",
             "LINK SAFETY CHECK",
             "PASSWORD CHECK / GENERATE",
             "FILE HASH REPUTATION",
@@ -1162,13 +1163,26 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                 when (index) {
                     0 -> showAuthorizedScopeManager()
                     1 -> showWebConfigurationChecker()
-                    2 -> showLinkSafetyChecker()
-                    3 -> showPasswordTool()
-                    4 -> chooseReputationFile.launch("*/*")
-                    5 -> showPhishingReview()
+                    2 -> runMockCallFlowSimulation()
+                    3 -> showLinkSafetyChecker()
+                    4 -> showPasswordTool()
+                    5 -> chooseReputationFile.launch("*/*")
+                    6 -> showPhishingReview()
                 }
             }
             .show()
+    }
+
+    /** Demonstrates a call-flow result using fictional data only; it never accesses contacts or networks. */
+    private fun runMockCallFlowSimulation() {
+        val mockContacts = listOf("Mock Contact 1", "Mock Contact 2")
+        val actions = mockContacts.joinToString("\n") { name ->
+            "$name — simulated only (no call placed)"
+        }
+        showToolResult(
+            "LOCAL CALL-FLOW SIMULATION",
+            "${mockContacts.size} fictional contacts\n\n$actions\n\nCalls sent: 0\nNo contacts were read and no network requests were made.",
+        )
     }
 
     private fun showAuthorizedScopeManager() {
