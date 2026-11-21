@@ -285,12 +285,9 @@ def draw_chat(history: list[dict], cols: int, rows: int, view_offset: int = 0) -
 
     start = max(0, len(entries) - 1 - view_offset)
     visible: list[str] = []
-    for entry in reversed(entries[start:]):
-        room = capacity - len(visible)
-        if room <= 0:
-            break
-        visible.extend(entry if len(entry) <= room else entry[-room:])
-    visible.reverse()
+    for entry in entries[start:]:
+        visible.extend(entry)
+    visible = visible[-capacity:]
 
     for offset, line in enumerate(visible):
         write_at(content_top + offset, line, cols)
