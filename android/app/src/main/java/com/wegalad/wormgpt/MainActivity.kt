@@ -86,7 +86,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
 
     private data class ApiResult(val text: String?, val error: String?)
     private data class CodeBlock(val lang: String, val code: String)
-    private data class UpdateInfo(val id: String, val downloadUrl: String)
+    private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int)
 
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var chatScroll: ScrollView
@@ -974,19 +974,25 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                 val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val known = prefs.getString(KEY_LAST_RELEASE, "").orEmpty()
                 val skipped = prefs.getString(KEY_SKIPPED_RELEASE, "").orEmpty()
+                val installedCode = installedVersionCode()
+                val updateAvailable = if (info.versionCode > 0) {
+                    info.versionCode.toLong() > installedCode
+                } else {
+                    known.isNotEmpty() && known != info.id
+                }
 
-                if (known.isEmpty()) {
-                    prefs.edit().putString(KEY_LAST_RELEASE, info.id).apply()
+                if (!updateAvailable) {
                     if (manual) appendChat("\n\n[*] You are on the latest build.")
                     return@withContext
                 }
 
-                if (!manual && (known == info.id || skipped == info.id)) {
+                if (!manual && skipped == info.id) {
                     return@withContext
                 }
 
-                if (known == info.id && manual) {
-                    appendChat("\n\n[*] You are on the latest build.")
+                if (!manual) {
+                    appendChat("\n\n[*] Version ${info.versionCode} found. Downloading update…")
+                    downloadAndInstall(info, prefs)
                     return@withContext
                 }
 
@@ -1004,6 +1010,16 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         }
     }
 
+    @Suppress("DEPRECATION")
+    private fun installedVersionCode(): Long {
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            packageInfo.versionCode.toLong()
+        }
+    }
+
     private fun fetchLatestRelease(): UpdateInfo? {
         return try {
             val request = Request.Builder()
@@ -1016,6 +1032,11 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                 if (!response.isSuccessful) return null
                 val json = JSONObject(response.body?.string().orEmpty())
                 val id = json.getString("published_at")
+                val versionCode = Regex("Build number:\\s*(\\d+)")
+                    .find(json.optString("body"))
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?.toIntOrNull() ?: 0
                 val assets = json.getJSONArray("assets")
                 var downloadUrl = ""
                 for (index in 0 until assets.length()) {
@@ -1025,7 +1046,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                         break
                     }
                 }
-                if (downloadUrl.isEmpty()) null else UpdateInfo(id, downloadUrl)
+                if (downloadUrl.isEmpty()) null else UpdateInfo(id, downloadUrl, versionCode)
             }
         } catch (_: Exception) {
             null
