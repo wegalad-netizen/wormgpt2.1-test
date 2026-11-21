@@ -451,7 +451,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="API KEY"
+                    android:text="PRIMARY GEMINI API KEY"
                     android:textColor="@color/worm_red_bright"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -470,13 +470,47 @@
                     android:textColorHint="@color/worm_faint"
                     android:textSize="13sp" />
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="FALLBACK KEYS AND MODELS"
+                    android:textColor="@color/worm_red_bright"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="API_KEY | MODEL per line, or just MODEL to reuse the primary key. Up to 5 profiles; safety blocks are not retried."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+
+                <EditText
+                    android:id="@+id/apiFallbacksInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/card_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="top|start"
+                    android:hint="key_2 | gemini-2.5-flash\nkey_3 | gemini-2.0-flash"
+                    android:inputType="textMultiLine|textPassword"
+                    android:minLines="3"
+                    android:padding="12dp"
+                    android:singleLine="false"
+                    android:textColor="@color/worm_text"
+                    android:textColorHint="@color/worm_faint"
+                    android:textSize="12sp" />
+
                 <Button
                     android:id="@+id/saveKeyButton"
                     style="@style/WormButton"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:layout_marginTop="8dp"
-                    android:text="SAVE KEY" />
+                    android:text="SAVE API SETUP" />
 
                 <Button
                     android:id="@+id/testConnectionButton"
