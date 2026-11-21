@@ -33,6 +33,7 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 
 ## Notes
 
+- Launcher icon: red oni/ox mask with adaptive-icon support on Android 8+.
 - Minimum Android version: 7.0 (API 24).
 - Permissions used: `INTERNET`, `ACCESS_NETWORK_STATE`, `REQUEST_INSTALL_PACKAGES`, and legacy storage read/write on Android 9 and below. No contacts, SMS, location, camera, or microphone access.
 - Every push to `master` rebuilds and republishes the APK; there are no path filters.
