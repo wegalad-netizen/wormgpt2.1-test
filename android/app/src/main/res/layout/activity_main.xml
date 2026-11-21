@@ -264,6 +264,14 @@
                     android:layout_marginTop="8dp"
                     android:text="SAVE KEY" />
 
+                <Button
+                    android:id="@+id/testConnectionButton"
+                    style="@style/WormButton.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="6dp"
+                    android:text="TEST CONNECTION" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
