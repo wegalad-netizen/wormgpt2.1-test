@@ -10,7 +10,7 @@ import androidx.core.content.ContextCompat
 class SpamCallScreeningService : CallScreeningService() {
 
     override fun onScreenCall(callDetails: Call.Details) {
-        val number = callDetails.number?.schemeSpecificPart.orEmpty()
+        val number = callDetails.handle?.schemeSpecificPart.orEmpty()
         val hidden = number.isBlank()
         val blocked = SpamPrefs.isBlocked(this, number) ||
             (hidden && SpamPrefs.blockUnknown(this))
