@@ -1,0 +1,9 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Termux:Widget shortcut — launches the WormGPT terminal UI
+cd "$HOME/wormgpt" || exit 1
+KEY_FILE="$HOME/.wormgpt_key"
+if [ -f "$KEY_FILE" ]; then
+    WORMGPT_API_KEY="$(cat "$KEY_FILE")"
+    export WORMGPT_API_KEY
+fi
+exec python3 wormgpt.py
