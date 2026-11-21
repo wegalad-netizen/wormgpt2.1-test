@@ -33,7 +33,7 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 
 ## Notes
 
-- UI: dark neon “ArchonX-style” panels with a gear icon in the header. Pull from the right edge (or tap the gear) to open the settings drawer containing the API key field and **CHECK FOR UPDATES**.
+- UI: dark neon panels with a gear icon in the header. Pull from the right edge (or tap the gear) to open the settings drawer, headed **SEEKER OF TRUTH** in small type, containing the API key field and **CHECK FOR UPDATES**.
 - APKs use a stable committed debug signing key (`app/wormgpt-debug.jks`) so in-app updates replace the previous install instead of failing with a signature mismatch. This key is for personal/debug use only, not Play Store releases.
 - Launcher icon: red oni/ox mask with adaptive-icon support on Android 8+.
 - Minimum Android version: 7.0 (API 24).

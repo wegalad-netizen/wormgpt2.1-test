@@ -168,9 +168,9 @@
             android:letterSpacing="0.15"
             android:shadowColor="#39FF14"
             android:shadowRadius="4"
-            android:text="SETTINGS // ARCHONX"
+            android:text="SEEKER OF TRUTH"
             android:textColor="@color/worm_neon"
-            android:textSize="16sp"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
         <TextView
