@@ -10,6 +10,11 @@ import androidx.core.content.ContextCompat
 class SpamCallScreeningService : CallScreeningService() {
 
     override fun onScreenCall(callDetails: Call.Details) {
+        if (!SpamPrefs.callGuardEnabled(this)) {
+            respondToCall(callDetails, CallResponse.Builder().build())
+            return
+        }
+
         val number = callDetails.handle?.schemeSpecificPart.orEmpty()
         val hidden = number.isBlank()
         val blocked = SpamPrefs.isBlocked(this, number) ||

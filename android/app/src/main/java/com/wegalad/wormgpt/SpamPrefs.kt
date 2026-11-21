@@ -13,6 +13,8 @@ object SpamPrefs {
     private const val KEY_KEYWORDS = "keyword_filter"
     private const val KEY_UNKNOWN = "block_unknown"
     private const val KEY_LOG = "spam_log"
+    private const val KEY_CALL_ENABLED = "call_guard_enabled"
+    private const val KEY_SMS_ENABLED = "sms_guard_enabled"
 
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -51,6 +53,20 @@ object SpamPrefs {
                     (saved.length >= 7 && incoming.endsWith(saved)) ||
                     (incoming.length >= 7 && saved.endsWith(incoming)))
         }
+    }
+
+    fun callGuardEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_CALL_ENABLED, true)
+
+    fun setCallGuardEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_CALL_ENABLED, enabled).apply()
+    }
+
+    fun smsGuardEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SMS_ENABLED, true)
+
+    fun setSmsGuardEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SMS_ENABLED, enabled).apply()
     }
 
     fun keywordFilter(context: Context): Boolean =

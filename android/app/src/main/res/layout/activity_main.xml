@@ -5,10 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/app_bg"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="false">
 
     <!-- MAIN SCREEN -->
     <LinearLayout
+        android:id="@+id/mainContent"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -107,12 +108,13 @@
                 android:shadowRadius="3"
                 android:text="@string/welcome_chat"
                 android:textColor="@color/worm_text"
-                android:textIsSelectable="true"
+                android:textIsSelectable="false"
                 android:textSize="13sp" />
         </ScrollView>
 
         <!-- Composer -->
         <LinearLayout
+            android:id="@+id/composerBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -127,8 +129,13 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:background="@android:color/transparent"
+                android:clickable="true"
+                android:cursorVisible="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
                 android:hint="@string/prompt_hint"
                 android:imeOptions="actionSend"
+                android:inputType="text"
                 android:padding="10dp"
                 android:singleLine="true"
                 android:textColor="@color/worm_text"
@@ -192,6 +199,7 @@
 
     <!-- SETTINGS DRAWER (sidebar style) -->
     <LinearLayout
+        android:id="@+id/settingsDrawer"
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
@@ -319,21 +327,37 @@
                     android:textColor="@color/worm_green"
                     android:textSize="10sp" />
 
-                <Button
-                    android:id="@+id/callGuardButton"
-                    style="@style/WormButton"
+                <Switch
+                    android:id="@+id/callGuardSwitch"
                     android:layout_width="match_parent"
-                    android:layout_height="38dp"
-                    android:layout_marginTop="10dp"
-                    android:text="ENABLE CALL GUARD" />
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:buttonTint="@color/worm_red"
+                    android:switchMinWidth="34dp"
+                    android:text="CALL GUARD"
+                    android:textColor="@color/worm_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/smsGuardButton"
-                    style="@style/WormButton.Outline"
+                <Switch
+                    android:id="@+id/smsGuardSwitch"
                     android:layout_width="match_parent"
-                    android:layout_height="38dp"
-                    android:layout_marginTop="6dp"
-                    android:text="ENABLE SMS GUARD" />
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:buttonTint="@color/worm_red"
+                    android:switchMinWidth="34dp"
+                    android:text="SMS GUARD"
+                    android:textColor="@color/worm_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:text="Toggle off to stop blocking without removing permissions."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"

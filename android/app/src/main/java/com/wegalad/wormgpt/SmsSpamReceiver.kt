@@ -10,6 +10,7 @@ class SmsSpamReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+        if (!SpamPrefs.smsGuardEnabled(context)) return
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
 
         val bySender = LinkedHashMap<String, StringBuilder>()
