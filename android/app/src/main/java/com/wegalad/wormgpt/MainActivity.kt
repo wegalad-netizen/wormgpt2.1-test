@@ -31,6 +31,8 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -313,6 +315,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         }
 
         showMainPage("chat")
+        if (savedInstanceState == null) playLaunchAnimation()
         playWelcome()
         checkForUpdate(manual = false)
         updateGuardStatus()
@@ -350,6 +353,33 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                 pulseBackground.setColors(intArrayOf(base, red, base))
             }
             start()
+        }
+    }
+
+    private fun playLaunchAnimation() {
+        val logo = findViewById<View>(R.id.appLogo)
+        val version = findViewById<View>(R.id.appVersion)
+        val title = findViewById<View>(R.id.brandTitle)
+        logo.alpha = 0f
+        logo.scaleX = 0.55f
+        logo.scaleY = 0.55f
+        logo.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(650L)
+            .setInterpolator(OvershootInterpolator(1.3f))
+            .start()
+        listOf(version, title).forEach { view ->
+            view.alpha = 0f
+            view.translationY = dp(6).toFloat()
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(180L)
+                .setDuration(420L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
         }
     }
 
