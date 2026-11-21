@@ -28,14 +28,16 @@ import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
@@ -357,12 +359,60 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     }
 
     private fun playLaunchAnimation() {
-        val logo = findViewById<View>(R.id.appLogo)
-        val version = findViewById<View>(R.id.appVersion)
-        val title = findViewById<View>(R.id.brandTitle)
+        val root = window.decorView as? ViewGroup ?: return
+        val overlay = FrameLayout(this).apply {
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.worm_bg))
+            isClickable = true
+            isFocusable = true
+            elevation = dp(24).toFloat()
+        }
+        val logo = ImageView(this).apply {
+            setImageResource(R.drawable.security_shield_icon)
+            contentDescription = "Sentinal Security logo"
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            alpha = 0f
+            scaleX = 0.55f
+            scaleY = 0.55f
+        }
+        val title = TextView(this).apply {
+            text = "Sentinal Security"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_text))
+            textSize = 23f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            alpha = 0f
+            translationY = dp(8).toFloat()
+        }
+        val subtitle = TextView(this).apply {
+            text = "SECURITY TOOLS"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_red_bright))
+            textSize = 11f
+            letterSpacing = 0.18f
+            alpha = 0f
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            addView(logo, LinearLayout.LayoutParams(dp(124), dp(124)))
+            addView(title, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(18) })
+            addView(subtitle, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(7) })
+        }
+        overlay.addView(content, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            Gravity.CENTER,
+        ))
+        root.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+        ))
+
         logo.alpha = 0f
-        logo.scaleX = 0.55f
-        logo.scaleY = 0.55f
         logo.animate()
             .alpha(1f)
             .scaleX(1f)
@@ -370,17 +420,13 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             .setDuration(650L)
             .setInterpolator(OvershootInterpolator(1.3f))
             .start()
-        listOf(version, title).forEach { view ->
-            view.alpha = 0f
-            view.translationY = dp(6).toFloat()
-            view.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setStartDelay(180L)
-                .setDuration(420L)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
-        }
+        title.animate().alpha(1f).translationY(0f).setStartDelay(180L).setDuration(480L).start()
+        subtitle.animate().alpha(1f).setStartDelay(330L).setDuration(420L).start()
+        overlay.postDelayed({
+            overlay.animate().alpha(0f).setDuration(450L).withEndAction {
+                if (overlay.parent === root) root.removeView(overlay)
+            }.start()
+        }, 1450L)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
