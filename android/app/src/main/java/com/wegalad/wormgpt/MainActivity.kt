@@ -214,6 +214,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         chatScroll = findViewById(R.id.chatScroll)
         chatText = findViewById(R.id.chatText)
         savedInstanceState?.getCharSequence(KEY_CHAT_TEXT)?.let { chatText.text = it }
+        highlightMasterText()
         lastResponse = savedInstanceState?.getString(KEY_LAST_RESPONSE).orEmpty()
         promptInput = findViewById(R.id.promptInput)
         apiKeyInput = findViewById(R.id.apiKeyInput)
@@ -2012,19 +2013,39 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
 
     private fun appendChat(text: String, colorRes: Int? = null) {
         stickToBottom = true
-        if (colorRes == null) {
-            chatText.append(text)
-        } else {
-            val colored = SpannableString(text)
-            colored.setSpan(
+        val formatted = SpannableString(text)
+        if (colorRes != null) {
+            formatted.setSpan(
                 ForegroundColorSpan(ContextCompat.getColor(this, colorRes)),
                 0,
                 text.length,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
-            chatText.append(colored)
         }
+        Regex("(?i)\\bmaster\\b").findAll(text).forEach { match ->
+            formatted.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.worm_red_bright)),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        chatText.append(formatted)
         scrollChatToBottom()
+    }
+
+    private fun highlightMasterText() {
+        val content = chatText.text.toString()
+        val formatted = SpannableString(content)
+        Regex("(?i)\\bmaster\\b").findAll(content).forEach { match ->
+            formatted.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.worm_red_bright)),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        chatText.text = formatted
     }
 
     private fun scrollChatToBottom() {
