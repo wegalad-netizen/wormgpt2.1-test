@@ -291,6 +291,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             }
         }
 
+        showMainPage("chat")
         playWelcome()
         checkForUpdate(manual = false)
         updateGuardStatus()
