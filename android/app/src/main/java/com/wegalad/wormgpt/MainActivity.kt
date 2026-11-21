@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
         const val KEY_VIRUSTOTAL = "virustotal_api_key"
         const val KEY_TEST_SCOPE_HOSTS = "test_scope_hosts"
         const val KEY_TEST_SCOPE_EXPIRY = "test_scope_expiry"
+        const val KEY_CODE_SNIPPETS = "saved_code_snippets"
         const val KEY_WA_NUMBER = "wa_number"
         const val KEY_LAST_RELEASE = "last_release"
         const val KEY_SKIPPED_RELEASE = "skipped_release"
@@ -253,7 +254,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             checkForUpdate(manual = true)
         }
         findViewById<Button>(R.id.sendButton).setOnClickListener { sendPrompt() }
-        findViewById<Button>(R.id.codeButton).setOnClickListener { showCodePasteDialog() }
+        findViewById<Button>(R.id.codeButton).setOnClickListener { showCodeSnippetMenu() }
         findViewById<Button>(R.id.testButton).setOnClickListener { testLastCode() }
         findViewById<Button>(R.id.copyButton).setOnClickListener { copyLastResponse() }
         findViewById<Button>(R.id.saveButton).setOnClickListener { saveTranscript() }
@@ -828,6 +829,60 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         }
     }
 
+    private fun showCodeSnippetMenu() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val saved = try {
+            JSONObject(prefs.getString(KEY_CODE_SNIPPETS, "{}").orEmpty())
+        } catch (_: Exception) {
+            JSONObject()
+        }
+        val names = mutableListOf("Paste code")
+        val snippets = mutableListOf<String?>(null)
+        val keys = saved.keys()
+        while (keys.hasNext()) {
+            val name = keys.next()
+            names += name
+            snippets += saved.optString(name)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("CODE SNIPPETS")
+            .setItems(names.toTypedArray()) { _, index ->
+                val snippet = snippets[index]
+                if (snippet == null) showCodePasteDialog()
+                else showSavedCodeSnippet(name = names[index], snippet = snippet)
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+    }
+
+    private fun showSavedCodeSnippet(name: String, snippet: String) {
+        AlertDialog.Builder(this)
+            .setTitle(name)
+            .setMessage("Insert this saved snippet into the chat draft? It will be sent as reference text and will not run as app code.")
+            .setNegativeButton("CANCEL", null)
+            .setNeutralButton("DELETE", null)
+            .setPositiveButton("INSERT", null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        val saved = try { JSONObject(prefs.getString(KEY_CODE_SNIPPETS, "{}").orEmpty()) }
+                            catch (_: Exception) { JSONObject() }
+                        saved.remove(name)
+                        prefs.edit().putString(KEY_CODE_SNIPPETS, saved.toString()).apply()
+                        dismiss()
+                        Toast.makeText(this@MainActivity, "Snippet deleted.", Toast.LENGTH_SHORT).show()
+                    }
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        addCodeToChatDraft(snippet)
+                        dismiss()
+                    }
+                }
+                show()
+            }
+    }
+
     private fun showCodePasteDialog() {
         val codeInput = EditText(this).apply {
             hint = "Paste code here (up to 20,000 characters)"
@@ -855,9 +910,16 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             .setMessage("The snippet is added to your next chat message as reference text. The app does not run or install pasted code.")
             .setView(container)
             .setNegativeButton("CANCEL", null)
+            .setNeutralButton("SAVE SNIPPET", null)
             .setPositiveButton("ADD TO CHAT", null)
             .create()
         dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                val snippet = codeInput.text.toString()
+                if (snippet.isBlank()) codeInput.error = "Paste code first"
+                else if (snippet.length > 20_000) codeInput.error = "Maximum length is 20,000 characters"
+                else showSaveCodeSnippetDialog(snippet)
+            }
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val snippet = codeInput.text.toString()
                 if (snippet.isBlank()) {
@@ -865,17 +927,54 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                 } else if (snippet.length > 20_000) {
                     codeInput.error = "Maximum length is 20,000 characters"
                 } else {
-                    val attachment = "Review or explain this pasted code as reference. Do not execute it:\n```text\n$snippet\n```"
-                    val existing = promptInput.text.toString().trim()
-                    promptInput.setText(if (existing.isEmpty()) attachment else "$existing\n\n$attachment")
-                    promptInput.setSelection(promptInput.text.length)
+                    addCodeToChatDraft(snippet)
                     dialog.dismiss()
-                    promptInput.requestFocus()
-                    Toast.makeText(this, "Code added to the chat draft.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
         dialog.show()
+    }
+
+    private fun showSaveCodeSnippetDialog(snippet: String) {
+        val nameInput = newToolInput("Snippet name", InputType.TYPE_CLASS_TEXT)
+        AlertDialog.Builder(this)
+            .setTitle("SAVE CODE SNIPPET")
+            .setView(nameInput)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("SAVE", null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val name = nameInput.text.toString().trim()
+                        if (name.isBlank() || name.length > 40) {
+                            nameInput.error = "Enter a name up to 40 characters"
+                            return@setOnClickListener
+                        }
+                        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        val saved = try { JSONObject(prefs.getString(KEY_CODE_SNIPPETS, "{}").orEmpty()) }
+                            catch (_: Exception) { JSONObject() }
+                        if (!saved.has(name) && saved.length() >= 20) {
+                            nameInput.error = "Delete a saved snippet first (limit: 20)"
+                            return@setOnClickListener
+                        }
+                        saved.put(name, snippet)
+                        prefs.edit().putString(KEY_CODE_SNIPPETS, saved.toString()).apply()
+                        dismiss()
+                        Toast.makeText(this@MainActivity, "Snippet saved on this device.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                show()
+            }
+    }
+
+    private fun addCodeToChatDraft(snippet: String) {
+        val attachment = "Review or explain this pasted code as reference. Do not execute it:\n```text\n$snippet\n```"
+        val existing = promptInput.text.toString().trim()
+        promptInput.setText(if (existing.isEmpty()) attachment else "$existing\n\n$attachment")
+        promptInput.setSelection(promptInput.text.length)
+        promptInput.requestFocus()
+        Toast.makeText(this, "Code added to the chat draft.", Toast.LENGTH_SHORT).show()
     }
 
     private fun runQuery(prompt: String, key: String, minimal: Boolean = false): ApiResult {
