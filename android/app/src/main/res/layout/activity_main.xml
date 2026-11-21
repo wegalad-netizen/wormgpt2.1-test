@@ -449,6 +449,13 @@
                     android:layout_height="36dp"
                     android:text="OFFICIAL BAN HELP" />
 
+                <Button
+                    android:id="@+id/unofficialInfoButton"
+                    style="@style/WormButton.Ghost"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="UNOFFICIAL CLIENT RISKS" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"

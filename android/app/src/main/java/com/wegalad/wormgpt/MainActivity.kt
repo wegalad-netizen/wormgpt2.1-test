@@ -14,6 +14,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -176,6 +179,9 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         waInput.setText(prefs.getString(KEY_WA_NUMBER, "").orEmpty())
         findViewById<Button>(R.id.waStatusButton).setOnClickListener { openWhatsAppStatus() }
         findViewById<Button>(R.id.waHelpButton).setOnClickListener { openWhatsAppHelp() }
+        findViewById<Button>(R.id.unofficialInfoButton).setOnClickListener {
+            showUnofficialClientInfo()
+        }
 
         promptInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -439,6 +445,43 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         }
     }
 
+    private fun showUnofficialClientInfo() {
+        AlertDialog.Builder(this)
+            .setTitle("UNOFFICIAL WHATSAPP CLIENTS")
+            .setMessage(
+                """
+                WhatsApp's Terms prohibit modified or unofficial clients, automation, bulk messaging/calling, and scraping.
+
+                Common ban triggers:
+                • Non-standard client or protocol behavior
+                • Automated or bulk messages and calls
+                • High report rates from recipients
+                • Scraping contacts or group data
+
+                Consequences:
+                • Temporary restriction or permanent ban
+                • The number may be unable to register again
+                • Appeals only through WhatsApp's official in-app review
+
+                This app does not embed or connect to any unofficial WhatsApp client. For legitimate automation, use the official WhatsApp Business app or the official Cloud API.
+                """.trimIndent(),
+            )
+            .setPositiveButton("OFFICIAL FAQ") { _, _ ->
+                try {
+                    startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://faq.whatsapp.com/1064395290901991"),
+                        ),
+                    )
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Could not open the FAQ.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+    }
+
     private fun playWelcome() {
         try {
             val player = MediaPlayer.create(this, R.raw.wormgpt_welcome) ?: return
@@ -522,7 +565,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                     appendChat("\n\n── ERROR\n${result.error}")
                 } else {
                     lastResponse = result.text.orEmpty()
-                    appendChat("\n\n── RESPONSE\n$lastResponse")
+                    appendChat("\n\n── RESPONSE\n$lastResponse", R.color.worm_green)
                 }
             }
         }
@@ -814,8 +857,19 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         }
     }
 
-    private fun appendChat(text: String) {
-        chatText.append(text)
+    private fun appendChat(text: String, colorRes: Int? = null) {
+        if (colorRes == null) {
+            chatText.append(text)
+        } else {
+            val colored = SpannableString(text)
+            colored.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(this, colorRes)),
+                0,
+                text.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            chatText.append(colored)
+        }
         val scroll = chatText.parent as? ScrollView ?: return
         scroll.post {
             scroll.fullScroll(ScrollView.FOCUS_DOWN)
