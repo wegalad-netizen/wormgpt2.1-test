@@ -17,7 +17,7 @@
         android:paddingTop="24dp"
         android:paddingBottom="10dp">
 
-        <!-- Compact WormGPT header with version and settings -->
+        <!-- Compact Sentinal Security header with version and settings -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -30,7 +30,7 @@
             <ImageView
                 android:layout_width="30dp"
                 android:layout_height="30dp"
-                android:contentDescription="WormGPT security icon"
+                android:contentDescription="Sentinal Security icon"
                 android:src="@drawable/security_shield_icon" />
 
             <TextView
@@ -52,7 +52,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:text="WormGPT"
+                android:text="Sentinal Security"
                 android:textColor="@color/worm_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -761,7 +761,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:paddingTop="10dp"
-                    android:text="WORMGPT // SECURITY TOOLS"
+                    android:text="SENTINAL SECURITY // TOOLS"
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
             </LinearLayout>
