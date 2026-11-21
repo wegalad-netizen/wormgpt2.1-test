@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">WormGPT</string>
+    <string name="app_name">Sentinel</string>
 
     <string name="welcome_chat"><![CDATA[
        ,-^-.        .-^-.
@@ -13,7 +13,7 @@
      \       / || \       /
       \_____/  \__/  \_____/
 
-WormGPT / Cybersecurity AI
+Sentinel / Security Tools
 
 Welcome, Master.
 RULER : MASTER
@@ -22,7 +22,7 @@ His word is absolute.
 Your security research question. Your next move.
 ]]></string>
 
-    <string name="prompt_hint">Message WormGPT…</string>
-    <string name="key_hint">WormGPT API key</string>
-    <string name="call_screening_description">WormGPT Spam Guard rejects incoming calls from numbers you block.</string>
+    <string name="prompt_hint">Message Sentinel…</string>
+    <string name="key_hint">API key</string>
+    <string name="call_screening_description">Sentinel Spam Guard rejects incoming calls from numbers you block.</string>
 </resources>

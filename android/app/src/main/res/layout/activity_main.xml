@@ -17,7 +17,7 @@
         android:paddingTop="24dp"
         android:paddingBottom="10dp">
 
-        <!-- Frosted pill header: mark + WormGPT + V4 chip + gear -->
+        <!-- Compact Sentinel header with version and settings -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -30,7 +30,7 @@
             <ImageView
                 android:layout_width="30dp"
                 android:layout_height="30dp"
-                android:contentDescription="WormGPT"
+                android:contentDescription="Sentinel security icon"
                 android:src="@drawable/circuit_skull_icon" />
 
             <TextView
@@ -52,7 +52,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:text="WormGPT"
+                android:text="Sentinel"
                 android:textColor="@color/worm_text"
                 android:textSize="17sp"
                 android:textStyle="bold" />
@@ -765,7 +765,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:paddingTop="10dp"
-                    android:text="WORMGPT // SECURITY TOOLS"
+                    android:text="SENTINEL // SECURITY TOOLS"
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
             </LinearLayout>
