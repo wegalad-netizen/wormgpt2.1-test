@@ -34,6 +34,12 @@ For a home-screen shortcut, copy `termux-widget/wormgpt` into `~/.shortcuts/` an
 
 - `exit`, `quit`, `q` — leave the app
 - `clear`, `cls` — clear the response area
+- `copy`, `cp` — copy the last response to the clipboard and `~/wormgpt_last_response.txt`
+- `save`, `export` — write the full transcript to `~/wormgpt_history.txt`
+- `prev`, `up`, `pgup` / `next`, `down`, `pgdn` — scroll through older/newer replies
+- `top`, `home` / `bottom`, `end` — jump to the oldest/newest reply
+
+Arrow keys, Home/End, and backspace work in the `Master ❯` prompt.
 
 ## Files
 

@@ -1,6 +1,7 @@
 """WormGPT full-screen terminal UI backed by the Gemini generateContent API."""
 
 import asyncio
+import base64
 import itertools
 import json
 import os
@@ -12,6 +13,11 @@ import time
 from typing import Callable
 from urllib.parse import urlencode
 
+try:
+    import readline  # noqa: F401  enables arrow keys / backspace in input()
+except ImportError:
+    pass
+
 import aiohttp
 
 # --- CONFIGURATION ---
@@ -21,6 +27,15 @@ MODEL = "gemini-3.1-flash-lite"
 API_KEY = os.environ.get("WORMGPT_API_KEY", "")
 EXIT_COMMANDS = {"exit", "quit", "q"}
 CLEAR_COMMANDS = {"clear", "cls"}
+COPY_COMMANDS = {"copy", "cp"}
+SAVE_COMMANDS = {"save", "export"}
+PREV_COMMANDS = {"prev", "up", "pgup"}
+NEXT_COMMANDS = {"next", "down", "pgdn"}
+TOP_COMMANDS = {"top", "home"}
+BOTTOM_COMMANDS = {"bottom", "end"}
+HOME_DIR = os.path.expanduser("~")
+COPY_FILE = os.path.join(HOME_DIR, "wormgpt_last_response.txt")
+HISTORY_FILE = os.path.join(HOME_DIR, "wormgpt_history.txt")
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=60)
 WELCOME_TEXT = "Welcome, Master."
 WELCOME_SOUND = os.path.join(
@@ -158,6 +173,32 @@ def play_welcome() -> None:
         pass
 
 
+def copy_to_clipboard(text: str) -> str:
+    """Copy text via OSC 52 and also save it to a plain text file."""
+    try:
+        payload = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        sys.stdout.write(f"\033]52;c;{payload}\a")
+        sys.stdout.flush()
+    except Exception:
+        pass
+    with open(COPY_FILE, "w", encoding="utf-8") as handle:
+        handle.write(text)
+    return COPY_FILE
+
+
+def save_history(history: list[dict]) -> str:
+    """Write the whole transcript to a plain text file."""
+    blocks = []
+    for item in history:
+        label = "RESPONSE" if item["ok"] else "ERROR"
+        blocks.append(
+            f"── {label} {item['turn']:02d}  {item['elapsed']:.1f}s\n{item['text']}\n"
+        )
+    with open(HISTORY_FILE, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(blocks))
+    return HISTORY_FILE
+
+
 # --- SCREENS ---
 
 def loading_screen() -> None:
@@ -201,7 +242,7 @@ def loading_screen() -> None:
     play_welcome()
 
 
-def draw_chat(history: list[dict], cols: int, rows: int) -> None:
+def draw_chat(history: list[dict], cols: int, rows: int, view_offset: int = 0) -> None:
     """Render the full-screen chat view."""
     clear_screen()
     write_at(
@@ -228,31 +269,39 @@ def draw_chat(history: list[dict], cols: int, rows: int) -> None:
             break
         write_at(row, center_line(f"{DIM_RED}{line}{RESET}", cols), cols)
 
-    lines: list[str] = []
-
+    entries: list[list[str]] = []
     for item in history:
         if item["ok"]:
-            lines.append(f"{DIM}── RESPONSE {item['turn']:02d}  {item['elapsed']:.1f}s{RESET}")
+            header = f"{DIM}── RESPONSE {item['turn']:02d}  {item['elapsed']:.1f}s{RESET}"
             color = GREEN
         else:
-            lines.append(f"{RED}── ERROR {item['turn']:02d}{RESET}")
+            header = f"{RED}── ERROR {item['turn']:02d}{RESET}"
             color = RED
+        entry = [header]
         for raw in item["text"].splitlines() or [""]:
-            lines.append(f"{color}{raw[:max(1, cols - 1)]}{RESET}")
-        lines.append("")
+            entry.append(f"{color}{raw[:max(1, cols - 1)]}{RESET}")
+        entry.append("")
+        entries.append(entry)
 
-    for offset, line in enumerate(lines[-capacity:]):
+    start = max(0, len(entries) - 1 - view_offset)
+    visible: list[str] = []
+    for entry in reversed(entries[start:]):
+        room = capacity - len(visible)
+        if room <= 0:
+            break
+        visible.extend(entry if len(entry) <= room else entry[-room:])
+    visible.reverse()
+
+    for offset, line in enumerate(visible):
         write_at(content_top + offset, line, cols)
 
     write_at(rows - 2, f"{RED}{'─' * cols}{RESET}", cols)
-    write_at(
-        rows - 1,
-        pad(
-            f"{DIM}His word is absolute. Commands: exit / quit / q / clear.{RESET}",
-            cols,
-        ),
-        cols,
+    view_info = f"  VIEW -{view_offset}" if history and view_offset else ""
+    hint = (
+        "His word is absolute. exit/q clear copy save prev/next/top/bottom"
+        + view_info
     )
+    write_at(rows - 1, pad(f"{DIM}{hint[:max(1, cols - 1)]}{RESET}", cols), cols)
     sys.stdout.flush()
 
 
@@ -353,14 +402,21 @@ def main() -> None:
     try:
         loading_screen()
         history: list[dict] = []
+        view_offset = 0
         draw_chat(history, *terminal_size())
         turn = 0
 
         while True:
             cols, rows = terminal_size()
-            user_prompt = read_prompt(cols, rows).strip()
 
-            if user_prompt.lower() in EXIT_COMMANDS:
+            def status(message: str, c: int = cols, r: int = rows) -> None:
+                write_at(r - 1, pad(f"{CYAN}[*]{RESET} {message}", c), c)
+                sys.stdout.flush()
+
+            user_prompt = read_prompt(cols, rows).strip()
+            command = user_prompt.lower()
+
+            if command in EXIT_COMMANDS:
                 write_at(
                     rows,
                     pad(
@@ -374,19 +430,53 @@ def main() -> None:
                 time.sleep(0.8)
                 break
 
-            if user_prompt.lower() in CLEAR_COMMANDS:
+            if command in CLEAR_COMMANDS:
                 history.clear()
-                draw_chat(history, *terminal_size())
+                view_offset = 0
+                draw_chat(history, *terminal_size(), view_offset)
+                continue
+
+            if command in COPY_COMMANDS:
+                if history:
+                    path = copy_to_clipboard(history[-1]["text"])
+                    status(f"Last response copied -> {path}")
+                else:
+                    status("Nothing to copy yet")
+                continue
+
+            if command in SAVE_COMMANDS:
+                path = save_history(history)
+                status(f"History saved -> {path}")
+                continue
+
+            if command in PREV_COMMANDS:
+                if history:
+                    view_offset = min(len(history) - 1, view_offset + 1)
+                    draw_chat(history, *terminal_size(), view_offset)
+                else:
+                    status("Nothing to scroll")
+                continue
+
+            if command in NEXT_COMMANDS:
+                view_offset = max(0, view_offset - 1)
+                draw_chat(history, *terminal_size(), view_offset)
+                continue
+
+            if command in TOP_COMMANDS:
+                view_offset = max(0, len(history) - 1)
+                draw_chat(history, *terminal_size(), view_offset)
+                continue
+
+            if command in BOTTOM_COMMANDS:
+                view_offset = 0
+                draw_chat(history, *terminal_size(), view_offset)
                 continue
 
             if not user_prompt:
                 continue
 
             turn += 1
-
-            def status(message: str, c: int = cols, r: int = rows) -> None:
-                write_at(r - 1, pad(f"{CYAN}[*]{RESET} {message}", c), c)
-                sys.stdout.flush()
+            view_offset = 0
 
             started = time.perf_counter()
             text, error = asyncio.run(runquery(user_prompt, status))
@@ -398,7 +488,7 @@ def main() -> None:
                     "ok": not error,
                 }
             )
-            draw_chat(history, *terminal_size())
+            draw_chat(history, *terminal_size(), view_offset)
     except (KeyboardInterrupt, EOFError):
         pass
     except Exception as e:
