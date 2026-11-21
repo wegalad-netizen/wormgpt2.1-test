@@ -23,6 +23,14 @@ The workflow triggers automatically on pushes to `master` that touch `android/`,
 
 Requirements: JDK 17, Android SDK Platform 35, Build Tools 35.0.0, Gradle 8.7. Android Studio installs all of these.
 
+## Automatic updates
+
+The app checks the public GitHub Release named `latest` when it opens. If a newer APK is published, it offers to download and install it. You can also tap **UPDATE** any time to check manually.
+
+- Download URL: `https://github.com/wegalad-netizen/wormgpt2.1-test/releases/latest`
+- Android 8+ requires the **Install unknown apps** permission for the app that opens the installer; grant it when prompted.
+- Choosing **Later** skips that specific build until you tap **UPDATE** manually.
+
 ## Notes
 
 - Minimum Android version: 7.0 (API 24).
