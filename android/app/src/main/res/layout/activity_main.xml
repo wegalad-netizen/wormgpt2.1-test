@@ -211,6 +211,14 @@
                 android:layout_marginStart="6dp"
                 android:text="CLEAR" />
         </LinearLayout>
+
+        <Button
+            android:id="@+id/securityToolsButton"
+            style="@style/WormButton.Outline"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
+            android:text="SECURITY TOOLS" />
     </LinearLayout>
 
     <!-- SETTINGS DRAWER (sidebar style) -->
@@ -295,6 +303,59 @@
                     android:layout_height="38dp"
                     android:layout_marginTop="6dp"
                     android:text="TEST CONNECTION" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="OPTIONAL REPUTATION API KEYS"
+                    android:textColor="@color/worm_red_bright"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/safeBrowsingKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/card_bg"
+                    android:hint="Google Safe Browsing API key"
+                    android:inputType="textPassword"
+                    android:padding="10dp"
+                    android:singleLine="true"
+                    android:textColor="@color/worm_text"
+                    android:textColorHint="@color/worm_faint"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/virusTotalKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/card_bg"
+                    android:hint="VirusTotal API key"
+                    android:inputType="textPassword"
+                    android:padding="10dp"
+                    android:singleLine="true"
+                    android:textColor="@color/worm_text"
+                    android:textColorHint="@color/worm_faint"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/saveSecurityKeysButton"
+                    style="@style/WormButton.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:layout_marginTop="6dp"
+                    android:text="SAVE SECURITY KEYS" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="URL checks send URLs to Google. File reputation sends only the SHA-256 hash to VirusTotal; files stay on this device."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
 
                 <View
                     android:layout_width="match_parent"

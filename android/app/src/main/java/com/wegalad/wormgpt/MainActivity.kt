@@ -16,7 +16,10 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.Spannable
 import android.text.SpannableString
+import android.text.InputType
 import android.text.style.ForegroundColorSpan
+import android.text.method.HideReturnsTransformationMethod
+import android.text.method.PasswordTransformationMethod
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -55,6 +58,8 @@ import java.io.IOException
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.Proxy
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -62,6 +67,8 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val PREFS_NAME = "wormgpt_prefs"
         const val KEY_API = "api_key"
+        const val KEY_SAFE_BROWSING = "safe_browsing_api_key"
+        const val KEY_VIRUSTOTAL = "virustotal_api_key"
         const val KEY_WA_NUMBER = "wa_number"
         const val KEY_LAST_RELEASE = "last_release"
         const val KEY_SKIPPED_RELEASE = "skipped_release"
@@ -94,6 +101,8 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     private var stickToBottom = true
     private lateinit var promptInput: EditText
     private lateinit var apiKeyInput: EditText
+    private lateinit var safeBrowsingKeyInput: EditText
+    private lateinit var virusTotalKeyInput: EditText
     private lateinit var guardStatus: TextView
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
@@ -101,6 +110,11 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     private lateinit var smsGuardSwitch: Switch
     private var syncingGuardSwitches = false
     private var lastResponse: String = ""
+
+    private val chooseReputationFile =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let(::lookupFileReputation)
+        }
 
     private val requestGuardPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
@@ -180,6 +194,10 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
 
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         apiKeyInput.setText(prefs.getString(KEY_API, "").orEmpty())
+        safeBrowsingKeyInput = findViewById(R.id.safeBrowsingKeyInput)
+        virusTotalKeyInput = findViewById(R.id.virusTotalKeyInput)
+        safeBrowsingKeyInput.setText(prefs.getString(KEY_SAFE_BROWSING, "").orEmpty())
+        virusTotalKeyInput.setText(prefs.getString(KEY_VIRUSTOTAL, "").orEmpty())
 
         guardStatus = findViewById(R.id.guardStatus)
         keywordSwitch = findViewById(R.id.keywordSwitch)
@@ -209,6 +227,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             drawerLayout.closeDrawers()
         }
         findViewById<Button>(R.id.saveKeyButton).setOnClickListener { saveKey() }
+        findViewById<Button>(R.id.saveSecurityKeysButton).setOnClickListener { saveSecurityKeys() }
         findViewById<Button>(R.id.testConnectionButton).setOnClickListener { testConnection() }
         findViewById<Button>(R.id.updateButton).setOnClickListener {
             drawerLayout.closeDrawers()
@@ -219,6 +238,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         findViewById<Button>(R.id.copyButton).setOnClickListener { copyLastResponse() }
         findViewById<Button>(R.id.saveButton).setOnClickListener { saveTranscript() }
         findViewById<Button>(R.id.clearButton).setOnClickListener { clearChat() }
+        findViewById<Button>(R.id.securityToolsButton).setOnClickListener { showSecurityTools() }
         findViewById<Button>(R.id.blocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.spamLogButton).setOnClickListener { showSpamLogDialog() }
         findViewById<Button>(R.id.simulateButton).setOnClickListener { runSpamSimulation() }
@@ -948,6 +968,363 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         chatText.text = getString(R.string.welcome_chat)
         lastResponse = ""
         chatScroll.post { chatScroll.fullScroll(ScrollView.FOCUS_UP) }
+    }
+
+    private fun saveSecurityKeys() {
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_SAFE_BROWSING, safeBrowsingKeyInput.text.toString().trim())
+            .putString(KEY_VIRUSTOTAL, virusTotalKeyInput.text.toString().trim())
+            .apply()
+        Toast.makeText(this, "Security API keys saved on this device.", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showSecurityTools() {
+        val tools = arrayOf(
+            "LINK SAFETY CHECK",
+            "PASSWORD CHECK / GENERATE",
+            "FILE HASH REPUTATION",
+            "PHISHING MESSAGE REVIEW",
+        )
+        AlertDialog.Builder(this)
+            .setTitle("SECURITY TOOLS")
+            .setItems(tools) { _, index ->
+                when (index) {
+                    0 -> showLinkSafetyChecker()
+                    1 -> showPasswordTool()
+                    2 -> chooseReputationFile.launch("*/*")
+                    3 -> showPhishingReview()
+                }
+            }
+            .show()
+    }
+
+    private fun newToolInput(hint: String, inputType: Int): EditText = EditText(this).apply {
+        this.hint = hint
+        this.inputType = inputType
+        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_text))
+        setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_faint))
+        setTextSize(16f)
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        setBackgroundResource(R.drawable.input_bg)
+    }
+
+    private fun showLinkSafetyChecker() {
+        val urlInput = newToolInput(
+            "https://example.com/path",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
+        )
+        AlertDialog.Builder(this)
+            .setTitle("LINK SAFETY CHECK")
+            .setMessage("The URL is sent to Google Safe Browsing when an API key is configured.")
+            .setView(urlInput)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("CHECK", null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val url = urlInput.text.toString().trim()
+                        if (url.isBlank()) {
+                            urlInput.error = "Enter a URL"
+                        } else {
+                            dismiss()
+                            checkUrlSafety(url)
+                        }
+                    }
+                }
+                show()
+            }
+    }
+
+    private fun localUrlWarnings(url: String): List<String> {
+        val parsed = Uri.parse(url)
+        val host = parsed.host.orEmpty().lowercase()
+        val warnings = mutableListOf<String>()
+        if (parsed.scheme?.lowercase() != "https") warnings += "The link does not use HTTPS."
+        if (parsed.encodedAuthority?.contains('@') == true) {
+            warnings += "The link contains user information before the host."
+        }
+        if (host.startsWith("xn--") || host.split('.').any { it.startsWith("xn--") }) {
+            warnings += "The host uses an internationalized (punycode) domain. Check its spelling carefully."
+        }
+        if (host in setOf("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "ow.ly")) {
+            warnings += "This is a shortened link, so its destination is hidden."
+        }
+        if (host.matches(Regex("\\d{1,3}(\\.\\d{1,3}){3}"))) {
+            warnings += "The link uses a numeric IP address instead of a domain name."
+        }
+        return warnings
+    }
+
+    private fun checkUrlSafety(rawUrl: String) {
+        val parsed = Uri.parse(rawUrl)
+        val scheme = parsed.scheme?.lowercase()
+        if (parsed.host.isNullOrBlank() || (scheme != "http" && scheme != "https")) {
+            showToolResult("LINK SAFETY", "Enter a complete http:// or https:// URL.")
+            return
+        }
+        val key = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_SAFE_BROWSING, "").orEmpty()
+        val localWarnings = localUrlWarnings(rawUrl)
+        if (key.isBlank()) {
+            val localResult = if (localWarnings.isEmpty()) {
+                "No simple warning signs were found locally. This does not prove the link is safe."
+            } else {
+                localWarnings.joinToString("\n• ", prefix = "Local warning signs:\n• ")
+            }
+            showToolResult(
+                "LOCAL LINK REVIEW",
+                "$localResult\n\nAdd a Google Safe Browsing API key in Settings for a threat-list check.",
+            )
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val remote = try {
+                val endpoint = HttpUrl.Builder()
+                    .scheme("https")
+                    .host("safebrowsing.googleapis.com")
+                    .addPathSegments("v4/threatMatches:find")
+                    .addQueryParameter("key", key)
+                    .build()
+                val threatTypes = JSONArray()
+                    .put("MALWARE")
+                    .put("SOCIAL_ENGINEERING")
+                    .put("UNWANTED_SOFTWARE")
+                    .put("POTENTIALLY_HARMFUL_APPLICATION")
+                val payload = JSONObject()
+                    .put(
+                        "client",
+                        JSONObject()
+                            .put("clientId", "wormgpt-android")
+                            .put("clientVersion", packageManager.getPackageInfo(packageName, 0).versionName),
+                    )
+                    .put(
+                        "threatInfo",
+                        JSONObject()
+                            .put("threatTypes", threatTypes)
+                            .put("platformTypes", JSONArray().put("ANY_PLATFORM"))
+                            .put("threatEntryTypes", JSONArray().put("URL"))
+                            .put("threatEntries", JSONArray().put(JSONObject().put("url", rawUrl))),
+                    )
+                val request = Request.Builder()
+                    .url(endpoint)
+                    .post(payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .build()
+                updateClient.newCall(request).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        "Safe Browsing request failed (HTTP ${response.code}). Check the API key and API access."
+                    } else {
+                        val matches = JSONObject(body).optJSONArray("matches")
+                        if (matches == null || matches.length() == 0) {
+                            "No match in Google Safe Browsing lists. This is not a guarantee that the URL is safe."
+                        } else {
+                            val types = (0 until matches.length()).mapNotNull { index ->
+                                matches.optJSONObject(index)?.optString("threatType")
+                            }.distinct()
+                            "WARNING: Google Safe Browsing reports this URL as a threat.\nThreat types: ${types.joinToString()}"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                "Could not check the URL: ${e.message ?: e.javaClass.simpleName}"
+            }
+            withContext(Dispatchers.Main) {
+                val localText = if (localWarnings.isEmpty()) "No local warning signs found."
+                    else localWarnings.joinToString("\n• ", prefix = "Local signs:\n• ")
+                showToolResult("LINK SAFETY RESULT", "$remote\n\n$localText")
+            }
+        }
+    }
+
+    private fun showPasswordTool() {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(10), dp(22), dp(8))
+        }
+        val password = newToolInput("Password (checked only on this device)", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val result = TextView(this).apply {
+            text = "Strength estimate: not checked"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_green))
+            textSize = 13f
+            setPadding(0, dp(10), 0, 0)
+        }
+        val visibility = Button(this).apply {
+            text = "SHOW PASSWORD"
+            setOnClickListener {
+                val show = password.transformationMethod is PasswordTransformationMethod
+                password.transformationMethod = if (show) HideReturnsTransformationMethod.getInstance()
+                    else PasswordTransformationMethod.getInstance()
+                password.setSelection(password.text.length)
+                this.text = if (show) "HIDE PASSWORD" else "SHOW PASSWORD"
+            }
+        }
+        layout.addView(password)
+        layout.addView(visibility)
+        layout.addView(result)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("OFFLINE PASSWORD TOOL")
+            .setMessage("The password stays on this device and is never sent to WormGPT.")
+            .setView(layout)
+            .setNegativeButton("DONE", null)
+            .setNeutralButton("CHECK", null)
+            .setPositiveButton("GENERATE", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                result.text = "Strength estimate: ${estimatePasswordStrength(password.text.toString())}"
+            }
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                password.setText(generatePassword())
+                result.text = "Generated locally. Strength estimate: ${estimatePasswordStrength(password.text.toString())}"
+            }
+        }
+        dialog.show()
+    }
+
+    private fun estimatePasswordStrength(value: String): String {
+        val common = setOf("password", "password123", "12345678", "qwerty123", "letmein", "admin123")
+        val classes = listOf(
+            value.any { it.isLowerCase() },
+            value.any { it.isUpperCase() },
+            value.any { it.isDigit() },
+            value.any { !it.isLetterOrDigit() },
+        ).count { it }
+        return when {
+            value.isEmpty() -> "empty"
+            value.lowercase() in common || value.length < 8 -> "weak"
+            value.length >= 16 && classes >= 3 -> "strong"
+            value.length >= 12 && classes >= 3 -> "good"
+            value.length >= 10 && classes >= 2 -> "fair"
+            else -> "weak"
+        }
+    }
+
+    private fun generatePassword(): String {
+        val random = SecureRandom()
+        val groups = listOf(
+            "ABCDEFGHJKLMNPQRSTUVWXYZ",
+            "abcdefghijkmnopqrstuvwxyz",
+            "23456789",
+            "!@#$%^&*()-_=+",
+        )
+        val all = groups.joinToString("")
+        val chars = groups.map { group -> group[random.nextInt(group.length)] }.toMutableList()
+        repeat(16 - chars.size) { chars += all[random.nextInt(all.length)] }
+        chars.shuffle(random)
+        return chars.joinToString("")
+    }
+
+    private fun showPhishingReview() {
+        val messageInput = newToolInput(
+            "Paste the suspicious message here",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
+        ).apply {
+            minLines = 4
+            gravity = Gravity.TOP
+            setSingleLine(false)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("LOCAL PHISHING REVIEW")
+            .setMessage("Analysis stays on this device. It checks common warning signs, not whether a message is definitely safe.")
+            .setView(messageInput)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("REVIEW", null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val message = messageInput.text.toString()
+                        if (message.isBlank()) {
+                            messageInput.error = "Paste a message to review"
+                        } else {
+                            dismiss()
+                            showToolResult("PHISHING REVIEW", analyzePhishingMessage(message))
+                        }
+                    }
+                }
+                show()
+            }
+    }
+
+    private fun analyzePhishingMessage(message: String): String {
+        val text = message.lowercase()
+        val signs = mutableListOf<String>()
+        if (Regex("https?://|www\\.", RegexOption.IGNORE_CASE).containsMatchIn(message)) {
+            signs += "Contains a web link. Verify the destination independently before opening it."
+        }
+        if (listOf("urgent", "immediately", "within 24 hours", "act now", "account suspended", "final warning")
+                .any { text.contains(it) }) signs += "Uses urgency or threat language."
+        if (listOf("password", "one-time code", "verification code", " otp", "sign in", "login")
+                .any { text.contains(it) }) signs += "May be trying to obtain account credentials or a one-time code."
+        if (listOf("gift card", "wire transfer", "crypto", "payment", "bank details")
+                .any { text.contains(it) }) signs += "Requests money, payment details, or an unusual payment method."
+        if (listOf("prize", "you won", "claim your reward", "free money")
+                .any { text.contains(it) }) signs += "Promises a prize or reward."
+        return if (signs.isEmpty()) {
+            "No common warning signs matched. That does not prove the message is genuine. Verify requests using a contact method you already trust."
+        } else {
+            signs.joinToString("\n• ", prefix = "Possible warning signs:\n• ") +
+                "\n\nDo not share passwords or one-time codes. Contact the organization through its official app or a number you already know."
+        }
+    }
+
+    private fun lookupFileReputation(uri: Uri) {
+        val key = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_VIRUSTOTAL, "").orEmpty()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = try {
+                val digest = MessageDigest.getInstance("SHA-256")
+                val input = contentResolver.openInputStream(uri)
+                    ?: throw IOException("Could not read this file")
+                input.use { stream ->
+                    val buffer = ByteArray(16 * 1024)
+                    while (true) {
+                        val count = stream.read(buffer)
+                        if (count < 0) break
+                        digest.update(buffer, 0, count)
+                    }
+                }
+                val hash = digest.digest().joinToString("") { "%02x".format(it) }
+                if (key.isBlank()) {
+                    "SHA-256: $hash\n\nNo VirusTotal API key is set, so no reputation lookup was made. The file was not uploaded."
+                } else {
+                    val request = Request.Builder()
+                        .url("https://www.virustotal.com/api/v3/files/$hash")
+                        .header("x-apikey", key)
+                        .header("Accept", "application/json")
+                        .build()
+                    updateClient.newCall(request).execute().use { response ->
+                        if (response.code == 404) {
+                            "SHA-256: $hash\n\nVirusTotal has no existing report for this file. The file was not uploaded."
+                        } else if (!response.isSuccessful) {
+                            "SHA-256: $hash\n\nVirusTotal lookup failed (HTTP ${response.code}). Check the API key. The file was not uploaded."
+                        } else {
+                            val body = JSONObject(response.body?.string().orEmpty())
+                            val attributes = body.optJSONObject("data")?.optJSONObject("attributes")
+                                ?: JSONObject()
+                            val stats = attributes.optJSONObject("last_analysis_stats") ?: JSONObject()
+                            "SHA-256: $hash\n" +
+                                "Malicious: ${stats.optInt("malicious")}  |  Suspicious: ${stats.optInt("suspicious")}\n" +
+                                "Harmless: ${stats.optInt("harmless")}  |  Undetected: ${stats.optInt("undetected")}\n\n" +
+                                "This uses an existing VirusTotal report only. The file was not uploaded."
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                "File check failed: ${e.message ?: e.javaClass.simpleName}"
+            }
+            withContext(Dispatchers.Main) { showToolResult("FILE REPUTATION", result) }
+        }
+    }
+
+    private fun showToolResult(title: String, message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun setBusy(busy: Boolean) {
