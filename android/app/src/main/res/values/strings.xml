@@ -24,4 +24,5 @@ Your security research question. Your next move.
 
     <string name="prompt_hint">Message WormGPT…</string>
     <string name="key_hint">WormGPT API key</string>
+    <string name="call_screening_description">WormGPT Spam Guard rejects incoming calls from numbers you block.</string>
 </resources>

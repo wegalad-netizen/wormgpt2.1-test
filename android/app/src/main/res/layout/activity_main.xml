@@ -196,103 +196,221 @@
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:background="#0A0506"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
 
-        <TextView
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:letterSpacing="0.15"
-            android:text="SEEKER OF TRUTH"
-            android:textColor="@color/worm_red_bright"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="SYSTEM CONTROL"
-            android:textColor="@color/worm_faint"
-            android:textSize="10sp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginVertical="12dp"
-            android:background="@color/worm_border" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="API KEY"
-            android:textColor="@color/worm_red_bright"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <EditText
-            android:id="@+id/apiKeyInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:background="@drawable/card_bg"
-            android:hint="@string/key_hint"
-            android:inputType="textPassword"
-            android:padding="12dp"
-            android:singleLine="true"
-            android:textColor="@color/worm_text"
-            android:textColorHint="@color/worm_faint"
-            android:textSize="13sp" />
-
-        <Button
-            android:id="@+id/saveKeyButton"
-            style="@style/WormButton"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="8dp"
-            android:text="SAVE KEY" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginVertical="14dp"
-            android:background="@color/worm_border" />
-
-        <Button
-            android:id="@+id/updateButton"
-            style="@style/WormButton.Outline"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:text="CHECK FOR UPDATES" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="Auto-checks on launch. Pull from the right edge to open this panel."
-            android:textColor="@color/worm_faint"
-            android:textSize="10sp" />
-
-        <View
-            android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1"
+            android:fillViewport="true"
+            android:padding="16dp"
+            android:scrollbars="vertical">
 
-        <Button
-            android:id="@+id/closeSettingsButton"
-            style="@style/WormButton.Ghost"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:text="CLOSE" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingTop="10dp"
-            android:text="WORMGPT V4 // CYBERSECURITY AI"
-            android:textColor="@color/worm_faint"
-            android:textSize="9sp" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.15"
+                    android:text="SEEKER OF TRUTH"
+                    android:textColor="@color/worm_red_bright"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="SYSTEM CONTROL"
+                    android:textColor="@color/worm_faint"
+                    android:textSize="10sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="12dp"
+                    android:background="@color/worm_border" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="API KEY"
+                    android:textColor="@color/worm_red_bright"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/apiKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/card_bg"
+                    android:hint="@string/key_hint"
+                    android:inputType="textPassword"
+                    android:padding="12dp"
+                    android:singleLine="true"
+                    android:textColor="@color/worm_text"
+                    android:textColorHint="@color/worm_faint"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/saveKeyButton"
+                    style="@style/WormButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="8dp"
+                    android:text="SAVE KEY" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="14dp"
+                    android:background="@color/worm_border" />
+
+                <Button
+                    android:id="@+id/updateButton"
+                    style="@style/WormButton.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="CHECK FOR UPDATES" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:text="Auto-checks on launch. Pull from the right edge to open this panel."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="10sp" />
+
+                <!-- SPAM GUARD -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="8dp"
+                    android:background="@color/worm_border" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.12"
+                    android:text="SPAM GUARD"
+                    android:textColor="@color/worm_red_bright"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/guardStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:lineSpacingExtra="2dp"
+                    android:text="CALL GUARD: OFF   |   SMS GUARD: OFF"
+                    android:textColor="@color/worm_green"
+                    android:textSize="10sp" />
+
+                <Button
+                    android:id="@+id/callGuardButton"
+                    style="@style/WormButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="10dp"
+                    android:text="ENABLE CALL GUARD" />
+
+                <Button
+                    android:id="@+id/smsGuardButton"
+                    style="@style/WormButton.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="6dp"
+                    android:text="ENABLE SMS GUARD" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/blocklistButton"
+                        style="@style/WormButton.Outline"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:text="BLOCKLIST" />
+
+                    <Button
+                        android:id="@+id/spamLogButton"
+                        style="@style/WormButton.Outline"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:layout_marginStart="6dp"
+                        android:text="SPAM LOG" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/keywordSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:buttonTint="@color/worm_red"
+                    android:switchMinWidth="34dp"
+                    android:text="KEYWORD FILTER"
+                    android:textColor="@color/worm_text"
+                    android:textSize="11sp" />
+
+                <Switch
+                    android:id="@+id/unknownSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:buttonTint="@color/worm_red"
+                    android:switchMinWidth="34dp"
+                    android:text="BLOCK HIDDEN NUMBERS"
+                    android:textColor="@color/worm_text"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="6dp"
+                    android:text="Incoming calls from your blocklist are rejected. Spam SMS gets a warning — Android does not let third-party apps delete messages."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+
+                <Button
+                    android:id="@+id/simulateButton"
+                    style="@style/WormButton.Ghost"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:text="RUN LOCAL SIMULATION" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="12dp"
+                    android:background="@color/worm_border" />
+
+                <Button
+                    android:id="@+id/closeSettingsButton"
+                    style="@style/WormButton.Ghost"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="CLOSE" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingTop="10dp"
+                    android:text="WORMGPT V4 // CYBERSECURITY AI"
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+            </LinearLayout>
+        </ScrollView>
     </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>
