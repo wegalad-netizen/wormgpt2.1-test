@@ -526,7 +526,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="No public ban-check API exists. This opens your number in WhatsApp — a banned number shows “This phone number can't use WhatsApp” with a review option."
+                    android:text="No public ban-check API exists. To check your own account, open the official WhatsApp app and read any account restriction notice. This check does not send your number to a third party."
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 
@@ -551,6 +551,14 @@
                     android:layout_height="38dp"
                     android:layout_marginTop="6dp"
                     android:text="OPEN WA.ME" />
+
+                <Button
+                    android:id="@+id/waBanCheckButton"
+                    style="@style/WormButton.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="6dp"
+                    android:text="CHECK MY STATUS IN WHATSAPP" />
 
                 <Button
                     android:id="@+id/waHelpButton"

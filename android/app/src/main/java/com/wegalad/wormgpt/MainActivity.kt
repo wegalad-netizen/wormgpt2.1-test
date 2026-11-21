@@ -267,6 +267,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         val waInput = findViewById<EditText>(R.id.waNumberInput)
         waInput.setText(prefs.getString(KEY_WA_NUMBER, "").orEmpty())
         findViewById<Button>(R.id.waStatusButton).setOnClickListener { openWhatsAppStatus() }
+        findViewById<Button>(R.id.waBanCheckButton).setOnClickListener { openWhatsAppForAccountCheck() }
         findViewById<Button>(R.id.waHelpButton).setOnClickListener { openWhatsAppHelp() }
         findViewById<Button>(R.id.unofficialInfoButton).setOnClickListener {
             showUnofficialClientInfo()
@@ -701,6 +702,15 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         } catch (e: Exception) {
             Toast.makeText(this, "Could not open help: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun openWhatsAppForAccountCheck() {
+        val launchIntent = packageManager.getLaunchIntentForPackage("com.whatsapp")
+        if (launchIntent == null) {
+            Toast.makeText(this, "Official WhatsApp is not installed. Use OFFICIAL BAN HELP for support.", Toast.LENGTH_LONG).show()
+            return
+        }
+        startActivity(launchIntent)
     }
 
     private fun showUnofficialClientInfo() {
