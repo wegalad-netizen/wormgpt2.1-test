@@ -280,7 +280,9 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                     decor.getLocationOnScreen(decorPosition)
                     composer.getLocationOnScreen(composerPosition)
                     val keyboardTop = decorPosition[1] + decor.height - ime.bottom
-                    val overlap = composerPosition[1] + composer.height - keyboardTop
+                    val composerBottom = composerPosition[1] + composer.height -
+                        composer.translationY.toInt()
+                    val overlap = composerBottom - keyboardTop
                     composer.translationY = -overlap.coerceAtLeast(0).toFloat()
                 }
             }

@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val buildNumber = providers.gradleProperty("BUILD_NUMBER").orNull?.toIntOrNull()
+    ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+    ?: 1
+
 android {
     namespace = "com.wegalad.wormgpt"
     compileSdk = 35
@@ -21,8 +25,8 @@ android {
         applicationId = "com.wegalad.wormgpt"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "2.1"
+        versionCode = buildNumber
+        versionName = "2.1.$buildNumber"
     }
 
     buildTypes {
