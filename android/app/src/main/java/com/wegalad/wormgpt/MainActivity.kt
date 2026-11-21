@@ -186,6 +186,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         findViewById<ImageButton>(R.id.settingsButton).setOnClickListener {
             drawerLayout.openDrawer(Gravity.END)
         }
+        findViewById<Button>(R.id.ownerButton).setOnClickListener { showOwnerPage() }
         findViewById<Button>(R.id.closeSettingsButton).setOnClickListener {
             drawerLayout.closeDrawers()
         }
@@ -267,6 +268,87 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             imm?.showSoftInput(promptInput, InputMethodManager.SHOW_IMPLICIT)
         }
     }
+
+    private fun showOwnerPage() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(20), dp(22), dp(18))
+            setBackgroundColor(0xFF100404.toInt())
+        }
+        content.addView(TextView(this).apply {
+            text = "OWNER PROFILE"
+            setTextColor(0xFFEF4444.toInt())
+            textSize = 11f
+            letterSpacing = 0.14f
+        })
+        content.addView(TextView(this).apply {
+            text = "Seeker Of Truth"
+            setTextColor(0xFFFAFAFA.toInt())
+            textSize = 25f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, dp(8), 0, dp(4))
+        })
+        content.addView(TextView(this).apply {
+            text = "WormGPT owner"
+            setTextColor(0xFFA1A1AA.toInt())
+            textSize = 14f
+            setPadding(0, 0, 0, dp(20))
+        })
+        content.addView(TextView(this).apply {
+            text = "SOCIAL PROFILES"
+            setTextColor(0xFFEF4444.toInt())
+            textSize = 11f
+            letterSpacing = 0.12f
+            setPadding(0, 0, 0, dp(8))
+        })
+        val profiles = mapOf(
+            "TikTok" to "https://www.tiktok.com/@sad.developer0?_r=1&_t=ZS-9Bac24QcWwM",
+            "WhatsApp" to "https://wa.me/94705345029",
+            "Telegram" to "https://t.me/+94724085416",
+        )
+        profiles.forEach { (platform, url) ->
+            val row = TextView(this).apply {
+                text = when (platform) {
+                    "TikTok" -> "$platform     ↗     @sad.developer0"
+                    "WhatsApp" -> "$platform     ↗     +94 70 534 5029"
+                    "Telegram" -> "$platform     ↗     +94 72 408 5416"
+                    else -> "$platform     •     Profile link not set"
+                }
+                setTextColor(0xFFFAFAFA.toInt())
+                textSize = 14f
+                setPadding(dp(14), dp(14), dp(14), dp(14))
+                setBackgroundResource(R.drawable.card_bg)
+                if (url != null) {
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener {
+                        try {
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        } catch (_: Exception) {
+                            Toast.makeText(this@MainActivity, "Could not open $platform.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            val params = LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = dp(8)
+            }
+            content.addView(row, params)
+        }
+        content.addView(TextView(this).apply {
+            text = "Tap a social card to open the owner’s profile or contact."
+            setTextColor(0xFF71717A.toInt())
+            textSize = 12f
+            setPadding(0, dp(8), 0, 0)
+        })
+        AlertDialog.Builder(this)
+            .setView(content)
+            .setPositiveButton("DONE", null)
+            .show()
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density + 0.5f).toInt()
 
     private fun updateGuardStatus() {
         if (!::guardStatus.isInitialized) return
