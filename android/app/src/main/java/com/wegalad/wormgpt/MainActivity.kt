@@ -9,14 +9,17 @@ import android.content.SharedPreferences
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -59,6 +62,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     private data class CodeBlock(val lang: String, val code: String)
     private data class UpdateInfo(val id: String, val downloadUrl: String)
 
+    private lateinit var drawerLayout: DrawerLayout
     private lateinit var chatText: TextView
     private lateinit var promptInput: EditText
     private lateinit var apiKeyInput: EditText
@@ -74,15 +78,24 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        drawerLayout = findViewById(R.id.drawerLayout)
         chatText = findViewById(R.id.chatText)
         promptInput = findViewById(R.id.promptInput)
         apiKeyInput = findViewById(R.id.apiKeyInput)
+        drawerLayout.setScrimColor(0x99000000.toInt())
 
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         apiKeyInput.setText(prefs.getString(KEY_API, "").orEmpty())
 
+        findViewById<ImageButton>(R.id.settingsButton).setOnClickListener {
+            drawerLayout.openDrawer(Gravity.END)
+        }
+        findViewById<Button>(R.id.closeSettingsButton).setOnClickListener {
+            drawerLayout.closeDrawers()
+        }
         findViewById<Button>(R.id.saveKeyButton).setOnClickListener { saveKey() }
         findViewById<Button>(R.id.updateButton).setOnClickListener {
+            drawerLayout.closeDrawers()
             checkForUpdate(manual = true)
         }
         findViewById<Button>(R.id.sendButton).setOnClickListener { sendPrompt() }

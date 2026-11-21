@@ -33,6 +33,7 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 
 ## Notes
 
+- UI: dark neon “ArchonX-style” panels with a gear icon in the header. Pull from the right edge (or tap the gear) to open the settings drawer containing the API key field and **CHECK FOR UPDATES**.
 - Launcher icon: red oni/ox mask with adaptive-icon support on Android 8+.
 - Minimum Android version: 7.0 (API 24).
 - Permissions used: `INTERNET`, `ACCESS_NETWORK_STATE`, `REQUEST_INSTALL_PACKAGES`, and legacy storage read/write on Android 9 and below. No contacts, SMS, location, camera, or microphone access.

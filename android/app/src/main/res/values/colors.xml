@@ -3,6 +3,8 @@
     <color name="worm_red">#B71C1C</color>
     <color name="worm_red_dark">#7F0000</color>
     <color name="worm_green">#00FF66</color>
-    <color name="worm_bg">#0A0000</color>
+    <color name="worm_bg">#050000</color>
+    <color name="worm_panel">#140404</color>
+    <color name="worm_neon">#39FF14</color>
     <color name="worm_text">#E0FFE0</color>
 </resources>
