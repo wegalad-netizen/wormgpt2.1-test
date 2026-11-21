@@ -265,16 +265,18 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            findViewById<View>(R.id.toolChips).visibility = if (
-                insets.isVisible(WindowInsetsCompat.Type.ime())
-            ) View.GONE else View.VISIBLE
+            val keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            val contentVisibility = if (keyboardVisible) View.GONE else View.VISIBLE
+            findViewById<View>(R.id.appHeader).visibility = contentVisibility
+            findViewById<View>(R.id.rulerTag).visibility = contentVisibility
+            findViewById<View>(R.id.toolChips).visibility = contentVisibility
             view.setPadding(
                 bars.left,
                 bars.top,
                 bars.right,
                 maxOf(bars.bottom, ime.bottom),
             )
-            insets
+            WindowInsetsCompat.CONSUMED
         }
         ViewCompat.requestApplyInsets(root)
     }
