@@ -7,6 +7,16 @@ android {
     namespace = "com.wegalad.wormgpt"
     compileSdk = 35
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("wormgpt-debug.jks")
+            storePassword = "wormgpt123"
+            keyAlias = "wormgpt"
+            keyPassword = "wormgpt123"
+            storeType = "pkcs12"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.wegalad.wormgpt"
         minSdk = 24
@@ -16,6 +26,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(
