@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.WormGPT" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/worm_red</item>
+        <item name="colorPrimaryDark">@color/worm_red_dark</item>
+        <item name="colorAccent">@color/worm_green</item>
+        <item name="android:windowBackground">@color/worm_bg</item>
+        <item name="android:textColorPrimary">@color/worm_text</item>
+        <item name="android:textColorSecondary">@color/worm_green</item>
+    </style>
+
+</resources>

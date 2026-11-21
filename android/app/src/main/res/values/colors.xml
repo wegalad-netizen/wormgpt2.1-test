@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="worm_red">#B71C1C</color>
+    <color name="worm_red_dark">#7F0000</color>
+    <color name="worm_green">#00FF66</color>
+    <color name="worm_bg">#0A0000</color>
+    <color name="worm_text">#E0FFE0</color>
+</resources>

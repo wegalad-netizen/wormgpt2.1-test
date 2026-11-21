@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WormGPT</string>
+
+    <string name="welcome_chat"><![CDATA[
+       ,-^-.        .-^-.
+      /     \      /     \
+     /       \____/       \
+    |  /\    |    |    /\  |
+    | /  \  (o)  (o)  /  \ |
+    | \  /    \__/    \  / |
+    |  \/     /||\     \/  |
+     \       / || \       /
+      \_____/  \__/  \_____/
+
+Welcome, Master.
+RULER : MASTER
+His word is absolute.
+
+Commands: TEST / COPY / SAVE / CLEAR
+]]></string>
+
+    <string name="prompt_hint">Master command…</string>
+    <string name="key_hint">WormGPT API key</string>
+</resources>
