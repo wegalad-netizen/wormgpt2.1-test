@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Callable
 from urllib.parse import urlencode
@@ -33,6 +34,10 @@ PREV_COMMANDS = {"prev", "up", "pgup"}
 NEXT_COMMANDS = {"next", "down", "pgdn"}
 TOP_COMMANDS = {"top", "home"}
 BOTTOM_COMMANDS = {"bottom", "end"}
+TEST_COMMANDS = {"test", "t", "run"}
+AUTO_TEST = os.environ.get("WORMGPT_AUTOTEST", "1") != "0"
+TEST_TIMEOUT = 10
+MAX_TEST_OUTPUT = 2000
 HOME_DIR = os.path.expanduser("~")
 COPY_FILE = os.path.join(HOME_DIR, "wormgpt_last_response.txt")
 HISTORY_FILE = os.path.join(HOME_DIR, "wormgpt_history.txt")
@@ -190,13 +195,111 @@ def save_history(history: list[dict]) -> str:
     """Write the whole transcript to a plain text file."""
     blocks = []
     for item in history:
-        label = "RESPONSE" if item["ok"] else "ERROR"
+        label = item.get("label", "RESPONSE" if item["ok"] else "ERROR")
         blocks.append(
             f"── {label} {item['turn']:02d}  {item['elapsed']:.1f}s\n{item['text']}\n"
         )
     with open(HISTORY_FILE, "w", encoding="utf-8") as handle:
         handle.write("\n".join(blocks))
     return HISTORY_FILE
+
+
+def clip_output(text: str, limit: int = MAX_TEST_OUTPUT) -> str:
+    """Trim long subprocess output for display."""
+    text = text.strip()
+    return text if len(text) <= limit else text[:limit] + "\n... [truncated] ..."
+
+
+def extract_code_blocks(text: str) -> list[tuple[str, str]]:
+    """Return (language, source) pairs from fenced code blocks."""
+    pattern = r"```([A-Za-z0-9_+#-]*)[ \t]*\n(.*?)```"
+    return [
+        (match.group(1).strip().lower(), match.group(2).strip("\n"))
+        for match in re.finditer(pattern, text, re.DOTALL)
+    ]
+
+
+def run_code_tests(text: str) -> tuple[str, bool]:
+    """Run fenced code blocks from a response and report PASS/FAIL."""
+    blocks = extract_code_blocks(text)
+    if not blocks:
+        return "No fenced code block found in the last response.", False
+
+    results: list[str] = []
+    all_ok = True
+    for index, (lang, code) in enumerate(blocks, 1):
+        label = lang or "text"
+        if lang in {"python", "py", "python3"}:
+            with tempfile.TemporaryDirectory(prefix="wormgpt_test_") as workdir:
+                path = os.path.join(workdir, "snippet.py")
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write(code)
+                env = {
+                    "PATH": os.environ.get("PATH", ""),
+                    "HOME": workdir,
+                    "LANG": os.environ.get("LANG", "C.UTF-8"),
+                }
+                try:
+                    proc = subprocess.run(
+                        [sys.executable, "-I", path],
+                        capture_output=True,
+                        text=True,
+                        timeout=TEST_TIMEOUT,
+                        cwd=workdir,
+                        env=env,
+                    )
+                    ok = proc.returncode == 0
+                    results.append(
+                        f"TEST {index} {label}: {'PASS' if ok else 'FAIL'} "
+                        f"(exit {proc.returncode})"
+                    )
+                    output = clip_output(proc.stdout + proc.stderr)
+                    if output:
+                        results.append(output)
+                    all_ok = all_ok and ok
+                except subprocess.TimeoutExpired:
+                    results.append(f"TEST {index} {label}: FAIL (timeout {TEST_TIMEOUT}s)")
+                    all_ok = False
+                except OSError as exc:
+                    results.append(f"TEST {index} {label}: FAIL ({exc})")
+                    all_ok = False
+        elif lang in {"bash", "sh", "shell", "zsh"}:
+            with tempfile.TemporaryDirectory(prefix="wormgpt_test_") as workdir:
+                path = os.path.join(workdir, "snippet.sh")
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write(code)
+                try:
+                    proc = subprocess.run(
+                        ["bash", "-n", path],
+                        capture_output=True,
+                        text=True,
+                        timeout=TEST_TIMEOUT,
+                        cwd=workdir,
+                    )
+                    ok = proc.returncode == 0
+                    results.append(
+                        f"TEST {index} {label}: {'PASS' if ok else 'FAIL'} "
+                        "(syntax only)"
+                    )
+                    output = clip_output(proc.stdout + proc.stderr)
+                    if output:
+                        results.append(output)
+                    all_ok = all_ok and ok
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    results.append(f"TEST {index} {label}: FAIL ({exc})")
+                    all_ok = False
+        else:
+            results.append(f"TEST {index} {label}: SKIP (unsupported language)")
+
+    return "\n".join(results), all_ok
+
+
+def last_response_text(history: list[dict]) -> str:
+    """Return the most recent non-test response text."""
+    for item in reversed(history):
+        if item.get("label") != "TEST":
+            return item["text"]
+    return ""
 
 
 # --- SCREENS ---
@@ -271,11 +374,12 @@ def draw_chat(history: list[dict], cols: int, rows: int, view_offset: int = 0) -
 
     entries: list[list[str]] = []
     for item in history:
+        label = item.get("label", "RESPONSE" if item["ok"] else "ERROR")
         if item["ok"]:
-            header = f"{DIM}── RESPONSE {item['turn']:02d}  {item['elapsed']:.1f}s{RESET}"
+            header = f"{DIM}── {label} {item['turn']:02d}  {item['elapsed']:.1f}s{RESET}"
             color = GREEN
         else:
-            header = f"{RED}── ERROR {item['turn']:02d}{RESET}"
+            header = f"{RED}── {label} {item['turn']:02d}{RESET}"
             color = RED
         entry = [header]
         for raw in item["text"].splitlines() or [""]:
@@ -295,7 +399,7 @@ def draw_chat(history: list[dict], cols: int, rows: int, view_offset: int = 0) -
     write_at(rows - 2, f"{RED}{'─' * cols}{RESET}", cols)
     view_info = f"  VIEW -{view_offset}" if history and view_offset else ""
     hint = (
-        "His word is absolute. exit/q clear copy save prev/next/top/bottom"
+        "His word is absolute. exit/q clear copy save test prev/next/top/bottom"
         + view_info
     )
     write_at(rows - 1, pad(f"{DIM}{hint[:max(1, cols - 1)]}{RESET}", cols), cols)
@@ -434,8 +538,9 @@ def main() -> None:
                 continue
 
             if command in COPY_COMMANDS:
-                if history:
-                    path = copy_to_clipboard(history[-1]["text"])
+                source = last_response_text(history)
+                if source:
+                    path = copy_to_clipboard(source)
                     status(f"Last response copied -> {path}")
                 else:
                     status("Nothing to copy yet")
@@ -444,6 +549,26 @@ def main() -> None:
             if command in SAVE_COMMANDS:
                 path = save_history(history)
                 status(f"History saved -> {path}")
+                continue
+
+            if command in TEST_COMMANDS:
+                source = last_response_text(history)
+                if source:
+                    result, ok = run_code_tests(source)
+                    history.append(
+                        {
+                            "turn": turn,
+                            "text": result,
+                            "elapsed": 0.0,
+                            "ok": ok,
+                            "label": "TEST",
+                        }
+                    )
+                    view_offset = 0
+                    draw_chat(history, *terminal_size(), view_offset)
+                    status(f"Code test -> {'PASS' if ok else 'FAIL'}")
+                else:
+                    status("Nothing to test yet")
                 continue
 
             if command in PREV_COMMANDS:
@@ -485,7 +610,25 @@ def main() -> None:
                     "ok": not error,
                 }
             )
+
+            test_result = None
+            test_ok = False
+            if AUTO_TEST and text:
+                test_result, test_ok = run_code_tests(text)
+                if "No fenced code block" not in test_result:
+                    history.append(
+                        {
+                            "turn": turn,
+                            "text": test_result,
+                            "elapsed": 0.0,
+                            "ok": test_ok,
+                            "label": "TEST",
+                        }
+                    )
+
             draw_chat(history, *terminal_size(), view_offset)
+            if test_result and "No fenced code block" not in test_result:
+                status(f"Code test -> {'PASS' if test_ok else 'FAIL'}")
     except (KeyboardInterrupt, EOFError):
         pass
     except Exception as e:

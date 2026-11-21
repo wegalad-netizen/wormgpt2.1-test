@@ -36,10 +36,15 @@ For a home-screen shortcut, copy `termux-widget/wormgpt` into `~/.shortcuts/` an
 - `clear`, `cls` — clear the response area
 - `copy`, `cp` — copy the last response to the clipboard and `~/wormgpt_last_response.txt`
 - `save`, `export` — write the full transcript to `~/wormgpt_history.txt`
+- `test`, `t`, `run` — re-run code tests on the last reply
 - `prev`, `up`, `pgup` / `next`, `down`, `pgdn` — scroll through older/newer replies
 - `top`, `home` / `bottom`, `end` — jump to the oldest/newest reply
 
 Arrow keys, Home/End, and backspace work in the `Master ❯` prompt.
+
+### Code testing
+
+Fenced code blocks in replies are tested automatically. Python blocks are run, shell blocks get a syntax check, and other languages are skipped. Results appear as a `TEST` entry in the chat and in the saved transcript. Set `WORMGPT_AUTOTEST=0` to disable automatic testing and use the `test` command manually instead.
 
 ## Files
 
