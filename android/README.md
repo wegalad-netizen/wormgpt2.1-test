@@ -34,6 +34,8 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 ## Notes
 
 - Minimum Android version: 7.0 (API 24).
+- Permissions used: `INTERNET`, `ACCESS_NETWORK_STATE`, `REQUEST_INSTALL_PACKAGES`, and legacy storage read/write on Android 9 and below. No contacts, SMS, location, camera, or microphone access.
+- Every push to `master` rebuilds and republishes the APK; there are no path filters.
 - Your API key is stored only in the app’s private preferences. Tap **KEY** to save or clear it.
 - **TEST** validates `json` blocks, saves Python/shell snippets to the app’s files folder, and marks other languages as skipped. Android sandboxes cannot execute Python or shell code; full execution testing remains in the Termux CLI (`wormgpt`).
 - **COPY**, **SAVE**, and **CLEAR** work like their Termux counterparts.

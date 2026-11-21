@@ -4,9 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths:
-      - 'android/**'
-      - '.github/workflows/android.yml'
 
 permissions:
   contents: write
