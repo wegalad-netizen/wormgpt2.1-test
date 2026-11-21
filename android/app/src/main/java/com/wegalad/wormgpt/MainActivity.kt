@@ -1,6 +1,8 @@
 package com.wegalad.wormgpt
 
 import android.Manifest
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.app.AlertDialog
 import android.app.role.RoleManager
 import android.content.ClipData
@@ -9,6 +11,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
@@ -24,6 +28,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -113,6 +118,8 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     private lateinit var apiKeyInput: EditText
     private lateinit var safeBrowsingKeyInput: EditText
     private lateinit var virusTotalKeyInput: EditText
+    private lateinit var pulseBackground: GradientDrawable
+    private var backgroundPulseAnimator: ValueAnimator? = null
     private lateinit var guardStatus: TextView
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
@@ -198,6 +205,12 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             packageManager.getPackageInfo(packageName, 0).versionName ?: ""
 
         drawerLayout = findViewById(R.id.drawerLayout)
+        val backgroundBase = Color.rgb(7, 10, 16)
+        pulseBackground = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(backgroundBase, backgroundBase, backgroundBase),
+        )
+        drawerLayout.background = pulseBackground
         chatScroll = findViewById(R.id.chatScroll)
         chatText = findViewById(R.id.chatText)
         savedInstanceState?.getCharSequence(KEY_CHAT_TEXT)?.let { chatText.text = it }
@@ -300,6 +313,36 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     override fun onResume() {
         super.onResume()
         updateGuardStatus()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        startBackgroundPulse()
+    }
+
+    override fun onStop() {
+        backgroundPulseAnimator?.cancel()
+        backgroundPulseAnimator = null
+        super.onStop()
+    }
+
+    private fun startBackgroundPulse() {
+        if (!::pulseBackground.isInitialized || backgroundPulseAnimator != null) return
+        val base = Color.rgb(7, 10, 16)
+        val glow = Color.rgb(48, 9, 16)
+        val evaluator = ArgbEvaluator()
+        backgroundPulseAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 5200L
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { animator ->
+                val fraction = animator.animatedValue as Float
+                val red = evaluator.evaluate(fraction, base, glow) as Int
+                pulseBackground.setColors(intArrayOf(base, red, base))
+            }
+            start()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
