@@ -14,6 +14,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.media.MediaPlayer
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -277,6 +279,11 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         findViewById<Button>(R.id.blocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.spamLogButton).setOnClickListener { showSpamLogDialog() }
         findViewById<Button>(R.id.simulateButton).setOnClickListener { runSpamSimulation() }
+        findViewById<Button>(R.id.wifiDetailsButton).setOnClickListener { showWifiDetails() }
+        findViewById<Button>(R.id.permissionSummaryButton).setOnClickListener { showPermissionSummary() }
+        findViewById<Button>(R.id.toolsSpamLogButton).setOnClickListener { showSpamLogDialog() }
+        findViewById<Button>(R.id.toolsSimulateButton).setOnClickListener { runSpamSimulation() }
+        findViewById<Button>(R.id.toolsBlocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.navDashboard).setOnClickListener { showMainPage("dashboard") }
         findViewById<Button>(R.id.navChat).setOnClickListener { showMainPage("chat") }
         findViewById<Button>(R.id.navTools).setOnClickListener { showMainPage("tools") }
@@ -722,18 +729,78 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     private fun showSpamLogDialog() {
         val entries = SpamPrefs.log(this)
         val message = if (entries.isEmpty()) {
-            "No spam caught yet, Master."
+            "No call or SMS spam alerts have been logged yet."
         } else {
             entries.joinToString("\n\n")
         }
         AlertDialog.Builder(this)
-            .setTitle("SPAM LOG (${entries.size})")
+            .setTitle("SECURITY ALERTS (${entries.size})")
             .setMessage(message)
             .setPositiveButton("CLEAR LOG") { _, _ ->
                 SpamPrefs.clearLog(this)
                 updateGuardStatus()
             }
             .setNegativeButton("CLOSE", null)
+            .show()
+    }
+
+    private fun showWifiDetails() {
+        val connectivity = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivity.activeNetwork
+        val capabilities = network?.let(connectivity::getNetworkCapabilities)
+        if (network == null || capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) {
+            showToolResult("WI-FI DETAILS", "This device is not currently connected over Wi-Fi.\n\nThis is a read-only local check.")
+            return
+        }
+
+        val properties = connectivity.getLinkProperties(network)
+        val addresses = properties?.linkAddresses.orEmpty()
+            .mapNotNull { it.address?.hostAddress?.substringBefore('%') }
+            .filterNot { it == "127.0.0.1" || it == "::1" }
+            .distinct()
+        val internetValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        val details = buildString {
+            append("Wi-Fi: Connected\n")
+            append("Internet validated: ").append(if (internetValidated) "Yes" else "No / unknown").append('\n')
+            append("Local IP address: ").append(addresses.joinToString().ifBlank { "Unavailable" }).append('\n')
+            append("Estimated link: ")
+                .append(capabilities.linkDownstreamBandwidthKbps)
+                .append(" Kbps down / ")
+                .append(capabilities.linkUpstreamBandwidthKbps)
+                .append(" Kbps up\n\n")
+            append("Read locally from Android network status. No network scan was run and these details were not sent anywhere.")
+        }
+        showToolResult("WI-FI DETAILS", details)
+    }
+
+    private fun showPermissionSummary() {
+        val notifications = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            "Not required on this Android version"
+        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            "Allowed"
+        } else {
+            "Not allowed"
+        }
+        val callScreening = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            "Unavailable on this Android version"
+        } else if (isCallRoleHeld()) {
+            "Enabled as call-screening app"
+        } else {
+            "Not enabled"
+        }
+        val permissions = listOf(
+            "Call screening" to callScreening,
+            "Receive SMS" to if (hasSmsPermission()) "Allowed" else "Not allowed",
+            "Notifications" to notifications,
+            "Network state" to "Allowed (normal Android permission)",
+            "File access" to "System picker; user selects each file",
+            "Contacts, camera, microphone" to "Not requested",
+        )
+        val summary = permissions.joinToString("\n\n") { (name, value) -> "$name: $value" }
+        AlertDialog.Builder(this)
+            .setTitle("APP PERMISSIONS")
+            .setMessage(summary)
+            .setPositiveButton("DONE", null)
             .show()
     }
 
