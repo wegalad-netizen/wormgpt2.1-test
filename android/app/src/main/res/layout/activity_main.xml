@@ -34,26 +34,27 @@
                 android:src="@drawable/ox_logo" />
 
             <TextView
+                android:id="@+id/appVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="9dp"
-                android:text="WormGPT"
-                android:textColor="@color/worm_text"
-                android:textSize="17sp"
+                android:background="@drawable/pill_outline"
+                android:paddingStart="7dp"
+                android:paddingEnd="7dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:text="2.1"
+                android:textColor="@color/worm_red_bright"
+                android:textSize="10sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="9dp"
-                android:background="@drawable/pill_outline"
-                android:paddingStart="9dp"
-                android:paddingEnd="9dp"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
-                android:text="V4"
-                android:textColor="@color/worm_red_bright"
-                android:textSize="11sp"
+                android:layout_marginStart="6dp"
+                android:text="WormGPT"
+                android:textColor="@color/worm_text"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <View

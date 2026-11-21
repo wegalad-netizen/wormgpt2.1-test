@@ -160,6 +160,9 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         setContentView(R.layout.activity_main)
         setupKeyboardInsets()
 
+        findViewById<TextView>(R.id.appVersion).text =
+            packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+
         drawerLayout = findViewById(R.id.drawerLayout)
         chatScroll = findViewById(R.id.chatScroll)
         chatText = findViewById(R.id.chatText)
