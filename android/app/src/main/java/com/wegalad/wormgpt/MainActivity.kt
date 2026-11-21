@@ -281,8 +281,9 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
 
     private fun appendChat(text: String) {
         chatText.append(text)
-        (chatText.parent as? ScrollView)?.post {
-            it.fullScroll(ScrollView.FOCUS_DOWN)
+        val scroll = chatText.parent as? ScrollView ?: return
+        scroll.post {
+            scroll.fullScroll(ScrollView.FOCUS_DOWN)
         }
     }
 }
