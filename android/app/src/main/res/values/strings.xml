@@ -13,13 +13,15 @@
      \       / || \       /
       \_____/  \__/  \_____/
 
+WormGPT / Cybersecurity AI
+
 Welcome, Master.
 RULER : MASTER
 His word is absolute.
 
-Commands: TEST / COPY / SAVE / CLEAR
+Your security research question. Your next move.
 ]]></string>
 
-    <string name="prompt_hint">Master command…</string>
+    <string name="prompt_hint">Message WormGPT…</string>
     <string name="key_hint">WormGPT API key</string>
 </resources>

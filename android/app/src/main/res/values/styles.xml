@@ -4,18 +4,39 @@
     <style name="Theme.WormGPT" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/worm_red</item>
         <item name="colorPrimaryDark">@color/worm_red_dark</item>
-        <item name="colorAccent">@color/worm_green</item>
+        <item name="colorAccent">@color/worm_red_bright</item>
         <item name="android:windowBackground">@color/worm_bg</item>
         <item name="android:textColorPrimary">@color/worm_text</item>
-        <item name="android:textColorSecondary">@color/worm_green</item>
+        <item name="android:textColorSecondary">@color/worm_muted</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/worm_bg</item>
+        <item name="android:navigationBarColor">@color/worm_bg</item>
     </style>
 
     <style name="WormButton" parent="Widget.AppCompat.Button">
-        <item name="android:background">@drawable/button_bg</item>
-        <item name="android:textColor">@color/worm_text</item>
+        <item name="android:background">@drawable/pill_primary</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">40dp</item>
+    </style>
+
+    <style name="WormButton.Outline" parent="Widget.AppCompat.Button">
+        <item name="android:background">@drawable/pill_outline</item>
+        <item name="android:textColor">@color/worm_red_bright</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">40dp</item>
+    </style>
+
+    <style name="WormButton.Ghost" parent="Widget.AppCompat.Button">
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:textColor">@color/worm_muted</item>
         <item name="android:textSize">11sp</item>
         <item name="android:minWidth">0dp</item>
-        <item name="android:minHeight">42dp</item>
+        <item name="android:minHeight">40dp</item>
     </style>
 
 </resources>

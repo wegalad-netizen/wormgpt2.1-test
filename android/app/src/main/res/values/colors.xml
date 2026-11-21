@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="worm_red">#B71C1C</color>
-    <color name="worm_red_dark">#7F0000</color>
+    <!-- WormGPT website palette -->
+    <color name="worm_red">#DC2626</color>
+    <color name="worm_red_dark">#7F1D1D</color>
+    <color name="worm_red_bright">#EF4444</color>
     <color name="worm_green">#00FF66</color>
-    <color name="worm_bg">#050000</color>
-    <color name="worm_panel">#140404</color>
+    <color name="worm_bg">#0A0000</color>
+    <color name="worm_panel">#100404</color>
+    <color name="worm_card">#140606</color>
+    <color name="worm_elevated">#1A0A0A</color>
+    <color name="worm_border">#29DC2626</color>
+    <color name="worm_border_bright">#52DC2626</color>
     <color name="worm_neon">#39FF14</color>
-    <color name="worm_text">#E0FFE0</color>
+    <color name="worm_text">#FAFAFA</color>
+    <color name="worm_muted">#A1A1AA</color>
+    <color name="worm_faint">#71717A</color>
 </resources>
