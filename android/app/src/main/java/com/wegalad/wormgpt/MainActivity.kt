@@ -255,27 +255,35 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         }
     }
 
-    /**
-     * Android 15+ draws the app edge-to-edge, so adjustResize no longer moves
-     * the composer above the keyboard. Pad the root by the IME inset instead.
-     */
+    /** Keep system bars insets on the root and lift only the composer above the IME. */
     private fun setupKeyboardInsets() {
         val root = findViewById<View>(R.id.drawerLayout)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            val keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            val contentVisibility = if (keyboardVisible) View.GONE else View.VISIBLE
-            findViewById<View>(R.id.appHeader).visibility = contentVisibility
-            findViewById<View>(R.id.rulerTag).visibility = contentVisibility
-            findViewById<View>(R.id.toolChips).visibility = contentVisibility
             view.setPadding(
                 bars.left,
                 bars.top,
                 bars.right,
-                maxOf(bars.bottom, ime.bottom),
+                bars.bottom,
             )
+            val keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            val composer = findViewById<View>(R.id.composerBar)
+            view.post {
+                if (!keyboardVisible || ime.bottom == 0) {
+                    composer.translationY = 0f
+                } else {
+                    val decor = window.decorView
+                    val decorPosition = IntArray(2)
+                    val composerPosition = IntArray(2)
+                    decor.getLocationOnScreen(decorPosition)
+                    composer.getLocationOnScreen(composerPosition)
+                    val keyboardTop = decorPosition[1] + decor.height - ime.bottom
+                    val overlap = composerPosition[1] + composer.height - keyboardTop
+                    composer.translationY = -overlap.coerceAtLeast(0).toFloat()
+                }
+            }
             WindowInsetsCompat.CONSUMED
         }
         ViewCompat.requestApplyInsets(root)

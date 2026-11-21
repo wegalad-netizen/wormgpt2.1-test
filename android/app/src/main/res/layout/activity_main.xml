@@ -19,7 +19,6 @@
 
         <!-- Frosted pill header: mark + WormGPT + V4 chip + gear -->
         <LinearLayout
-            android:id="@+id/appHeader"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:background="@drawable/header_bg"
@@ -86,7 +85,6 @@
 
         <!-- Master / Ruler line -->
         <TextView
-            android:id="@+id/rulerTag"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
