@@ -253,6 +253,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             checkForUpdate(manual = true)
         }
         findViewById<Button>(R.id.sendButton).setOnClickListener { sendPrompt() }
+        findViewById<Button>(R.id.codeButton).setOnClickListener { showCodePasteDialog() }
         findViewById<Button>(R.id.testButton).setOnClickListener { testLastCode() }
         findViewById<Button>(R.id.copyButton).setOnClickListener { copyLastResponse() }
         findViewById<Button>(R.id.saveButton).setOnClickListener { saveTranscript() }
@@ -825,6 +826,56 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                 }
             }
         }
+    }
+
+    private fun showCodePasteDialog() {
+        val codeInput = EditText(this).apply {
+            hint = "Paste code here (up to 20,000 characters)"
+            inputType = InputType.TYPE_CLASS_TEXT or
+                InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            minLines = 8
+            maxLines = 14
+            gravity = Gravity.TOP or Gravity.START
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_text))
+            setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_faint))
+            setBackgroundResource(R.drawable.input_bg)
+        }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(6), dp(20), dp(4))
+            addView(codeInput, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(220),
+            ))
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("PASTE CODE FOR CHAT")
+            .setMessage("The snippet is added to your next chat message as reference text. The app does not run or install pasted code.")
+            .setView(container)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("ADD TO CHAT", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val snippet = codeInput.text.toString()
+                if (snippet.isBlank()) {
+                    codeInput.error = "Paste code first"
+                } else if (snippet.length > 20_000) {
+                    codeInput.error = "Maximum length is 20,000 characters"
+                } else {
+                    val attachment = "Review or explain this pasted code as reference. Do not execute it:\n```text\n$snippet\n```"
+                    val existing = promptInput.text.toString().trim()
+                    promptInput.setText(if (existing.isEmpty()) attachment else "$existing\n\n$attachment")
+                    promptInput.setSelection(promptInput.text.length)
+                    dialog.dismiss()
+                    promptInput.requestFocus()
+                    Toast.makeText(this, "Code added to the chat draft.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun runQuery(prompt: String, key: String, minimal: Boolean = false): ApiResult {

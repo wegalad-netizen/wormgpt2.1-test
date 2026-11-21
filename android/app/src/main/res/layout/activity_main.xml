@@ -177,11 +177,20 @@
             android:orientation="horizontal">
 
             <Button
+                android:id="@+id/codeButton"
+                style="@style/WormButton.Outline"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="CODE" />
+
+            <Button
                 android:id="@+id/testButton"
                 style="@style/WormButton.Outline"
                 android:layout_width="0dp"
                 android:layout_height="36dp"
                 android:layout_weight="1"
+                android:layout_marginStart="6dp"
                 android:text="TEST" />
 
             <Button
