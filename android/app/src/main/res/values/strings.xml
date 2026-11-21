@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Archonx</string>
+    <string name="app_name">Sentinal Security</string>
 
     <string name="welcome_chat"><![CDATA[
        ,-^-.        .-^-.
@@ -13,7 +13,7 @@
      \       / || \       /
       \_____/  \__/  \_____/
 
-Archonx / Security Tools
+Sentinal Security / Security Tools
 
 Welcome, Master.
 RULER : MASTER
@@ -22,7 +22,7 @@ His word is absolute.
 Your security research question. Your next move.
 ]]></string>
 
-    <string name="prompt_hint">Message Archonx…</string>
+    <string name="prompt_hint">Message Sentinal Security…</string>
     <string name="key_hint">API key</string>
-    <string name="call_screening_description">Archonx Spam Guard rejects incoming calls from numbers you block.</string>
+    <string name="call_screening_description">Sentinal Security Spam Guard rejects incoming calls from numbers you block.</string>
 </resources>
