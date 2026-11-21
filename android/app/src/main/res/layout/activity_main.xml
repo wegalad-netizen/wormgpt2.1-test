@@ -396,6 +396,59 @@
                     android:layout_height="34dp"
                     android:text="RUN LOCAL SIMULATION" />
 
+                <!-- WHATSAPP STATUS -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="10dp"
+                    android:background="@color/worm_border" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.12"
+                    android:text="WHATSAPP STATUS"
+                    android:textColor="@color/worm_red_bright"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="No public ban-check API exists. This opens your number in WhatsApp — a banned number shows “This phone number can't use WhatsApp” with a review option."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+
+                <EditText
+                    android:id="@+id/waNumberInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/card_bg"
+                    android:hint="+1 555 0100"
+                    android:inputType="phone"
+                    android:padding="12dp"
+                    android:singleLine="true"
+                    android:textColor="@color/worm_text"
+                    android:textColorHint="@color/worm_faint"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/waStatusButton"
+                    style="@style/WormButton.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="6dp"
+                    android:text="OPEN WA.ME" />
+
+                <Button
+                    android:id="@+id/waHelpButton"
+                    style="@style/WormButton.Ghost"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="OFFICIAL BAN HELP" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
