@@ -486,7 +486,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
                 if (!response.isSuccessful) {
                     return ApiResult(
                         null,
-                        "HTTP ${response.code} ${response.message()}: ${raw.take(1500)}",
+                        "HTTP ${response.code} ${response.message}: ${raw.take(1500)}",
                     )
                 }
 
