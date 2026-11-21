@@ -81,7 +81,9 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     private data class UpdateInfo(val id: String, val downloadUrl: String)
 
     private lateinit var drawerLayout: DrawerLayout
+    private lateinit var chatScroll: ScrollView
     private lateinit var chatText: TextView
+    private var stickToBottom = true
     private lateinit var promptInput: EditText
     private lateinit var apiKeyInput: EditText
     private lateinit var guardStatus: TextView
@@ -132,10 +134,18 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         setContentView(R.layout.activity_main)
 
         drawerLayout = findViewById(R.id.drawerLayout)
+        chatScroll = findViewById(R.id.chatScroll)
         chatText = findViewById(R.id.chatText)
         promptInput = findViewById(R.id.promptInput)
         apiKeyInput = findViewById(R.id.apiKeyInput)
         drawerLayout.setScrimColor(0x99000000.toInt())
+
+        chatScroll.setOnScrollChangeListener { _, _, _, _, _ ->
+            stickToBottom = !chatScroll.canScrollVertically(1)
+        }
+        chatText.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (stickToBottom) scrollChatToBottom()
+        }
 
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         apiKeyInput.setText(prefs.getString(KEY_API, "").orEmpty())
@@ -727,8 +737,10 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     }
 
     private fun clearChat() {
+        stickToBottom = false
         chatText.text = getString(R.string.welcome_chat)
         lastResponse = ""
+        chatScroll.post { chatScroll.fullScroll(ScrollView.FOCUS_UP) }
     }
 
     private fun setBusy(busy: Boolean) {
@@ -858,6 +870,7 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
     }
 
     private fun appendChat(text: String, colorRes: Int? = null) {
+        stickToBottom = true
         if (colorRes == null) {
             chatText.append(text)
         } else {
@@ -870,9 +883,14 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             )
             chatText.append(colored)
         }
-        val scroll = chatText.parent as? ScrollView ?: return
-        scroll.post {
-            scroll.fullScroll(ScrollView.FOCUS_DOWN)
+        scrollChatToBottom()
+    }
+
+    private fun scrollChatToBottom() {
+        chatScroll.post {
+            chatScroll.fullScroll(ScrollView.FOCUS_DOWN)
+            // Second pass after the text layout settles.
+            chatScroll.postDelayed({ chatScroll.fullScroll(ScrollView.FOCUS_DOWN) }, 80)
         }
     }
 }
