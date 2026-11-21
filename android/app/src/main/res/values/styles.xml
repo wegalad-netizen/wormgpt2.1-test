@@ -2,9 +2,9 @@
 <resources>
 
     <style name="Theme.WormGPT" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/worm_red</item>
-        <item name="colorPrimaryDark">@color/worm_red_dark</item>
-        <item name="colorAccent">@color/worm_red_bright</item>
+        <item name="colorPrimary">@color/worm_cyan</item>
+        <item name="colorPrimaryDark">@color/worm_bg</item>
+        <item name="colorAccent">@color/worm_cyan</item>
         <item name="android:windowBackground">@color/worm_bg</item>
         <item name="android:textColorPrimary">@color/worm_text</item>
         <item name="android:textColorSecondary">@color/worm_muted</item>
@@ -14,7 +14,7 @@
     </style>
 
     <style name="WormButton" parent="Widget.AppCompat.Button">
-        <item name="android:background">@drawable/pill_primary</item>
+        <item name="android:background">@drawable/pill_cyan</item>
         <item name="android:textColor">#FFFFFF</item>
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
@@ -24,7 +24,7 @@
 
     <style name="WormButton.Outline" parent="Widget.AppCompat.Button">
         <item name="android:background">@drawable/pill_outline</item>
-        <item name="android:textColor">@color/worm_red_bright</item>
+        <item name="android:textColor">@color/worm_cyan</item>
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:minWidth">0dp</item>

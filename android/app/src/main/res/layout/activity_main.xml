@@ -13,8 +13,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingHorizontal="12dp"
-        android:paddingTop="24dp"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="8dp"
         android:paddingBottom="10dp">
 
         <!-- Frosted pill header: mark + WormGPT + V4 chip + gear -->
@@ -31,7 +31,7 @@
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:contentDescription="WormGPT"
-                android:src="@drawable/ox_logo" />
+                android:src="@drawable/circuit_skull_icon" />
 
             <TextView
                 android:id="@+id/appVersion"
@@ -44,7 +44,7 @@
                 android:paddingTop="2dp"
                 android:paddingBottom="2dp"
                 android:text="2.1"
-                android:textColor="@color/worm_red_bright"
+                android:textColor="@color/worm_cyan"
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
@@ -84,150 +84,323 @@
                 android:tint="@color/worm_text" />
         </LinearLayout>
 
-        <!-- Master / Ruler line -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:letterSpacing="0.16"
-            android:paddingTop="8dp"
-            android:paddingBottom="6dp"
-            android:text="RULER : MASTER  //  HIS WORD IS ABSOLUTE"
-            android:textColor="@color/worm_red_bright"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <!-- Chat canvas (bubble-styled card) -->
-        <ScrollView
-            android:id="@+id/chatScroll"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="2dp"
-            android:layout_weight="1"
-            android:background="@drawable/card_bg"
-            android:fadeScrollbars="true"
-            android:overScrollMode="never"
-            android:padding="14dp"
-            android:scrollbars="vertical">
-
-            <TextView
-                android:id="@+id/chatText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:lineSpacingExtra="3dp"
-                android:shadowColor="@color/worm_red"
-                android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="3"
-                android:text="@string/welcome_chat"
-                android:textColor="@color/worm_text"
-                android:textIsSelectable="false"
-                android:textSize="13sp" />
-        </ScrollView>
-
-        <!-- Composer -->
         <LinearLayout
-            android:id="@+id/composerBar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/card_bg"
+            android:layout_height="40dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="6dp">
-
-            <EditText
-                android:id="@+id/promptInput"
+            android:paddingHorizontal="6dp">
+            <TextView
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/status_dot" />
+            <TextView
+                android:id="@+id/dashboardStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="LOCAL MONITORING"
+                android:textColor="@color/worm_emerald"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+            <View
                 android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="@drawable/input_bg"
-                android:clickable="true"
-                android:cursorVisible="true"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:hint="@string/prompt_hint"
-                android:imeOptions="actionSend"
-                android:inputType="text"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:gravity="center_vertical"
-                android:singleLine="true"
-                android:textColor="@color/worm_green"
-                android:textColorHint="@color/worm_faint"
-                android:textSize="16sp" />
-
-            <Button
-                android:id="@+id/sendButton"
-                style="@style/WormButton"
-                android:layout_width="76dp"
-                android:layout_height="40dp"
-                android:drawableTop="@drawable/ic_send"
-                android:padding="0dp"
-                android:text="SEND"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DEVICE TOOLS"
+                android:textColor="@color/worm_muted"
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- Tool chips -->
+        <FrameLayout
+            android:id="@+id/pageContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ScrollView
+                android:id="@+id/dashboardScreen"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                android:overScrollMode="never"
+                android:paddingBottom="8dp"
+                android:scrollbars="none">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="8dp"
+                        android:text="Security overview"
+                        android:textColor="@color/worm_text"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="3dp"
+                        android:paddingBottom="12dp"
+                        android:text="A quick view of protection available on this device"
+                        android:textColor="@color/worm_muted"
+                        android:textSize="12sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <FrameLayout
+                            android:layout_width="132dp"
+                            android:layout_height="132dp">
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@drawable/security_gauge_bg" />
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:gravity="center"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="⌁"
+                                    android:textColor="@color/worm_cyan"
+                                    android:textSize="38sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="LOCAL GUARD"
+                                    android:textColor="@color/worm_text"
+                                    android:textSize="10sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                        </FrameLayout>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:paddingTop="10dp"
+                            android:text="Call and message protection status"
+                            android:textColor="@color/worm_muted"
+                            android:textSize="12sp" />
+                        <Button
+                            android:id="@+id/quickCheckButton"
+                            style="@style/WormButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="12dp"
+                            android:text="QUICK CHECK"
+                            android:textColor="@color/worm_bg"
+                            android:background="@drawable/pill_cyan" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="18dp"
+                        android:paddingBottom="8dp"
+                        android:text="TOOLS"
+                        android:textColor="@color/worm_muted"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <LinearLayout
+                            android:id="@+id/linkToolCard"
+                            android:layout_width="0dp"
+                            android:layout_height="104dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/card_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="↗" android:textColor="@color/worm_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Link safety" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Review a URL" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                        </LinearLayout>
+                        <LinearLayout
+                            android:id="@+id/passwordToolCard"
+                            android:layout_width="0dp"
+                            android:layout_height="104dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/card_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⌑" android:textColor="@color/worm_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Password" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Check or generate" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal">
+                        <LinearLayout
+                            android:id="@+id/fileToolCard"
+                            android:layout_width="0dp"
+                            android:layout_height="104dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/card_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="#" android:textColor="@color/worm_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="File reputation" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Look up file hash" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                        </LinearLayout>
+                        <LinearLayout
+                            android:id="@+id/messageToolCard"
+                            android:layout_width="0dp"
+                            android:layout_height="104dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/card_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="!" android:textColor="@color/worm_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Message review" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Check for phishing" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </ScrollView>
+
+            <LinearLayout
+                android:id="@+id/chatScreen"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:visibility="gone">
+                <ScrollView
+                    android:id="@+id/chatScroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/card_bg"
+                    android:fadeScrollbars="true"
+                    android:overScrollMode="never"
+                    android:padding="14dp"
+                    android:scrollbars="vertical">
+                    <TextView
+                        android:id="@+id/chatText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="3dp"
+                        android:text="@string/welcome_chat"
+                        android:textColor="@color/worm_text"
+                        android:textIsSelectable="false"
+                        android:textSize="13sp" />
+                </ScrollView>
+                <LinearLayout
+                    android:id="@+id/composerBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/card_bg"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="6dp">
+                    <EditText
+                        android:id="@+id/promptInput"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/input_bg"
+                        android:clickable="true"
+                        android:cursorVisible="true"
+                        android:focusable="true"
+                        android:focusableInTouchMode="true"
+                        android:hint="@string/prompt_hint"
+                        android:imeOptions="actionSend"
+                        android:inputType="text"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:gravity="center_vertical"
+                        android:singleLine="true"
+                        android:textColor="@color/worm_green"
+                        android:textColorHint="@color/worm_faint"
+                        android:textSize="16sp" />
+                    <Button
+                        android:id="@+id/sendButton"
+                        style="@style/WormButton"
+                        android:layout_width="76dp"
+                        android:layout_height="40dp"
+                        android:drawableTop="@drawable/ic_send"
+                        android:padding="0dp"
+                        android:text="SEND"
+                        android:textSize="10sp" />
+                </LinearLayout>
+                <LinearLayout
+                    android:id="@+id/toolChips"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+                    <Button android:id="@+id/codeButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:text="CODE" />
+                    <Button android:id="@+id/testButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="TEST" />
+                    <Button android:id="@+id/copyButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="COPY" />
+                    <Button android:id="@+id/saveButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="SAVE" />
+                    <Button android:id="@+id/clearButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="CLEAR" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <ScrollView
+                android:id="@+id/toolsScreen"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:visibility="gone">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="10dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Security tools" android:textColor="@color/worm_text" android:textSize="22sp" android:textStyle="bold" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="4dp" android:paddingBottom="12dp" android:text="Local checks and authorized assessment helpers" android:textColor="@color/worm_muted" android:textSize="12sp" />
+                    <Button android:id="@+id/securityToolsButton" style="@style/WormButton" android:layout_width="match_parent" android:layout_height="46dp" android:text="OPEN SECURITY TOOLS" android:background="@drawable/pill_cyan" android:textColor="@color/worm_bg" />
+                    <Button android:id="@+id/simulateButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="RUN LOCAL SPAM SIMULATION" />
+                    <Button android:id="@+id/blocklistButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="MANAGE BLOCKLIST" />
+                    <Button android:id="@+id/spamLogButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="VIEW ALERT LOG" />
+                </LinearLayout>
+            </ScrollView>
+        </FrameLayout>
+
         <LinearLayout
-            android:id="@+id/toolChips"
+            android:id="@+id/bottomNavigation"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/codeButton"
-                style="@style/WormButton.Outline"
-                android:layout_width="0dp"
-                android:layout_height="36dp"
-                android:layout_weight="1"
-                android:text="CODE" />
-
-            <Button
-                android:id="@+id/testButton"
-                style="@style/WormButton.Outline"
-                android:layout_width="0dp"
-                android:layout_height="36dp"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:text="TEST" />
-
-            <Button
-                android:id="@+id/copyButton"
-                style="@style/WormButton.Outline"
-                android:layout_width="0dp"
-                android:layout_height="36dp"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:text="COPY" />
-
-            <Button
-                android:id="@+id/saveButton"
-                style="@style/WormButton.Outline"
-                android:layout_width="0dp"
-                android:layout_height="36dp"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:text="SAVE" />
-
-            <Button
-                android:id="@+id/clearButton"
-                style="@style/WormButton.Outline"
-                android:layout_width="0dp"
-                android:layout_height="36dp"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:text="CLEAR" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/securityToolsButton"
-            style="@style/WormButton.Outline"
-            android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="58dp"
             android:layout_marginTop="6dp"
-            android:text="SECURITY TOOLS" />
+            android:background="@drawable/card_bg"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="4dp">
+            <Button android:id="@+id/navDashboard" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="HOME" android:textColor="@color/worm_cyan" />
+            <Button android:id="@+id/navChat" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="CHAT" />
+            <Button android:id="@+id/navTools" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="TOOLS" />
+            <Button android:id="@+id/navSettings" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="SETTINGS" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- SETTINGS DRAWER (sidebar style) -->
@@ -236,7 +409,7 @@
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
-        android:background="#0A0506"
+        android:background="@color/worm_bg"
         android:orientation="vertical">
 
         <ScrollView
@@ -592,7 +765,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:paddingTop="10dp"
-                    android:text="WORMGPT V4 // CYBERSECURITY AI"
+                    android:text="WORMGPT // SECURITY TOOLS"
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
             </LinearLayout>

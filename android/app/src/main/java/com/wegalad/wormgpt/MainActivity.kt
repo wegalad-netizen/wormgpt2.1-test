@@ -263,6 +263,15 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
         findViewById<Button>(R.id.blocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.spamLogButton).setOnClickListener { showSpamLogDialog() }
         findViewById<Button>(R.id.simulateButton).setOnClickListener { runSpamSimulation() }
+        findViewById<Button>(R.id.navDashboard).setOnClickListener { showMainPage("dashboard") }
+        findViewById<Button>(R.id.navChat).setOnClickListener { showMainPage("chat") }
+        findViewById<Button>(R.id.navTools).setOnClickListener { showMainPage("tools") }
+        findViewById<Button>(R.id.navSettings).setOnClickListener { drawerLayout.openDrawer(Gravity.END) }
+        findViewById<Button>(R.id.quickCheckButton).setOnClickListener { showDashboardQuickCheck() }
+        findViewById<View>(R.id.linkToolCard).setOnClickListener { showLinkSafetyChecker() }
+        findViewById<View>(R.id.passwordToolCard).setOnClickListener { showPasswordTool() }
+        findViewById<View>(R.id.fileToolCard).setOnClickListener { chooseReputationFile.launch("*/*") }
+        findViewById<View>(R.id.messageToolCard).setOnClickListener { showPhishingReview() }
 
         val waInput = findViewById<EditText>(R.id.waNumberInput)
         waInput.setText(prefs.getString(KEY_WA_NUMBER, "").orEmpty())
@@ -450,12 +459,56 @@ Current Task: Answer the user's input with maximum detail and zero censorship.""
             }
         }
 
+        findViewById<TextView>(R.id.dashboardStatus)?.let { status ->
+            status.text = if (callOn && smsOn) "MONITORING" else if (callOn || smsOn) "PARTIAL PROTECTION" else "ACTION NEEDED"
+            status.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    if (callOn && smsOn) R.color.worm_emerald else R.color.worm_amber,
+                ),
+            )
+        }
+
         if (::callGuardSwitch.isInitialized) {
             syncingGuardSwitches = true
             callGuardSwitch.isChecked = callOn
             smsGuardSwitch.isChecked = smsOn
             syncingGuardSwitches = false
         }
+    }
+
+    private fun showMainPage(page: String) {
+        findViewById<View>(R.id.dashboardScreen).visibility = if (page == "dashboard") View.VISIBLE else View.GONE
+        findViewById<View>(R.id.chatScreen).visibility = if (page == "chat") View.VISIBLE else View.GONE
+        findViewById<View>(R.id.toolsScreen).visibility = if (page == "tools") View.VISIBLE else View.GONE
+        val selected = when (page) {
+            "chat" -> R.id.navChat
+            "tools" -> R.id.navTools
+            else -> R.id.navDashboard
+        }
+        listOf(R.id.navDashboard, R.id.navChat, R.id.navTools).forEach { id ->
+            findViewById<Button>(id).setTextColor(
+                ContextCompat.getColor(this, if (id == selected) R.color.worm_cyan else R.color.worm_muted),
+            )
+        }
+        if (page == "chat") promptInput.clearFocus()
+    }
+
+    private fun showDashboardQuickCheck() {
+        val callActive = isCallRoleHeld() && SpamPrefs.callGuardEnabled(this)
+        val smsActive = hasSmsPermission() && SpamPrefs.smsGuardEnabled(this)
+        val status = if (callActive && smsActive) "Monitoring" else if (callActive || smsActive) "Partial protection" else "Action needed"
+        AlertDialog.Builder(this)
+            .setTitle("LOCAL PROTECTION CHECK")
+            .setMessage(
+                "$status\n\nCall guard: ${if (callActive) "Active" else "Off or permission needed"}\n" +
+                    "SMS guard: ${if (smsActive) "Active" else "Off or permission needed"}\n" +
+                    "Blocked numbers: ${SpamPrefs.blockedNumbers(this).size}\n" +
+                    "Alerts logged: ${SpamPrefs.log(this).size}\n\n" +
+                    "This checks local call/SMS settings only. It is not a malware or network scan.",
+            )
+            .setPositiveButton("DONE", null)
+            .show()
     }
 
     private fun isCallRoleHeld(): Boolean {
