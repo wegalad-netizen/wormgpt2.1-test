@@ -1,6 +1,5 @@
 package com.wegalad.wormgpt
 
-import android.animation.AccelerateDecelerateInterpolator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
@@ -9,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.core.content.ContextCompat
 
 /**
@@ -23,7 +23,6 @@ class OwnerBadgeView @JvmOverloads constructor(
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val iconSrc = RectF()
     private val iconDst = RectF()
 
     private var shield: Bitmap? = renderShield(context)
@@ -95,14 +94,13 @@ class OwnerBadgeView @JvmOverloads constructor(
 
         // Shield mark in the center.
         val iconSize = size * 0.58f
-        iconSrc.set(0f, 0f, icon.width.toFloat(), icon.height.toFloat())
         iconDst.set(
             cx - iconSize / 2f,
             cy - iconSize / 2f,
             cx + iconSize / 2f,
             cy + iconSize / 2f,
         )
-        canvas.drawBitmap(icon, iconSrc, iconDst, iconPaint)
+        canvas.drawBitmap(icon, null, iconDst, iconPaint)
     }
 
     private fun glowColor(): Int {
