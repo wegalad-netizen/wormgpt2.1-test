@@ -1158,7 +1158,9 @@ Scope:
 
     private fun playWelcome() {
         try {
-            val player = MediaPlayer.create(this, R.raw.wormgpt_welcome) ?: return
+            // Termux UI startup pack: pick one of the three sounds at random, like the shell script does.
+            val sound = intArrayOf(R.raw.access_granted, R.raw.jarvis2, R.raw.jarvis).random()
+            val player = MediaPlayer.create(this, sound) ?: return
             player.setOnCompletionListener { it.release() }
             player.start()
         } catch (_: Exception) {

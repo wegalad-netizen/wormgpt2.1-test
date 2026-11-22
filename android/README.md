@@ -43,4 +43,4 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 - **TEST** validates `json` blocks, saves Python/shell snippets to the app’s files folder, and marks other languages as skipped. Android sandboxes cannot execute Python or shell code; full execution testing remains in the Termux CLI (`wormgpt`).
 - **COPY**, **SAVE**, and **CLEAR** work like their Termux counterparts.
 
-The startup oni art and welcome sound are included in the app.
+The startup oni art is included in the app. The launch sound randomly plays one of the three Termux UI startup clips (`access_granted`, `jarvis2`, `jarvis`) from the MIT-licensed [TermuX-Custom](https://github.com/Cod3r-Ak/TermuX-Custom) sound pack by Cod3r-Ak.

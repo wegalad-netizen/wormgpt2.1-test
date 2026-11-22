@@ -32,7 +32,7 @@ For a home-screen shortcut, copy `termux-widget/wormgpt` into `~/.shortcuts/` an
 
 ## Native Android app
 
-A Kotlin/Android Studio project lives in [`android/`](android/README.md). You can build the APK in the cloud with the included GitHub Actions workflow — no local Android SDK needed — or open the folder in Android Studio. The app uses the same Master/Ruler styling, oni art, welcome sound, and Gemini prompt, with the API key entered inside the app instead of embedded in source.
+A Kotlin/Android Studio project lives in [`android/`](android/README.md). You can build the APK in the cloud with the included GitHub Actions workflow — no local Android SDK needed — or open the folder in Android Studio. The app uses the same Master/Ruler styling, oni art, Termux UI startup sounds, and Gemini prompt, with the API key entered inside the app instead of embedded in source.
 
 ## Commands
 
