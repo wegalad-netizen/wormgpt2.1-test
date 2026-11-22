@@ -222,6 +222,50 @@
                             android:background="@drawable/pill_cyan" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="CRYPTO CHART SIGNAL"
+                            android:textColor="@color/worm_text"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="3dp"
+                            android:text="Upload a chart screenshot for a visual trend read"
+                            android:textColor="@color/worm_muted"
+                            android:textSize="11sp" />
+                        <com.wegalad.wormgpt.CryptoChartPreview
+                            android:layout_width="match_parent"
+                            android:layout_height="112dp"
+                            android:layout_marginTop="8dp"
+                            android:contentDescription="Illustrative crypto price chart preview; not live market data" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="ILLUSTRATIVE · NOT LIVE DATA"
+                            android:textColor="@color/worm_faint"
+                            android:textSize="9sp" />
+                        <Button
+                            android:id="@+id/homeCryptoButton"
+                            style="@style/WormButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginTop="8dp"
+                            android:text="ANALYZE SCREENSHOT"
+                            android:textColor="@color/worm_bg"
+                            android:background="@drawable/pill_cyan" />
+                    </LinearLayout>
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

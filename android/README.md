@@ -44,6 +44,6 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 - Your API key is stored only in the app’s private preferences. Tap **KEY** to save or clear it.
 - **TEST** validates `json` blocks, saves Python/shell snippets to the app’s files folder, and marks other languages as skipped. Android sandboxes cannot execute Python or shell code; full execution testing remains in the Termux CLI (`wormgpt`).
 - **COPY**, **SAVE**, and **CLEAR** work like their Termux counterparts.
-- **Chart screenshot analysis:** tap **IMG** beside the chat field, choose a crypto chart screenshot, then send it. The configured Gemini model reports visible trend evidence and an uncertain short-term scenario; the screenshot is resized and sent with the request, and is not saved by this feature. It cannot verify live prices or guarantee a prediction.
+- **Crypto chart signal:** use **ANALYZE SCREENSHOT** on Home or **IMG** in chat, choose a crypto chart screenshot, then send it. The configured Gemini model reports visible trend evidence and an uncertain short-term scenario. The Home chart is illustrative, not live market data. Selected screenshots are resized and sent with the request, then discarded; this feature cannot verify live prices or guarantee a prediction.
 
 The startup oni art is included in the app. The launch sound randomly plays one of the three Termux UI startup clips (`access_granted`, `jarvis2`, `jarvis`) from the MIT-licensed [TermuX-Custom](https://github.com/Cod3r-Ak/TermuX-Custom) sound pack by Cod3r-Ak.

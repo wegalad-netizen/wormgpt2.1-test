@@ -14,7 +14,10 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.drawable.GradientDrawable
+import android.graphics.Paint
+import android.graphics.Path
 import android.media.MediaPlayer
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -408,7 +411,7 @@ Scope:
         }
         findViewById<Button>(R.id.sendButton).setOnClickListener { sendPrompt() }
         findViewById<Button>(R.id.chartButton).setOnClickListener {
-            chooseChartScreenshot.launch("image/*")
+            launchChartPicker()
         }
         findViewById<Button>(R.id.codeButton).setOnClickListener { showCodeSnippetMenu() }
         findViewById<Button>(R.id.testButton).setOnClickListener { testLastCode() }
@@ -429,6 +432,7 @@ Scope:
         findViewById<Button>(R.id.navTools).setOnClickListener { showMainPage("tools") }
         findViewById<Button>(R.id.navSettings).setOnClickListener { drawerLayout.openDrawer(Gravity.END) }
         findViewById<Button>(R.id.quickCheckButton).setOnClickListener { showDashboardQuickCheck() }
+        findViewById<Button>(R.id.homeCryptoButton).setOnClickListener { launchChartPicker() }
         findViewById<View>(R.id.linkToolCard).setOnClickListener { showLinkSafetyChecker() }
         findViewById<View>(R.id.passwordToolCard).setOnClickListener { showPasswordTool() }
         findViewById<View>(R.id.fileToolCard).setOnClickListener { chooseReputationFile.launch("*/*") }
@@ -1514,6 +1518,11 @@ User request: $prompt"""
                 }
             }
         }
+    }
+
+    private fun launchChartPicker() {
+        showMainPage("chat")
+        chooseChartScreenshot.launch("image/*")
     }
 
     private fun encodeChartScreenshot(uri: Uri): String {
@@ -2730,5 +2739,54 @@ User request: $prompt"""
             // Second pass after the text layout settles.
             chatScroll.postDelayed({ chatScroll.fullScroll(ScrollView.FOCUS_DOWN) }, 80)
         }
+    }
+}
+
+class CryptoChartPreview(context: Context, attrs: android.util.AttributeSet? = null) : View(context, attrs) {
+    private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(38, 148, 163, 184)
+        strokeWidth = resources.displayMetrics.density
+    }
+    private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(6, 182, 212)
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f * resources.displayMetrics.density
+        strokeJoin = Paint.Join.ROUND
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(32, 6, 182, 212)
+        style = Paint.Style.FILL
+    }
+    private val values = floatArrayOf(0.78f, 0.66f, 0.70f, 0.52f, 0.58f, 0.42f, 0.47f, 0.30f, 0.38f, 0.22f, 0.27f, 0.16f)
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val density = resources.displayMetrics.density
+        val left = 4f * density
+        val right = width - left
+        val top = 5f * density
+        val bottom = height - 7f * density
+        for (row in 0..3) {
+            val y = top + (bottom - top) * row / 3f
+            canvas.drawLine(left, y, right, y, gridPaint)
+        }
+        for (column in 0..6) {
+            val x = left + (right - left) * column / 6f
+            canvas.drawLine(x, top, x, bottom, gridPaint)
+        }
+        val pricePath = Path()
+        values.forEachIndexed { index, value ->
+            val x = left + (right - left) * index / (values.size - 1)
+            val y = top + (bottom - top) * value
+            if (index == 0) pricePath.moveTo(x, y) else pricePath.lineTo(x, y)
+        }
+        val areaPath = Path(pricePath).apply {
+            lineTo(right, bottom)
+            lineTo(left, bottom)
+            close()
+        }
+        canvas.drawPath(areaPath, fillPaint)
+        canvas.drawPath(pricePath, linePaint)
     }
 }
