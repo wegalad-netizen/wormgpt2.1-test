@@ -1,10 +1,7 @@
 package com.wegalad.wormgpt
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.telecom.Call
 import android.telecom.CallScreeningService
-import androidx.core.content.ContextCompat
 
 /** Rejects incoming calls from the user's blocklist. Never places calls. */
 class SpamCallScreeningService : CallScreeningService() {
@@ -23,19 +20,14 @@ class SpamCallScreeningService : CallScreeningService() {
         val builder = CallResponse.Builder().apply {
             if (blocked) {
                 setDisallowCall(true)
+                setRejectCall(true)
                 setSkipCallLog(true)
                 setSkipNotification(true)
-                if (ContextCompat.checkSelfPermission(
-                        this@SpamCallScreeningService,
-                        Manifest.permission.ANSWER_PHONE_CALLS,
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    setRejectCall(true)
-                }
             }
         }
         respondToCall(callDetails, builder.build())
 
+        SpamPrefs.recordScreenedCall(this, number, blocked)
         if (blocked) {
             val label = number.ifBlank { "Hidden / unknown" }
             SpamPrefs.addLog(this, "CALL  $label")

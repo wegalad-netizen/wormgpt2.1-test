@@ -37,7 +37,8 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 - APKs use a stable committed debug signing key (`app/wormgpt-debug.jks`) so in-app updates replace the previous install instead of failing with a signature mismatch. This key is for personal/debug use only, not Play Store releases.
 - Launcher icon: red oni/ox mask with adaptive-icon support on Android 8+.
 - Minimum Android version: 7.0 (API 24).
-- Permissions used: `INTERNET`, `ACCESS_NETWORK_STATE`, `REQUEST_INSTALL_PACKAGES`, and legacy storage read/write on Android 9 and below. No contacts, SMS, location, camera, or microphone access.
+- Permissions used: `INTERNET`, `ACCESS_NETWORK_STATE`, `REQUEST_INSTALL_PACKAGES`, `RECEIVE_SMS`, `POST_NOTIFICATIONS`, and legacy storage read/write on Android 9 and below. No contacts, location, camera, or microphone access.
+- **Spam Guard:** turn on **CALL GUARD** and grant the call screening role. On Android 9 and older, set Sentinal Security as the **Caller ID & spam app** in Phone settings. Blocked numbers match on their last 10 digits, so country codes and trunk prefixes do not matter. **LAST SCREENED** shows whether the service is receiving calls.
 - Every push to `master` rebuilds and republishes the APK; there are no path filters.
 - Your API key is stored only in the app’s private preferences. Tap **KEY** to save or clear it.
 - **TEST** validates `json` blocks, saves Python/shell snippets to the app’s files folder, and marks other languages as skipped. Android sandboxes cannot execute Python or shell code; full execution testing remains in the Termux CLI (`wormgpt`).

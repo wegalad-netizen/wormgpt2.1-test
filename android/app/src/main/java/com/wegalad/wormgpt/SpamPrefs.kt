@@ -15,6 +15,7 @@ object SpamPrefs {
     private const val KEY_LOG = "spam_log"
     private const val KEY_CALL_ENABLED = "call_guard_enabled"
     private const val KEY_SMS_ENABLED = "sms_guard_enabled"
+    private const val KEY_LAST_CALL = "last_screened_call"
 
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -42,18 +43,31 @@ object SpamPrefs {
         prefs(context).edit().remove(KEY_BLOCKED).apply()
     }
 
-    /** Match exact digits or a phone-number suffix so +123... still matches 123... */
+    /**
+     * Match exact digits, or compare the last 10 digits so country codes and
+     * trunk prefixes (for example +91 98765 43210 vs 098765 43210) still match.
+     */
     fun isBlocked(context: Context, number: String?): Boolean {
         val incoming = digits(number.orEmpty())
-        if (incoming.isEmpty()) return false
+        if (incoming.length < 4) return false
         return blockedNumbers(context).any { entry ->
             val saved = digits(entry)
-            saved.length >= 4 &&
-                (incoming == saved ||
-                    (saved.length >= 7 && incoming.endsWith(saved)) ||
-                    (incoming.length >= 7 && saved.endsWith(incoming)))
+            if (saved.length < 4) return@any false
+            if (incoming == saved) return@any true
+            val compared = minOf(incoming.length, saved.length, 10)
+            compared >= 7 && incoming.takeLast(compared) == saved.takeLast(compared)
         }
     }
+
+    fun recordScreenedCall(context: Context, number: String, blocked: Boolean) {
+        val label = number.ifBlank { "Hidden / unknown" }
+        prefs(context).edit()
+            .putString(KEY_LAST_CALL, "$label · ${if (blocked) "BLOCKED" else "ALLOWED"}")
+            .apply()
+    }
+
+    fun lastScreenedCall(context: Context): String? =
+        prefs(context).getString(KEY_LAST_CALL, null)
 
     fun callGuardEnabled(context: Context): Boolean =
         prefs(context).getBoolean(KEY_CALL_ENABLED, true)

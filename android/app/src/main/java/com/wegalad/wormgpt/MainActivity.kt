@@ -182,7 +182,21 @@ Scope:
 
     private val requestCallRole =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            if (!isCallRoleHeld()) SpamPrefs.setCallGuardEnabled(this, false)
+            if (isCallRoleHeld()) {
+                Toast.makeText(this, "Call Guard enabled, Master.", Toast.LENGTH_SHORT).show()
+                requestNotificationPermissionIfNeeded()
+            } else {
+                SpamPrefs.setCallGuardEnabled(this, false)
+                Toast.makeText(this, "Call screening permission was not granted.", Toast.LENGTH_SHORT).show()
+            }
+            updateGuardStatus()
+        }
+
+    private val requestCallNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) {
+                Toast.makeText(this, "Call Guard is on, but alerts are muted.", Toast.LENGTH_SHORT).show()
+            }
             updateGuardStatus()
         }
 
@@ -732,8 +746,14 @@ Scope:
         if (!::guardStatus.isInitialized) return
 
         val callRole = isCallRoleHeld()
+        val callAvailable = isCallRoleAvailable()
+        val callPref = SpamPrefs.callGuardEnabled(this)
+        val callOn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            callRole && callPref
+        } else {
+            callPref
+        }
         val smsPermission = hasSmsPermission()
-        val callOn = callRole && SpamPrefs.callGuardEnabled(this)
         val smsOn = smsPermission && SpamPrefs.smsGuardEnabled(this)
         val notifOn = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
@@ -742,13 +762,28 @@ Scope:
             ) == PackageManager.PERMISSION_GRANTED
 
         guardStatus.text = buildString {
-            append("CALL GUARD: ").append(if (callOn) "ACTIVE" else "OFF")
+            append("CALL GUARD: ").append(
+                when {
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && callPref -> "ON · VERIFY PHONE"
+                    callOn -> "ACTIVE"
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && callPref -> "SETUP NEEDED"
+                    else -> "OFF"
+                },
+            )
             append("   |   SMS GUARD: ").append(if (smsOn) "ACTIVE" else "OFF")
             append("\nBLOCKED: ").append(SpamPrefs.blockedNumbers(this@MainActivity).size)
             append("   |   CAUGHT: ").append(SpamPrefs.log(this@MainActivity).size)
+            append("\nLAST SCREENED: ").append(
+                SpamPrefs.lastScreenedCall(this@MainActivity) ?: "none yet",
+            )
             if (!notifOn) append("\nNotifications off — no alerts.")
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && !callRole) {
-                append("\nSet call screener in Phone settings.")
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !callAvailable ->
+                    append("\nCall screening is not available on this device.")
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && callPref && !callRole ->
+                    append("\nTap CALL GUARD to grant call screening.")
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && callPref ->
+                    append("\nVerify Sentinal Security in Phone > Caller ID & spam.")
             }
         }
 
@@ -762,9 +797,23 @@ Scope:
             )
         }
 
+        guardStatus.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (callOn) R.color.worm_green else R.color.worm_amber,
+            ),
+        )
+
         if (::callGuardSwitch.isInitialized) {
             syncingGuardSwitches = true
             callGuardSwitch.isChecked = callOn
+            callGuardSwitch.text = if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && callPref && !callRole
+            ) {
+                "CALL GUARD — GRANT ACCESS"
+            } else {
+                "CALL GUARD"
+            }
             smsGuardSwitch.isChecked = smsOn
             syncingGuardSwitches = false
         }
@@ -788,7 +837,11 @@ Scope:
     }
 
     private fun showDashboardQuickCheck() {
-        val callActive = isCallRoleHeld() && SpamPrefs.callGuardEnabled(this)
+        val callActive = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            isCallRoleHeld() && SpamPrefs.callGuardEnabled(this)
+        } else {
+            SpamPrefs.callGuardEnabled(this)
+        }
         val smsActive = hasSmsPermission() && SpamPrefs.smsGuardEnabled(this)
         val status = if (callActive && smsActive) "Monitoring" else if (callActive || smsActive) "Partial protection" else "Action needed"
         AlertDialog.Builder(this)
@@ -797,7 +850,8 @@ Scope:
                 "$status\n\nCall guard: ${if (callActive) "Active" else "Off or permission needed"}\n" +
                     "SMS guard: ${if (smsActive) "Active" else "Off or permission needed"}\n" +
                     "Blocked numbers: ${SpamPrefs.blockedNumbers(this).size}\n" +
-                    "Alerts logged: ${SpamPrefs.log(this).size}\n\n" +
+                    "Alerts logged: ${SpamPrefs.log(this).size}\n" +
+                    "Last screened call: ${SpamPrefs.lastScreenedCall(this) ?: "none yet"}\n\n" +
                     "This checks local call/SMS settings only. It is not a malware or network scan.",
             )
             .setPositiveButton("DONE", null)
@@ -808,6 +862,12 @@ Scope:
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
         val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager ?: return false
         return roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
+    }
+
+    private fun isCallRoleAvailable(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager ?: return false
+        return roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)
     }
 
     private fun hasSmsPermission(): Boolean =
@@ -830,30 +890,67 @@ Scope:
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager
-            if (roleManager != null && !roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)) {
+            if (roleManager == null || !roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
+                SpamPrefs.setCallGuardEnabled(this, false)
+                Toast.makeText(
+                    this,
+                    "Call screening is not available on this device.",
+                    Toast.LENGTH_LONG,
+                ).show()
+                openDefaultAppsSettings()
+                updateGuardStatus()
+                return
+            }
+            if (!roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)) {
                 try {
                     requestCallRole.launch(
                         roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING),
                     )
                     return
                 } catch (_: Exception) {
-                    // Fall through to the settings screen.
+                    SpamPrefs.setCallGuardEnabled(this, false)
+                    Toast.makeText(
+                        this,
+                        "Could not request call screening. Set it in Phone settings.",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    openDefaultAppsSettings()
+                    updateGuardStatus()
+                    return
                 }
             }
             Toast.makeText(this, "Call Guard enabled, Master.", Toast.LENGTH_SHORT).show()
+            requestNotificationPermissionIfNeeded()
             updateGuardStatus()
             return
         }
 
         Toast.makeText(
             this,
-            "Set WormGPT as Caller ID & spam app in Phone settings.",
+            "Set Sentinal Security as Caller ID & spam app in Phone settings.",
             Toast.LENGTH_LONG,
         ).show()
+        openDefaultAppsSettings()
+        requestNotificationPermissionIfNeeded()
+        updateGuardStatus()
+    }
+
+    private fun openDefaultAppsSettings() {
         try {
             startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
         } catch (_: Exception) {
             // Ignore.
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestCallNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
