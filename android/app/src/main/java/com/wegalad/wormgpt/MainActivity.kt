@@ -28,7 +28,6 @@ import android.os.Bundle
 import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
-import android.speech.tts.TextToSpeech
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.InputType
@@ -186,10 +185,7 @@ Scope:
     private lateinit var hideSmsSwitch: Switch
     private lateinit var otpBlockSwitch: Switch
     private lateinit var jarvisVoiceSwitch: Switch
-    private var textToSpeech: TextToSpeech? = null
-    private var fallbackVoicePlayer: MediaPlayer? = null
-    private var ttsReady = false
-    private var voiceGreetingPending = false
+    private var jarvisVoicePlayer: MediaPlayer? = null
     private var syncingGuardSwitches = false
     private var lastResponse: String = ""
     private var pendingChartUri: Uri? = null
@@ -361,26 +357,26 @@ Scope:
         keywordSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setKeywordFilter(this, checked)
             animateSystemToggle(keywordSwitch)
-            speakSystemSwitch("Keyword filter", checked)
+            playJarvisSystemFeedback()
         }
         unknownSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setBlockUnknown(this, checked)
             animateSystemToggle(unknownSwitch)
-            speakSystemSwitch("Unknown caller filter", checked)
+            playJarvisSystemFeedback()
         }
         operatorSpamSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setOperatorSpamEnabled(this, checked)
             updateGuardStatus()
             animateSystemToggle(operatorSpamSwitch)
             animateGuardFeedback()
-            speakSystemSwitch("Operator spam filter", checked)
+            playJarvisSystemFeedback()
         }
         hideSmsSwitch.setOnCheckedChangeListener { _, checked ->
             if (!syncingGuardSwitches) {
                 setHideSpamSms(checked)
                 animateSystemToggle(hideSmsSwitch)
                 animateGuardFeedback()
-                speakSystemSwitch("Spam SMS alerts", checked)
+                playJarvisSystemFeedback()
             }
         }
         otpBlockSwitch.setOnCheckedChangeListener { _, checked ->
@@ -388,7 +384,7 @@ Scope:
                 setHideOtpSms(checked)
                 animateSystemToggle(otpBlockSwitch)
                 animateGuardFeedback()
-                speakSystemSwitch("OTP SMS alerts", checked)
+                playJarvisSystemFeedback()
             }
         }
         callGuardSwitch.setOnCheckedChangeListener { _, checked ->
@@ -396,7 +392,7 @@ Scope:
                 setCallGuard(checked)
                 animateSystemToggle(callGuardSwitch)
                 animateGuardFeedback()
-                speakSystemSwitch("Call guard", checked)
+                playJarvisSystemFeedback()
             }
         }
         smsGuardSwitch.setOnCheckedChangeListener { _, checked ->
@@ -404,7 +400,7 @@ Scope:
                 setSmsGuard(checked)
                 animateSystemToggle(smsGuardSwitch)
                 animateGuardFeedback()
-                speakSystemSwitch("SMS guard", checked)
+                playJarvisSystemFeedback()
             }
         }
 
@@ -422,18 +418,8 @@ Scope:
         jarvisVoiceSwitch.setOnCheckedChangeListener { _, checked ->
             prefs.edit().putBoolean(KEY_JARVIS_VOICE, checked).apply()
             animateSystemToggle(jarvisVoiceSwitch)
-            if (checked) speakJarvis("Jarvis voice feedback enabled.")
-            else {
-                voiceGreetingPending = false
-                textToSpeech?.stop()
-                fallbackVoicePlayer?.let { player ->
-                    try { if (player.isPlaying) player.stop() } catch (_: Exception) {}
-                    player.release()
-                    fallbackVoicePlayer = null
-                }
-            }
+            if (checked) playJarvisClip(R.raw.jarvis2) else stopJarvisVoice()
         }
-        initializeJarvisVoice()
         applyNetVisibility(showNetSwitch.isChecked)
 
         findViewById<ImageButton>(R.id.menuButton).setOnClickListener {
@@ -574,14 +560,7 @@ Scope:
     }
 
     override fun onDestroy() {
-        textToSpeech?.stop()
-        textToSpeech?.shutdown()
-        textToSpeech = null
-        fallbackVoicePlayer?.let { player ->
-            try { if (player.isPlaying) player.stop() } catch (_: Exception) {}
-            player.release()
-            fallbackVoicePlayer = null
-        }
+        stopJarvisVoice()
         super.onDestroy()
     }
 
@@ -1528,59 +1507,38 @@ Scope:
             .show()
     }
 
-    private fun initializeJarvisVoice() {
-        try {
-            textToSpeech = TextToSpeech(applicationContext) { status ->
-                window.decorView.post {
-                    val engine = textToSpeech ?: return@post
-                    if (status == TextToSpeech.SUCCESS) {
-                        engine.language = Locale.US
-                        engine.setPitch(0.82f)
-                        engine.setSpeechRate(0.92f)
-                        ttsReady = true
-                        if (voiceGreetingPending && isJarvisVoiceEnabled()) {
-                            voiceGreetingPending = false
-                            speakJarvis("Systems online. Sentinal Security is ready.")
-                        }
-                    } else if (voiceGreetingPending && isJarvisVoiceEnabled()) {
-                        voiceGreetingPending = false
-                        playWelcomeSoundFallback()
-                    }
-                }
-            }
-        } catch (_: Exception) {
-            ttsReady = false
-            if (voiceGreetingPending && isJarvisVoiceEnabled()) playWelcomeSoundFallback()
-        }
-    }
-
     private fun isJarvisVoiceEnabled(): Boolean = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .getBoolean(KEY_JARVIS_VOICE, true)
 
     private fun playWelcome() {
+        playJarvisClip(R.raw.jarvis)
+    }
+
+    private fun playJarvisClip(resourceId: Int) {
         if (!isJarvisVoiceEnabled()) return
-        voiceGreetingPending = true
-        if (ttsReady) {
-            voiceGreetingPending = false
-            speakJarvis("Systems online. Sentinal Security is ready.")
-        } else if (textToSpeech == null) {
-            voiceGreetingPending = false
-            playWelcomeSoundFallback()
+        stopJarvisVoice()
+        try {
+            val player = MediaPlayer.create(this, resourceId) ?: return
+            jarvisVoicePlayer = player
+            player.setOnCompletionListener { completed ->
+                if (jarvisVoicePlayer === completed) jarvisVoicePlayer = null
+                completed.release()
+            }
+            player.start()
+        } catch (_: Exception) {
+            stopJarvisVoice()
         }
     }
 
-    private fun speakJarvis(message: String) {
-        if (!isJarvisVoiceEnabled() || !ttsReady) return
-        textToSpeech?.speak(
-            message,
-            TextToSpeech.QUEUE_FLUSH,
-            null,
-            "sentinal-voice-${SystemClock.uptimeMillis()}",
-        )
+    private fun stopJarvisVoice() {
+        val player = jarvisVoicePlayer ?: return
+        jarvisVoicePlayer = null
+        try { if (player.isPlaying) player.stop() } catch (_: Exception) {}
+        try { player.release() } catch (_: Exception) {}
     }
 
-    private fun speakSystemSwitch(label: String, enabled: Boolean) {
-        speakJarvis("$label switched ${if (enabled) "on" else "off"}.")
+    private fun playJarvisSystemFeedback() {
+        playJarvisClip(R.raw.jarvis2)
     }
 
     private fun animateSystemToggle(view: View) {
@@ -1620,21 +1578,6 @@ Scope:
                     .start()
             }
             .start()
-    }
-
-    private fun playWelcomeSoundFallback() {
-        try {
-            val sound = intArrayOf(R.raw.access_granted, R.raw.jarvis2, R.raw.jarvis).random()
-            val player = MediaPlayer.create(this, sound) ?: return
-            fallbackVoicePlayer = player
-            player.setOnCompletionListener {
-                it.release()
-                fallbackVoicePlayer = null
-            }
-            player.start()
-        } catch (_: Exception) {
-            // The voice is cosmetic; keep startup usable without audio.
-        }
     }
 
     private fun readApiProfiles(): List<ApiProfile> {

@@ -776,7 +776,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
-                    android:text="Speaks system status and startup greeting. Disable it here anytime."
+                    android:text="Uses the bundled Jarvis recordings at startup and for system-control feedback. Disable anytime."
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 
