@@ -343,6 +343,7 @@ Scope:
         apiKeyInput = findViewById(R.id.apiKeyInput)
         apiFallbacksInput = findViewById(R.id.apiFallbacksInput)
         drawerLayout.setScrimColor(0x99000000.toInt())
+        pulseOwnerStatusDot()
 
         chatScroll.setOnScrollChangeListener { _, _, _, _, _ ->
             stickToBottom = !chatScroll.canScrollVertically(1)
@@ -849,78 +850,127 @@ Scope:
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(22), dp(20), dp(22), dp(18))
-            setBackgroundColor(0xFF100404.toInt())
+            setBackgroundResource(R.drawable.owner_card_bg)
         }
         content.addView(TextView(this).apply {
             text = "OWNER PROFILE"
-            setTextColor(0xFFEF4444.toInt())
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_red_bright))
             textSize = 11f
             letterSpacing = 0.14f
         })
+        content.addView(OwnerBadgeView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(96), dp(96)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp(14)
+            }
+        })
         content.addView(TextView(this).apply {
             text = "Seeker Of Truth"
-            setTextColor(0xFFFAFAFA.toInt())
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
             textSize = 25f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setPadding(0, dp(8), 0, dp(4))
+            setPadding(0, dp(12), 0, dp(6))
         })
         content.addView(TextView(this).apply {
             text = "Sentinal Security owner"
-            setTextColor(0xFFA1A1AA.toInt())
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
             textSize = 14f
             setPadding(0, 0, 0, dp(20))
         })
         content.addView(TextView(this).apply {
             text = "SOCIAL PROFILES"
-            setTextColor(0xFFEF4444.toInt())
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_red_bright))
             textSize = 11f
             letterSpacing = 0.12f
             setPadding(0, 0, 0, dp(8))
         })
-        val profiles = mapOf(
-            "TikTok" to OWNER_TIKTOK,
-            "WhatsApp" to OWNER_WHATSAPP,
-            "Telegram" to OWNER_TELEGRAM,
+
+        val profiles = listOf(
+            "TikTok" to Pair(OWNER_TIKTOK, "@sad.developer0"),
+            "WhatsApp" to Pair(OWNER_WHATSAPP, "+94 70 534 5029"),
+            "Telegram" to Pair(OWNER_TELEGRAM, "+94 72 408 5416"),
         )
-        profiles.forEach { (platform, url) ->
+        val socialRows = mutableListOf<TextView>()
+        profiles.forEach { (platform, link) ->
+            val url = link.first
             val row = TextView(this).apply {
-                text = when (platform) {
-                    "TikTok" -> "$platform     ↗     @sad.developer0"
-                    "WhatsApp" -> "$platform     ↗     +94 70 534 5029"
-                    "Telegram" -> "$platform     ↗     +94 72 408 5416"
-                    else -> "$platform     •     Profile link not set"
-                }
-                setTextColor(0xFFFAFAFA.toInt())
+                text = "$platform     ↗     ${link.second}"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
                 textSize = 14f
-                setPadding(dp(14), dp(14), dp(14), dp(14))
+                setPadding(dp(16), dp(14), dp(16), dp(14))
                 setBackgroundResource(R.drawable.card_bg)
-                if (url != null) {
-                    isClickable = true
-                    isFocusable = true
-                    setOnClickListener {
-                        try {
-                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                        } catch (_: Exception) {
-                            Toast.makeText(this@MainActivity, "Could not open $platform.", Toast.LENGTH_SHORT).show()
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    // Gentle press feedback: shrink, then rebound with an overshoot.
+                    ValueAnimator.ofFloat(1f, 0.95f).apply {
+                        duration = 90
+                        addUpdateListener { a ->
+                            scaleX = a.animatedValue as Float
+                            scaleY = a.animatedValue as Float
                         }
+                        start()
                     }
+                    ValueAnimator.ofFloat(0.95f, 1f).apply {
+                        duration = 130
+                        startDelay = 80
+                        interpolator = OvershootInterpolator(1.4f)
+                        addUpdateListener { a ->
+                            scaleX = a.animatedValue as Float
+                            scaleY = a.animatedValue as Float
+                        }
+                        start()
+                    }
+                    openOwnerUrl(url)
                 }
+                // Staggered fade + slide-in when the dialog opens.
+                alpha = 0f
+                translationY = dp(8).toFloat()
             }
-            val params = LinearLayout.LayoutParams(-1, -2).apply {
-                bottomMargin = dp(8)
-            }
-            content.addView(row, params)
+            content.addView(
+                row,
+                LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) },
+            )
+            socialRows += row
         }
         content.addView(TextView(this).apply {
             text = "Tap a social card to open the owner’s profile or contact."
-            setTextColor(0xFF71717A.toInt())
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
             textSize = 12f
             setPadding(0, dp(8), 0, 0)
         })
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setView(content)
             .setPositiveButton("DONE", null)
-            .show()
+            .create()
+        dialog.setOnShowListener {
+            socialRows.forEachIndexed { i, row ->
+                ValueAnimator.ofFloat(0f, 1f).apply {
+                    duration = 300
+                    startDelay = (i * 130).toLong()
+                    interpolator = AccelerateDecelerateInterpolator()
+                    addUpdateListener { a ->
+                        val value = a.animatedValue as Float
+                        row.alpha = value
+                        row.translationY = (1f - value) * dp(8).toFloat()
+                    }
+                    start()
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun pulseOwnerStatusDot() {
+        val dot = findViewById<View>(R.id.ownerNetPulse) ?: return
+        val animator = ValueAnimator.ofFloat(0.45f, 1f).apply {
+            duration = 1500
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { a -> dot.alpha = a.animatedValue as Float }
+        }
+        animator.start()
     }
 
     private fun dp(value: Int): Int =

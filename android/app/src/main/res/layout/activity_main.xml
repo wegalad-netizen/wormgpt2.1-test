@@ -1076,15 +1076,16 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/card_bg"
+                    android:background="@drawable/owner_card_bg"
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <ImageView
-                        android:layout_width="58dp"
-                        android:layout_height="58dp"
-                        android:contentDescription="Sentinal Security"
-                        android:src="@drawable/security_shield_icon" />
+                    <com.wegalad.wormgpt.OwnerBadgeView
+                        android:id="@+id/ownerBadge"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_marginTop="4dp"
+                        android:contentDescription="Sentinal Security" />
 
                     <TextView
                         android:layout_width="match_parent"
@@ -1105,14 +1106,26 @@
                         android:textSize="9sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/drawerNetStatus"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="● NET  ↓ 0 Kbps  ↑ 0 Kbps"
-                        android:textColor="@color/sentinal_emerald"
-                        android:textSize="10sp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+                        <View
+                            android:id="@+id/ownerNetPulse"
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/status_dot" />
+                        <TextView
+                            android:id="@+id/drawerNetStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="● NET  ↓ 0 Kbps  ↑ 0 Kbps"
+                            android:textColor="@color/sentinal_emerald"
+                            android:textSize="10sp" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <!-- Owner social links -->
