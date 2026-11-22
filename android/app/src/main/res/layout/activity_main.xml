@@ -767,7 +767,7 @@
                     android:layout_marginTop="4dp"
                     android:buttonTint="@color/worm_cyan"
                     android:switchMinWidth="34dp"
-                    android:text="JARVIS VOICE FEEDBACK"
+                    android:text="JARVIS VOICE + UI SOUNDS"
                     android:textColor="@color/worm_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -776,7 +776,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
-                    android:text="Uses the bundled Jarvis recordings at startup and for system-control feedback. Disable anytime."
+                    android:text="Bundled Jarvis voice plus futuristic button sounds. Disable all audio anytime."
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 

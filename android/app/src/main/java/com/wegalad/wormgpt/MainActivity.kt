@@ -18,7 +18,9 @@ import android.graphics.Canvas
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Paint
 import android.graphics.Path
+import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.media.SoundPool
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.TrafficStats
@@ -186,6 +188,10 @@ Scope:
     private lateinit var otpBlockSwitch: Switch
     private lateinit var jarvisVoiceSwitch: Switch
     private var jarvisVoicePlayer: MediaPlayer? = null
+    private var uiSoundPool: SoundPool? = null
+    private var uiClickSoundId = 0
+    private var uiClickSoundReady = false
+    private var uiTouchTarget: View? = null
     private var syncingGuardSwitches = false
     private var lastResponse: String = ""
     private var pendingChartUri: Uri? = null
@@ -290,6 +296,18 @@ Scope:
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val sonification = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        uiSoundPool = SoundPool.Builder()
+            .setMaxStreams(4)
+            .setAudioAttributes(sonification)
+            .build()
+        uiSoundPool?.setOnLoadCompleteListener { _, sampleId, status ->
+            if (sampleId == uiClickSoundId && status == 0) uiClickSoundReady = true
+        }
+        uiClickSoundId = uiSoundPool?.load(this, R.raw.ui_click, 1) ?: 0
         setupKeyboardInsets()
 
         findViewById<TextView>(R.id.appVersion).text =
@@ -561,7 +579,53 @@ Scope:
 
     override fun onDestroy() {
         stopJarvisVoice()
+        uiSoundPool?.release()
+        uiSoundPool = null
+        uiClickSoundReady = false
         super.onDestroy()
+    }
+
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+        val action = event.actionMasked
+        if (action == android.view.MotionEvent.ACTION_DOWN) {
+            uiTouchTarget = findUiClickTarget(window.decorView, event.rawX, event.rawY)
+        }
+        val clickTarget = if (action == android.view.MotionEvent.ACTION_UP) {
+            findUiClickTarget(window.decorView, event.rawX, event.rawY)
+                ?.takeIf { it === uiTouchTarget }
+        } else null
+        val handled = super.dispatchTouchEvent(event)
+        if (clickTarget != null && isJarvisVoiceEnabled()) playUiClickSound()
+        if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) {
+            uiTouchTarget = null
+        }
+        return handled
+    }
+
+    private fun findUiClickTarget(view: View, screenX: Float, screenY: Float): View? {
+        if (view.visibility != View.VISIBLE || view.alpha <= 0f) return null
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        if (screenX < location[0] || screenY < location[1] ||
+            screenX >= location[0] + view.width || screenY >= location[1] + view.height
+        ) return null
+
+        if (view is ViewGroup) {
+            for (index in view.childCount - 1 downTo 0) {
+                findUiClickTarget(view.getChildAt(index), screenX, screenY)?.let { return it }
+            }
+        }
+
+        if (!view.isEnabled || view is EditText || view is Switch || view is android.widget.CompoundButton ||
+            view is android.widget.SeekBar || view is Spinner
+        ) return null
+        return view.takeIf { it.isClickable || it.hasOnClickListeners() }
+    }
+
+    private fun playUiClickSound() {
+        val pool = uiSoundPool ?: return
+        if (!uiClickSoundReady || uiClickSoundId == 0) return
+        pool.play(uiClickSoundId, 0.42f, 0.42f, 1, 0, 1f)
     }
 
     private fun startBackgroundPulse() {
