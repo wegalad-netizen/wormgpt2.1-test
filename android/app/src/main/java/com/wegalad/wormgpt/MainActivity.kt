@@ -36,6 +36,7 @@ import android.text.InputType
 import android.text.style.ForegroundColorSpan
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
+import android.text.TextUtils
 import android.util.Base64
 import android.view.Gravity
 import android.view.View
@@ -517,6 +518,8 @@ Scope:
         findViewById<Button>(R.id.toolsSpamLogButton).setOnClickListener { showSpamLogDialog() }
         findViewById<Button>(R.id.toolsSimulateButton).setOnClickListener { runSpamSimulation() }
         findViewById<Button>(R.id.toolsBlocklistButton).setOnClickListener { showBlocklistDialog() }
+        findViewById<Button>(R.id.toolsQuarantineButton).setOnClickListener { showQuarantineDialog() }
+        findViewById<Button>(R.id.toolsReportButton).setOnClickListener { showReportDialog() }
         findViewById<Button>(R.id.navDashboard).setOnClickListener { showMainPage("dashboard") }
         findViewById<Button>(R.id.navChat).setOnClickListener { showMainPage("chat") }
         findViewById<Button>(R.id.navTools).setOnClickListener { showMainPage("tools") }
@@ -1026,6 +1029,7 @@ Scope:
                 },
             )
             append("\nBLOCKED: ").append(SpamPrefs.blockedNumbers(this@MainActivity).size)
+            append("   |   QUARANTINED: ").append(SpamPrefs.quarantineCount(this@MainActivity))
             append("   |   CAUGHT: ").append(SpamPrefs.log(this@MainActivity).size)
             append("\nLAST SCREENED: ").append(
                 SpamPrefs.lastScreenedCall(this@MainActivity) ?: "none yet",
@@ -1409,6 +1413,25 @@ Scope:
             .create()
 
         dialog.setOnShowListener {
+            view.findViewById<Button>(R.id.importButton).setOnClickListener {
+                val pasted = view.findViewById<EditText>(R.id.blocklistImportInput).text.toString()
+                val count = SpamPrefs.importBlocklist(this, pasted)
+                Toast.makeText(this, "Imported $count entries.", Toast.LENGTH_SHORT).show()
+                updateGuardStatus()
+                render()
+            }
+            view.findViewById<Button>(R.id.exportButton).setOnClickListener {
+                val text = SpamPrefs.exportBlocklist(this)
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(
+                    ClipData.newPlainText("Sentinal Security blocklist", text),
+                )
+                Toast.makeText(
+                    this,
+                    "Copied blocklist to clipboard (${SpamPrefs.blockedNumbers(this).size} entries).",
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val value = input.text.toString().trim()
                 if (value.isEmpty()) {
@@ -1442,6 +1465,159 @@ Scope:
             .setPositiveButton("CLEAR LOG") { _, _ ->
                 SpamPrefs.clearLog(this)
                 updateGuardStatus()
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+    }
+
+    private fun showQuarantineDialog() {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(10))
+        }
+        val scroll = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(340),
+            )
+            addView(container)
+        }
+
+        fun render() {
+            container.removeAllViews()
+            val items = SpamPrefs.quarantine(this@MainActivity)
+            if (items.isEmpty()) {
+                container.addView(TextView(this@MainActivity).apply {
+                    text = "Nothing is quarantined. Spam SMS that is not on your blocklist waits here for your decision."
+                    textSize = 12f
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                })
+                return
+            }
+            items.forEach { item ->
+                val row = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setBackgroundResource(R.drawable.card_bg)
+                    setPadding(dp(10), dp(10), dp(10), dp(10))
+                }
+                val info = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        0,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        1f,
+                    )
+                }
+                info.addView(TextView(this@MainActivity).apply {
+                    text = item.sender
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                    textSize = 13f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                })
+                info.addView(TextView(this@MainActivity).apply {
+                    text = item.preview.ifBlank { "(no preview)" }
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
+                    textSize = 11f
+                    maxLines = 2
+                    ellipsize = TextUtils.TruncateAt.END
+                })
+                info.addView(TextView(this@MainActivity).apply {
+                    val signalsText = item.signals.joinToString(", ").take(90)
+                    text = "RISK ${item.score}% · " + SpamPrefs.formatTimestamp(item.created) +
+                        (if (signalsText.isNotEmpty()) " · $signalsText" else "")
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                    textSize = 9f
+                    setPadding(0, dp(3), 0, 0)
+                })
+                val allow = Button(this@MainActivity).apply {
+                    text = "ALLOW"
+                    textSize = 10f
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                    setBackgroundResource(R.drawable.pill_outline)
+                    setOnClickListener {
+                        SpamPrefs.removeQuarantine(this@MainActivity, item.created)
+                        SpamPrefs.addLog(this@MainActivity, "Quarantined message allowed · ${item.sender}")
+                        Toast.makeText(this@MainActivity, "Quarantined message allowed.", Toast.LENGTH_SHORT).show()
+                        render()
+                        updateGuardStatus()
+                    }
+                }
+                val block = Button(this@MainActivity).apply {
+                    text = "BLOCK"
+                    textSize = 10f
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_red_bright))
+                    setBackgroundResource(R.drawable.pill_outline)
+                    setOnClickListener {
+                        SpamPrefs.addBlocked(this@MainActivity, item.sender)
+                        SpamPrefs.removeQuarantine(this@MainActivity, item.created)
+                        SpamPrefs.addLog(this@MainActivity, "Quarantined message blocked · ${item.sender}")
+                        Toast.makeText(this@MainActivity, "Sender added to blocklist.", Toast.LENGTH_SHORT).show()
+                        render()
+                        updateGuardStatus()
+                    }
+                }
+                val delete = Button(this@MainActivity).apply {
+                    text = "DELETE"
+                    textSize = 10f
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
+                    setBackgroundResource(R.drawable.pill_outline)
+                    setOnClickListener {
+                        SpamPrefs.removeQuarantine(this@MainActivity, item.created)
+                        Toast.makeText(this@MainActivity, "Removed from quarantine.", Toast.LENGTH_SHORT).show()
+                        render()
+                        updateGuardStatus()
+                    }
+                }
+                val actions = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(4), 0, dp(4), 0)
+                    addView(allow)
+                    addView(block)
+                    addView(delete)
+                }
+                row.addView(info)
+                row.addView(actions)
+                container.addView(row)
+            }
+        }
+
+        render()
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("QUARANTINE (${SpamPrefs.quarantineCount(this)})")
+            .setView(scroll)
+            .setNeutralButton("CLEAR ALL") { _, _ ->
+                SpamPrefs.clearQuarantine(this)
+                Toast.makeText(this, "Quarantine cleared.", Toast.LENGTH_SHORT).show()
+                updateGuardStatus()
+                render()
+            }
+            .setNegativeButton("CLOSE", null)
+            .create()
+        dialog.show()
+    }
+
+    private fun showReportDialog() {
+        val report = SpamPrefs.generateReport(this)
+        val view = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(420),
+            )
+            addView(TextView(this@MainActivity).apply {
+                text = report
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                textSize = 12f
+                setPadding(dp(16), dp(14), dp(16), dp(14))
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle("SENTINAL SECURITY REPORT")
+            .setView(view)
+            .setPositiveButton("COPY TO CLIPBOARD") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Sentinal Security report", report))
+                Toast.makeText(this, "Report copied to clipboard.", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("CLOSE", null)
             .show()

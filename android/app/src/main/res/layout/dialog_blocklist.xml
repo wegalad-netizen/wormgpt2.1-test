@@ -11,7 +11,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="ADD A NUMBER"
+        android:text="ADD A NUMBER OR PATTERN"
         android:textColor="@color/sentinal_red_bright"
         android:textSize="11sp"
         android:textStyle="bold" />
@@ -22,13 +22,58 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:background="@drawable/card_bg"
-        android:hint="+1 555 0100"
+        android:hint="5550100 or 7414*"
         android:inputType="phone"
         android:padding="12dp"
         android:singleLine="true"
         android:textColor="@color/sentinal_text"
         android:textColorHint="@color/sentinal_faint"
         android:textSize="13sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/importButton"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:text="IMPORT"
+            android:textColor="@color/sentinal_red_bright"
+            android:background="@drawable/pill_outline"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/exportButton"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="EXPORT"
+            android:textColor="@color/sentinal_cyan"
+            android:background="@drawable/pill_outline"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/blocklistImportInput"
+        android:layout_width="match_parent"
+        android:layout_height="84dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/card_bg"
+        android:gravity="top|start"
+        android:hint="Paste entries here — one per line, e.g. 5550100 or 7414*"
+        android:inputType="textMultiLine"
+        android:maxLines="4"
+        android:padding="10dp"
+        android:textColor="@color/sentinal_text"
+        android:textColorHint="@color/sentinal_faint"
+        android:textSize="11sp" />
 
     <TextView
         android:layout_width="match_parent"

@@ -61,6 +61,20 @@ class SpamSmsNotificationListener : NotificationListenerService() {
         val reason = if (numberHit) "blocked number" else "spam keywords"
         val preview = body.replace(Regex("\\s+"), " ").take(140)
         SpamPrefs.addLog(this, "SMS HIDDEN  $sender  [$reason]  $preview")
+        if (!numberHit && keywordHit) {
+            // Spam verdict that is not on the blocklist: quarantine for triage.
+            SpamPrefs.addQuarantine(
+                this,
+                QuarantineItem(
+                    sender = sender.ifBlank { "Unknown" },
+                    preview = preview,
+                    score = SpamPrefs.spamScore(this, body, sender),
+                    verdict = "SPAM",
+                    created = System.currentTimeMillis(),
+                    signals = SpamPrefs.spamSignals(this, body, sender),
+                ),
+            )
+        }
     }
 
     private fun isSmsNotification(

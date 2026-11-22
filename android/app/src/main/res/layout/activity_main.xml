@@ -505,6 +505,8 @@
                     <Button android:id="@+id/securityToolsButton" style="@style/SentinalButton" android:layout_width="match_parent" android:layout_height="46dp" android:text="OPEN SECURITY TOOLS" android:background="@drawable/pill_cyan" android:textColor="@color/sentinal_bg" />
                     <Button android:id="@+id/toolsSimulateButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="RUN LOCAL SPAM SIMULATION" />
                     <Button android:id="@+id/toolsBlocklistButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="MANAGE BLOCKLIST" />
+                    <Button android:id="@+id/toolsQuarantineButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="QUARANTINE" />
+                    <Button android:id="@+id/toolsReportButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="EXPORT REPORT" />
                 </LinearLayout>
             </ScrollView>
         </FrameLayout>
