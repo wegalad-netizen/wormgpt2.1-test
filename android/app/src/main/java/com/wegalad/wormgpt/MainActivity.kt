@@ -16,9 +16,12 @@ import android.graphics.drawable.GradientDrawable
 import android.media.MediaPlayer
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.TrafficStats
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
+import android.os.SystemClock
 import android.provider.Settings
 import android.text.Spannable
 import android.text.SpannableString
@@ -53,6 +56,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Dns
@@ -96,6 +102,12 @@ class MainActivity : AppCompatActivity() {
         const val KEY_SKIPPED_RELEASE = "skipped_release"
         const val KEY_CHAT_TEXT = "chat_text"
         const val KEY_LAST_RESPONSE = "last_response"
+        const val KEY_SHOW_NET = "show_net_speed"
+        const val OWNER_TIKTOK =
+            "https://www.tiktok.com/@sad.developer0?_r=1&_t=ZS-9Bac24QcWwM"
+        const val OWNER_WHATSAPP = "https://wa.me/94705345029"
+        const val OWNER_TELEGRAM = "https://t.me/+94724085416"
+        const val REPO_URL = "https://github.com/wegalad-netizen/wormgpt2.1-test"
         const val API_HOST = "generativelanguage.googleapis.com"
         const val MODEL = "gemini-3.1-flash-lite"
         const val MAX_API_PROFILES = 5
@@ -128,6 +140,10 @@ Scope:
     private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int)
 
     private lateinit var drawerLayout: DrawerLayout
+    private lateinit var netStatus: TextView
+    private lateinit var drawerNetStatus: TextView
+    private lateinit var showNetSwitch: Switch
+    private var netJob: Job? = null
     private lateinit var chatScroll: ScrollView
     private lateinit var chatText: TextView
     private var stickToBottom = true
@@ -273,6 +289,61 @@ Scope:
             if (!syncingGuardSwitches) setSmsGuard(checked)
         }
 
+        netStatus = findViewById(R.id.netStatus)
+        drawerNetStatus = findViewById(R.id.drawerNetStatus)
+        showNetSwitch = findViewById(R.id.showNetSwitch)
+        showNetSwitch.isChecked = prefs.getBoolean(KEY_SHOW_NET, true)
+        showNetSwitch.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(KEY_SHOW_NET, checked).apply()
+            applyNetVisibility(checked)
+            if (checked) startNetMonitor() else stopNetMonitor()
+        }
+        applyNetVisibility(showNetSwitch.isChecked)
+
+        findViewById<ImageButton>(R.id.menuButton).setOnClickListener {
+            drawerLayout.openDrawer(Gravity.START)
+        }
+        findViewById<TextView>(R.id.drawerHome).setOnClickListener {
+            drawerLayout.closeDrawers()
+            showMainPage("dashboard")
+        }
+        findViewById<TextView>(R.id.drawerChat).setOnClickListener {
+            drawerLayout.closeDrawers()
+            showMainPage("chat")
+        }
+        findViewById<TextView>(R.id.drawerTools).setOnClickListener {
+            drawerLayout.closeDrawers()
+            showMainPage("tools")
+        }
+        findViewById<TextView>(R.id.drawerOwner).setOnClickListener {
+            drawerLayout.closeDrawers()
+            showOwnerPage()
+        }
+        findViewById<TextView>(R.id.drawerSettings).setOnClickListener {
+            drawerLayout.closeDrawers()
+            drawerLayout.postDelayed({ drawerLayout.openDrawer(Gravity.END) }, 220)
+        }
+        findViewById<TextView>(R.id.drawerUpdates).setOnClickListener {
+            drawerLayout.closeDrawers()
+            checkForUpdate(manual = true)
+        }
+        findViewById<TextView>(R.id.drawerTikTok).setOnClickListener {
+            drawerLayout.closeDrawers()
+            openOwnerUrl(OWNER_TIKTOK)
+        }
+        findViewById<TextView>(R.id.drawerWhatsApp).setOnClickListener {
+            drawerLayout.closeDrawers()
+            openOwnerUrl(OWNER_WHATSAPP)
+        }
+        findViewById<TextView>(R.id.drawerTelegram).setOnClickListener {
+            drawerLayout.closeDrawers()
+            openOwnerUrl(OWNER_TELEGRAM)
+        }
+        findViewById<TextView>(R.id.drawerRepo).setOnClickListener {
+            drawerLayout.closeDrawers()
+            openOwnerUrl(REPO_URL)
+        }
+
         findViewById<ImageButton>(R.id.settingsButton).setOnClickListener {
             drawerLayout.openDrawer(Gravity.END)
         }
@@ -340,6 +411,12 @@ Scope:
     override fun onResume() {
         super.onResume()
         updateGuardStatus()
+        startNetMonitor()
+    }
+
+    override fun onPause() {
+        stopNetMonitor()
+        super.onPause()
     }
 
     override fun onStart() {
@@ -496,6 +573,80 @@ Scope:
         }
     }
 
+    private fun startNetMonitor() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_SHOW_NET, true)) {
+            applyNetVisibility(false)
+            return
+        }
+        applyNetVisibility(true)
+        if (netJob?.isActive == true) return
+        netJob = lifecycleScope.launch {
+            var lastRx = -1L
+            var lastTx = -1L
+            var lastAt = 0L
+            var appOnly = false
+            while (isActive) {
+                var rx = TrafficStats.getTotalRxBytes()
+                var tx = TrafficStats.getTotalTxBytes()
+                if (rx == TrafficStats.UNSUPPORTED.toLong() ||
+                    tx == TrafficStats.UNSUPPORTED.toLong()
+                ) {
+                    appOnly = true
+                    rx = TrafficStats.getUidRxBytes(Process.myUid())
+                    tx = TrafficStats.getUidTxBytes(Process.myUid())
+                }
+                val now = SystemClock.elapsedRealtime()
+                if (lastAt > 0 && lastRx >= 0 && lastTx >= 0 && rx >= 0 && tx >= 0) {
+                    val seconds = (now - lastAt) / 1000.0
+                    if (seconds > 0) {
+                        val down = ((rx - lastRx).coerceAtLeast(0L) * 8.0) / seconds
+                        val up = ((tx - lastTx).coerceAtLeast(0L) * 8.0) / seconds
+                        val text = buildString {
+                            append(if (appOnly) "● APP" else "● NET")
+                            append("  ↓ ").append(formatSpeed(down))
+                            append("  ↑ ").append(formatSpeed(up))
+                        }
+                        netStatus.text = text
+                        drawerNetStatus.text = text
+                    }
+                }
+                lastRx = rx
+                lastTx = tx
+                lastAt = now
+                delay(1000)
+            }
+        }
+    }
+
+    private fun stopNetMonitor() {
+        netJob?.cancel()
+        netJob = null
+    }
+
+    private fun applyNetVisibility(show: Boolean) {
+        val visibility = if (show) View.VISIBLE else View.GONE
+        if (::netStatus.isInitialized) netStatus.visibility = visibility
+        if (::drawerNetStatus.isInitialized) drawerNetStatus.visibility = visibility
+    }
+
+    private fun formatSpeed(bitsPerSecond: Double): String {
+        val value = bitsPerSecond.coerceAtLeast(0.0)
+        return when {
+            value >= 1_000_000 -> String.format(Locale.US, "%.1f Mbps", value / 1_000_000)
+            value >= 1_000 -> String.format(Locale.US, "%.0f Kbps", value / 1_000)
+            else -> String.format(Locale.US, "%.0f bps", value)
+        }
+    }
+
+    private fun openOwnerUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: Exception) {
+            Toast.makeText(this, "Could not open link.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun showOwnerPage() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -516,7 +667,7 @@ Scope:
             setPadding(0, dp(8), 0, dp(4))
         })
         content.addView(TextView(this).apply {
-            text = "WormGPT owner"
+            text = "Sentinal Security owner"
             setTextColor(0xFFA1A1AA.toInt())
             textSize = 14f
             setPadding(0, 0, 0, dp(20))
@@ -529,9 +680,9 @@ Scope:
             setPadding(0, 0, 0, dp(8))
         })
         val profiles = mapOf(
-            "TikTok" to "https://www.tiktok.com/@sad.developer0?_r=1&_t=ZS-9Bac24QcWwM",
-            "WhatsApp" to "https://wa.me/94705345029",
-            "Telegram" to "https://t.me/+94724085416",
+            "TikTok" to OWNER_TIKTOK,
+            "WhatsApp" to OWNER_WHATSAPP,
+            "Telegram" to OWNER_TELEGRAM,
         )
         profiles.forEach { (platform, url) ->
             val row = TextView(this).apply {

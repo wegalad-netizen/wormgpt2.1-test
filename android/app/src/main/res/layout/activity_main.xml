@@ -27,10 +27,20 @@
             android:paddingStart="12dp"
             android:paddingEnd="8dp">
 
+            <ImageButton
+                android:id="@+id/menuButton"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Open menu"
+                android:src="@drawable/ic_menu"
+                android:tint="@color/worm_text" />
+
             <ImageView
                 android:id="@+id/appLogo"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="2dp"
                 android:contentDescription="Sentinal Security icon"
                 android:src="@drawable/security_shield_icon" />
 
@@ -38,7 +48,7 @@
                 android:id="@+id/appVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="9dp"
+                android:layout_marginStart="8dp"
                 android:background="@drawable/pill_outline"
                 android:paddingStart="7dp"
                 android:paddingEnd="7dp"
@@ -49,20 +59,35 @@
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/brandTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="Sentinal Security"
-                android:textColor="@color/worm_text"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <View
+            <LinearLayout
                 android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/brandTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="Sentinal Security"
+                    android:textColor="@color/worm_text"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:letterSpacing="0.08"
+                    android:singleLine="true"
+                    android:text="OWNER · SEEKER OF TRUTH"
+                    android:textColor="@color/worm_red_bright"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <ImageButton
                 android:id="@+id/settingsButton"
@@ -98,11 +123,13 @@
                 android:layout_height="1dp"
                 android:layout_weight="1" />
             <TextView
+                android:id="@+id/netStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="DEVICE TOOLS"
-                android:textColor="@color/worm_muted"
-                android:textSize="10sp" />
+                android:text="NET  ↓ 0 Kbps  ↑ 0 Kbps"
+                android:textColor="@color/worm_cyan"
+                android:textSize="10sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <FrameLayout
@@ -594,6 +621,42 @@
                     android:textColor="@color/worm_faint"
                     android:textSize="10sp" />
 
+                <!-- NETWORK MONITOR -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="8dp"
+                    android:background="@color/worm_border" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.12"
+                    android:text="NETWORK MONITOR"
+                    android:textColor="@color/worm_cyan"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Switch
+                    android:id="@+id/showNetSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:buttonTint="@color/worm_cyan"
+                    android:switchMinWidth="34dp"
+                    android:text="SHOW NET SPEED"
+                    android:textColor="@color/worm_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:text="Live device-wide download and upload rate. No extra permissions."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+
                 <!-- SPAM GUARD -->
                 <View
                     android:layout_width="match_parent"
@@ -804,6 +867,158 @@
                     android:textSize="9sp" />
             </LinearLayout>
         </ScrollView>
+    </LinearLayout>
+    <!-- LEFT OWNER DRAWER -->
+    <LinearLayout
+        android:id="@+id/leftDrawer"
+        android:layout_width="292dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@color/worm_bg"
+        android:orientation="vertical">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true"
+            android:padding="16dp"
+            android:scrollbars="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Owner profile -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/card_bg"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="58dp"
+                        android:layout_height="58dp"
+                        android:contentDescription="Sentinal Security"
+                        android:src="@drawable/security_shield_icon" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="Seeker Of Truth"
+                        android:textColor="@color/worm_text"
+                        android:textSize="21sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:letterSpacing="0.1"
+                        android:text="OWNER · SENTINAL SECURITY"
+                        android:textColor="@color/worm_red_bright"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/drawerNetStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="● NET  ↓ 0 Kbps  ↑ 0 Kbps"
+                        android:textColor="@color/worm_emerald"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <!-- Owner social links -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="8dp"
+                    android:letterSpacing="0.12"
+                    android:text="OWNER LINKS"
+                    android:textColor="@color/worm_faint"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/drawerTikTok"
+                    style="@style/WormSocialRow"
+                    android:text="TikTok   ↗   @sad.developer0" />
+
+                <TextView
+                    android:id="@+id/drawerWhatsApp"
+                    style="@style/WormSocialRow"
+                    android:text="WhatsApp   ↗   +94 70 534 5029" />
+
+                <TextView
+                    android:id="@+id/drawerTelegram"
+                    style="@style/WormSocialRow"
+                    android:text="Telegram   ↗   +94 72 408 5416" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="12dp"
+                    android:background="@color/worm_border" />
+
+                <!-- Navigation -->
+                <TextView
+                    android:id="@+id/drawerHome"
+                    style="@style/WormMenuItem"
+                    android:text="HOME" />
+
+                <TextView
+                    android:id="@+id/drawerChat"
+                    style="@style/WormMenuItem"
+                    android:text="CHAT" />
+
+                <TextView
+                    android:id="@+id/drawerTools"
+                    style="@style/WormMenuItem"
+                    android:text="SECURITY TOOLS" />
+
+                <TextView
+                    android:id="@+id/drawerOwner"
+                    style="@style/WormMenuItem"
+                    android:text="OWNER PROFILE" />
+
+                <TextView
+                    android:id="@+id/drawerSettings"
+                    style="@style/WormMenuItem"
+                    android:text="SETTINGS" />
+
+                <TextView
+                    android:id="@+id/drawerUpdates"
+                    style="@style/WormMenuItem"
+                    android:text="CHECK FOR UPDATES" />
+            </LinearLayout>
+        </ScrollView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="SENTINAL SECURITY · OWNER SEEKER OF TRUTH"
+            android:textColor="@color/worm_faint"
+            android:textSize="9sp" />
+
+        <TextView
+            android:id="@+id/drawerRepo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="16dp"
+            android:text="github.com/wegalad-netizen/wormgpt2.1-test"
+            android:textColor="@color/worm_cyan"
+            android:textSize="9sp" />
     </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>
