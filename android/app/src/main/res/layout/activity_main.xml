@@ -339,6 +339,15 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:padding="6dp">
+                    <Button
+                        android:id="@+id/chartButton"
+                        style="@style/WormButton.Outline"
+                        android:layout_width="46dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="6dp"
+                        android:padding="0dp"
+                        android:text="IMG"
+                        android:textSize="10sp" />
                     <EditText
                         android:id="@+id/promptInput"
                         android:layout_width="0dp"
@@ -679,7 +688,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="5dp"
                     android:lineSpacingExtra="2dp"
-                    android:text="CALL GUARD: OFF   |   SMS GUARD: OFF"
+                    android:text="CALL GUARD: OFF   |   SMS GUARD: OFF   |   SMS HIDE: OFF"
                     android:textColor="@color/worm_green"
                     android:textSize="10sp" />
 
@@ -706,6 +715,26 @@
                     android:textColor="@color/worm_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
+
+                <Switch
+                    android:id="@+id/hideSmsSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:buttonTint="@color/worm_red"
+                    android:switchMinWidth="34dp"
+                    android:text="HIDE SPAM SMS"
+                    android:textColor="@color/worm_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:text="HIDE SPAM SMS needs notification access. It cancels spam alerts from your messaging app; the messages stay in your inbox."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -768,7 +797,7 @@
                     android:layout_marginTop="2dp"
                     android:buttonTint="@color/worm_red"
                     android:switchMinWidth="34dp"
-                    android:text="BLOCK OPERATOR CALLER IDS"
+                    android:text="AUTO-BLOCK OPERATOR SPAM"
                     android:textColor="@color/worm_text"
                     android:textSize="11sp" />
 
@@ -776,7 +805,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingTop="4dp"
-                    android:text="Operator filter rejects calls whose caller ID shows Hutch, Mobitel, Dialog, Airtel, or SLT. It is off by default."
+                    android:text="Automatically rejects calls and hides promo SMS from Hutch, Mobitel, Dialog, Airtel, or SLT. On by default."
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 
@@ -784,7 +813,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingTop="6dp"
-                    android:text="Incoming calls from your blocklist or hidden numbers are rejected. Spam SMS gets a warning — Android does not let third-party apps delete messages."
+                    android:text="Incoming calls from your blocklist or hidden numbers are rejected. Spam SMS alerts are hidden when notification access is granted; Android does not let third-party apps delete messages."
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 

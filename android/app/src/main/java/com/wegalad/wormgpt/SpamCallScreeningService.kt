@@ -19,8 +19,10 @@ class SpamCallScreeningService : CallScreeningService() {
         val number = callDetails.handle?.schemeSpecificPart.orEmpty()
         val displayName = callDetails.callerDisplayName.orEmpty()
         val hidden = number.isBlank()
-        val operatorSpam = SpamPrefs.operatorSpamEnabled(this) &&
-            operatorMarkers.any { displayName.contains(it, ignoreCase = true) }
+        val operatorSpam = SpamPrefs.operatorSpamEnabled(this) && (
+            operatorMarkers.any { displayName.contains(it, ignoreCase = true) } ||
+                operatorMarkers.any { number.contains(it, ignoreCase = true) }
+            )
         val blocked = SpamPrefs.isBlocked(this, number) ||
             (hidden && SpamPrefs.blockUnknown(this)) ||
             operatorSpam

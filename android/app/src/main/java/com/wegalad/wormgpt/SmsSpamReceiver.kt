@@ -4,8 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
+import androidx.core.app.NotificationManagerCompat
 
-/** Warns about likely spam SMS. Android does not allow third-party deletion. */
+/**
+ * Detects likely spam SMS and posts an alert. Notification hiding is handled by
+ * SpamSmsNotificationListener because Android does not allow third-party deletion.
+ */
 class SmsSpamReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -23,17 +27,25 @@ class SmsSpamReceiver : BroadcastReceiver() {
         for ((sender, bodyBuilder) in bySender) {
             val body = bodyBuilder.toString()
             val numberHit = SpamPrefs.isBlocked(context, sender)
-            val keywordHit = SpamPrefs.isSpamSms(context, body)
+            val keywordHit = SpamPrefs.isSpamSms(context, body, sender)
             if (!numberHit && !keywordHit) continue
 
             val reason = if (numberHit) "blocked number" else "spam keywords"
             val preview = body.replace(Regex("\\s+"), " ").take(140)
             SpamPrefs.addLog(context, "SMS   $sender  [$reason]  $preview")
-            SpamNotifier.notify(
-                context,
-                "Spam SMS detected",
-                "From $sender ($reason): $preview",
-            )
+
+            // When hiding is active the listener removes the SMS notification,
+            // so do not replace it with a Sentinal alert.
+            val hiding = SpamPrefs.hideSpamSms(context) &&
+                NotificationManagerCompat.getEnabledListenerPackages(context)
+                    .contains(context.packageName)
+            if (!hiding) {
+                SpamNotifier.notify(
+                    context,
+                    "Spam SMS detected",
+                    "From $sender ($reason): $preview",
+                )
+            }
         }
     }
 }

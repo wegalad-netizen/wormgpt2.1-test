@@ -12,6 +12,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.drawable.GradientDrawable
 import android.media.MediaPlayer
 import android.net.ConnectivityManager
@@ -29,6 +31,7 @@ import android.text.InputType
 import android.text.style.ForegroundColorSpan
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
+import android.util.Base64
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -48,6 +51,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -72,6 +76,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.Inet4Address
 import java.net.InetAddress
@@ -160,8 +165,24 @@ Scope:
     private lateinit var operatorSpamSwitch: Switch
     private lateinit var callGuardSwitch: Switch
     private lateinit var smsGuardSwitch: Switch
+    private lateinit var hideSmsSwitch: Switch
     private var syncingGuardSwitches = false
     private var lastResponse: String = ""
+    private var pendingChartUri: Uri? = null
+
+    private val chooseChartScreenshot =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) {
+                pendingChartUri = uri
+                val current = promptInput.text.toString().trim()
+                if (current.isEmpty()) {
+                    promptInput.setText("Analyze this crypto chart screenshot")
+                    promptInput.setSelection(promptInput.text.length)
+                }
+                findViewById<Button>(R.id.chartButton).text = "IMG✓"
+                Toast.makeText(this, "Chart attached; it will be sent to your configured Gemini model.", Toast.LENGTH_LONG).show()
+            }
+        }
 
     private val chooseReputationFile =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -179,6 +200,7 @@ Scope:
                 else "SMS permission denied — guard is off.",
                 Toast.LENGTH_SHORT,
             ).show()
+            if (smsGranted) promptNotificationAccessIfNeeded()
         }
 
     private val requestCallRole =
@@ -290,9 +312,11 @@ Scope:
         operatorSpamSwitch = findViewById(R.id.operatorSpamSwitch)
         callGuardSwitch = findViewById(R.id.callGuardSwitch)
         smsGuardSwitch = findViewById(R.id.smsGuardSwitch)
+        hideSmsSwitch = findViewById(R.id.hideSmsSwitch)
         keywordSwitch.isChecked = SpamPrefs.keywordFilter(this)
         unknownSwitch.isChecked = SpamPrefs.blockUnknown(this)
         operatorSpamSwitch.isChecked = SpamPrefs.operatorSpamEnabled(this)
+        hideSmsSwitch.isChecked = SpamPrefs.hideSpamSms(this)
         keywordSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setKeywordFilter(this, checked)
         }
@@ -302,6 +326,9 @@ Scope:
         operatorSpamSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setOperatorSpamEnabled(this, checked)
             updateGuardStatus()
+        }
+        hideSmsSwitch.setOnCheckedChangeListener { _, checked ->
+            if (!syncingGuardSwitches) setHideSpamSms(checked)
         }
         callGuardSwitch.setOnCheckedChangeListener { _, checked ->
             if (!syncingGuardSwitches) setCallGuard(checked)
@@ -380,6 +407,9 @@ Scope:
             checkForUpdate(manual = true)
         }
         findViewById<Button>(R.id.sendButton).setOnClickListener { sendPrompt() }
+        findViewById<Button>(R.id.chartButton).setOnClickListener {
+            chooseChartScreenshot.launch("image/*")
+        }
         findViewById<Button>(R.id.codeButton).setOnClickListener { showCodeSnippetMenu() }
         findViewById<Button>(R.id.testButton).setOnClickListener { testLastCode() }
         findViewById<Button>(R.id.copyButton).setOnClickListener { copyLastResponse() }
@@ -762,6 +792,9 @@ Scope:
         }
         val smsPermission = hasSmsPermission()
         val smsOn = smsPermission && SpamPrefs.smsGuardEnabled(this)
+        val hidePref = SpamPrefs.hideSpamSms(this)
+        val hideAccess = hasNotificationAccess()
+        val hideOn = hidePref && hideAccess && SpamPrefs.smsGuardEnabled(this)
         val notifOn = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
                 this,
@@ -778,13 +811,22 @@ Scope:
                 },
             )
             append("   |   SMS GUARD: ").append(if (smsOn) "ACTIVE" else "OFF")
+            append("   |   SMS HIDE: ").append(
+                when {
+                    hideOn -> "ACTIVE"
+                    hidePref -> "SETUP NEEDED"
+                    else -> "OFF"
+                },
+            )
             append("\nBLOCKED: ").append(SpamPrefs.blockedNumbers(this@MainActivity).size)
             append("   |   CAUGHT: ").append(SpamPrefs.log(this@MainActivity).size)
             append("\nLAST SCREENED: ").append(
                 SpamPrefs.lastScreenedCall(this@MainActivity) ?: "none yet",
             )
             if (SpamPrefs.operatorSpamEnabled(this@MainActivity)) {
-                append("\nOPERATOR IDS: ").append(if (callOn) "BLOCKING" else "ON · CALL GUARD OFF")
+                append("\nOPERATOR SPAM: ").append(
+                    if (callOn || hideOn) "AUTO" else "ON · GUARDS OFF",
+                )
             }
             if (!notifOn) append("\nNotifications off — no alerts.")
             when {
@@ -794,6 +836,8 @@ Scope:
                     append("\nTap CALL GUARD to grant call screening.")
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && callPref ->
                     append("\nVerify Sentinal Security in Phone > Caller ID & spam.")
+                hidePref && !hideAccess ->
+                    append("\nTap HIDE SPAM SMS to grant notification access.")
             }
         }
 
@@ -825,6 +869,12 @@ Scope:
                 "CALL GUARD"
             }
             smsGuardSwitch.isChecked = smsOn
+            hideSmsSwitch.isChecked = hideOn
+            hideSmsSwitch.text = if (hidePref && !hideAccess) {
+                "HIDE SPAM SMS — GRANT ACCESS"
+            } else {
+                "HIDE SPAM SMS"
+            }
             syncingGuardSwitches = false
         }
     }
@@ -853,15 +903,19 @@ Scope:
             SpamPrefs.callGuardEnabled(this)
         }
         val smsActive = hasSmsPermission() && SpamPrefs.smsGuardEnabled(this)
-        val status = if (callActive && smsActive) "Monitoring" else if (callActive || smsActive) "Partial protection" else "Action needed"
+        val hideActive = hasNotificationAccess() && SpamPrefs.hideSpamSms(this)
+        val status = if (callActive && smsActive && hideActive) "Monitoring"
+        else if (callActive || smsActive || hideActive) "Partial protection"
+        else "Action needed"
         AlertDialog.Builder(this)
             .setTitle("LOCAL PROTECTION CHECK")
             .setMessage(
                 "$status\n\nCall guard: ${if (callActive) "Active" else "Off or permission needed"}\n" +
                     "SMS guard: ${if (smsActive) "Active" else "Off or permission needed"}\n" +
+                    "SMS hiding: ${if (hideActive) "Active" else "Off or access needed"}\n" +
                     "Blocked numbers: ${SpamPrefs.blockedNumbers(this).size}\n" +
                     "Alerts logged: ${SpamPrefs.log(this).size}\n" +
-                    "Operator caller IDs: ${if (SpamPrefs.operatorSpamEnabled(this)) "On" else "Off"}\n" +
+                    "Operator spam auto-detect: ${if (SpamPrefs.operatorSpamEnabled(this)) "On" else "Off"}\n" +
                     "Last screened call: ${SpamPrefs.lastScreenedCall(this) ?: "none yet"}\n\n" +
                     "This checks local call/SMS settings only. It is not a malware or network scan.",
             )
@@ -886,6 +940,64 @@ Scope:
             this,
             Manifest.permission.RECEIVE_SMS,
         ) == PackageManager.PERMISSION_GRANTED
+
+    private fun hasNotificationAccess(): Boolean =
+        NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
+
+    private fun openNotificationAccessSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            } catch (_: Exception) {
+                // Ignore.
+            }
+        }
+    }
+
+    private fun setHideSpamSms(enabled: Boolean) {
+        SpamPrefs.setHideSpamSms(this, enabled)
+        if (enabled) SpamPrefs.setSmsGuardEnabled(this, true)
+        if (!enabled) {
+            Toast.makeText(
+                this,
+                "Spam SMS alerts will stay visible.",
+                Toast.LENGTH_SHORT,
+            ).show()
+            updateGuardStatus()
+            return
+        }
+        if (!hasNotificationAccess()) {
+            Toast.makeText(
+                this,
+                "Grant notification access so Sentinal can hide spam SMS.",
+                Toast.LENGTH_LONG,
+            ).show()
+            openNotificationAccessSettings()
+        } else {
+            Toast.makeText(
+                this,
+                "Spam SMS notifications will be hidden.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+        updateGuardStatus()
+    }
+
+    private fun promptNotificationAccessIfNeeded() {
+        if (!SpamPrefs.hideSpamSms(this) || hasNotificationAccess()) return
+        AlertDialog.Builder(this)
+            .setTitle("HIDE SPAM SMS")
+            .setMessage(
+                "Sentinal can cancel spam SMS notifications from your messaging app. " +
+                    "Messages stay in your inbox; only the alert is hidden.\n\n" +
+                    "Grant notification access to turn this on.",
+            )
+            .setPositiveButton("OPEN SETTINGS") { _, _ -> openNotificationAccessSettings() }
+            .setNegativeButton("LATER", null)
+            .show()
+    }
 
     private fun setCallGuard(enabled: Boolean) {
         SpamPrefs.setCallGuardEnabled(this, enabled)
@@ -1140,6 +1252,7 @@ Scope:
         val permissions = listOf(
             "Call screening" to callScreening,
             "Receive SMS" to if (hasSmsPermission()) "Allowed" else "Not allowed",
+            "Notification access" to if (hasNotificationAccess()) "Allowed" else "Not allowed",
             "Notifications" to notifications,
             "Network state" to "Allowed (normal Android permission)",
             "File access" to "System picker; user selects each file",
@@ -1159,12 +1272,14 @@ Scope:
             "5550100" to "Hey, are we still on for tomorrow?",
             "+1 555 0101" to "URGENT: click here to verify your account, limited time only!",
             "9001234567" to "You have won a cash prize! Claim your free gift now.",
+            "HUTCH" to "Promotion: recharge now and get a data bonus. Dial *123#",
+            "MOBITEL" to "Your bill is ready. Pay now at www.mobitel.lk",
             "5550102" to "Lunch at 1?",
         )
         val output = StringBuilder("\n\n── SPAM SIMULATION (local only)\n")
         samples.forEach { (sender, body) ->
             val numberHit = SpamPrefs.isBlocked(this, sender)
-            val keywordHit = SpamPrefs.isSpamSms(this, body)
+            val keywordHit = SpamPrefs.isSpamSms(this, body, sender)
             val verdict = if (numberHit || keywordHit) "FLAGGED" else "allowed"
             output.append("$sender → $verdict ")
                 .append("[number=${if (numberHit) "hit" else "clear"}, ")
@@ -1360,19 +1475,35 @@ Scope:
     private fun sendPrompt() {
         val prompt = promptInput.text.toString().trim()
         if (prompt.isEmpty()) return
+        val chartUri = pendingChartUri
+        pendingChartUri = null
+        findViewById<Button>(R.id.chartButton).text = "IMG"
 
         val profiles = readApiProfiles()
         if (profiles.isEmpty()) {
+            pendingChartUri = chartUri
+            if (chartUri != null) findViewById<Button>(R.id.chartButton).text = "IMG✓"
             appendChat("\n\n[x] Add a valid Gemini API key/model profile in Settings first.")
             return
         }
 
         promptInput.text?.clear()
-        appendChat("\n\nMaster ❯ $prompt")
+        appendChat("\n\nMaster ❯ $prompt${if (chartUri != null) " [chart screenshot attached]" else ""}")
         setBusy(true)
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val result = runQuery(prompt, profiles)
+            val result = try {
+                val chartImage = chartUri?.let(::encodeChartScreenshot)
+                val effectivePrompt = if (chartImage != null) {
+                    """Analyze the attached cryptocurrency chart screenshot as a technical-analysis snapshot.
+Report: visible asset/ticker and timeframe (or unknown), observed trend, visible support/resistance levels only when readable, any visible indicators, a short-term directional scenario (bullish/neutral/bearish), confidence (low/medium/high) with evidence, and what would invalidate that scenario. Do not invent prices, indicators, market data, or certainty. This is an uncertain chart interpretation, not a guaranteed prediction or personalized financial recommendation.
+
+User request: $prompt"""
+                } else prompt
+                runQuery(effectivePrompt, profiles, chartImage)
+            } catch (e: Exception) {
+                ApiResult(null, "Could not read the selected chart image: ${e.message ?: e.javaClass.simpleName}")
+            }
             withContext(Dispatchers.Main) {
                 setBusy(false)
                 if (result.error != null) {
@@ -1382,6 +1513,59 @@ Scope:
                     appendChat("\n\n── RESPONSE (${result.model ?: MODEL})\n$lastResponse", R.color.worm_green)
                 }
             }
+        }
+    }
+
+    private fun encodeChartScreenshot(uri: Uri): String {
+        val source = contentResolver.openInputStream(uri)?.use { input ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            val limit = 25 * 1024 * 1024
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                require(output.size() + count <= limit) { "Image is larger than 25 MB" }
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        } ?: throw IOException("Unable to open image")
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(source, 0, source.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IOException("Unsupported or damaged image")
+        val maxDimension = 1600
+        var sampleSize = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > maxDimension * 2) {
+            sampleSize *= 2
+        }
+        val bitmap = BitmapFactory.decodeByteArray(
+            source,
+            0,
+            source.size,
+            BitmapFactory.Options().apply { inSampleSize = sampleSize },
+        )
+            ?: throw IOException("Unsupported or damaged image")
+        try {
+            val scale = minOf(1.0, maxDimension.toDouble() / maxOf(bitmap.width, bitmap.height))
+            val resized = if (scale < 1.0) {
+                Bitmap.createScaledBitmap(
+                    bitmap,
+                    (bitmap.width * scale).toInt().coerceAtLeast(1),
+                    (bitmap.height * scale).toInt().coerceAtLeast(1),
+                    true,
+                )
+            } else bitmap
+            try {
+                val output = ByteArrayOutputStream()
+                check(resized.compress(Bitmap.CompressFormat.JPEG, 86, output)) {
+                    "Image conversion failed"
+                }
+                require(output.size() <= 6 * 1024 * 1024) { "Compressed image is larger than 6 MB" }
+                return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+            } finally {
+                if (resized !== bitmap) resized.recycle()
+            }
+        } finally {
+            bitmap.recycle()
         }
     }
 
@@ -1533,11 +1717,16 @@ Scope:
         Toast.makeText(this, "Code added to the chat draft.", Toast.LENGTH_SHORT).show()
     }
 
-    private fun runQuery(prompt: String, profiles: List<ApiProfile>, minimal: Boolean = false): ApiResult {
+    private fun runQuery(
+        prompt: String,
+        profiles: List<ApiProfile>,
+        chartImageBase64: String? = null,
+        minimal: Boolean = false,
+    ): ApiResult {
         if (profiles.isEmpty()) return ApiResult(null, "No valid Gemini API profiles are configured.")
         val failures = mutableListOf<String>()
         profiles.forEachIndexed { index, profile ->
-            val result = runProfileQuery(prompt, profile, minimal)
+            val result = runProfileQuery(prompt, profile, chartImageBase64, minimal)
             if (result.error == null) {
                 return result.copy(model = profile.model, attempts = index + 1)
             }
@@ -1554,7 +1743,12 @@ Scope:
         )
     }
 
-    private fun runProfileQuery(prompt: String, profile: ApiProfile, minimal: Boolean = false): ApiResult {
+    private fun runProfileQuery(
+        prompt: String,
+        profile: ApiProfile,
+        chartImageBase64: String? = null,
+        minimal: Boolean = false,
+    ): ApiResult {
         return try {
             val url = HttpUrl.Builder()
                 .scheme("https")
@@ -1570,12 +1764,22 @@ Scope:
             } else {
                 "$MASTER_PROMPT\n\nUser Input: $prompt"
             }
-            val textPart = JSONObject().put("text", instruction)
+            val parts = JSONArray().put(JSONObject().put("text", instruction))
+            if (!minimal && chartImageBase64 != null) {
+                parts.put(
+                    JSONObject().put(
+                        "inline_data",
+                        JSONObject()
+                            .put("mime_type", "image/jpeg")
+                            .put("data", chartImageBase64),
+                    ),
+                )
+            }
             val payload = JSONObject()
                 .put(
                     "contents",
                     JSONArray().put(
-                        JSONObject().put("parts", JSONArray().put(textPart)),
+                        JSONObject().put("parts", parts),
                     ),
                 )
                 .put(

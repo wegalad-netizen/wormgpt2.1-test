@@ -13,6 +13,7 @@ object SpamPrefs {
     private const val KEY_KEYWORDS = "keyword_filter"
     private const val KEY_UNKNOWN = "block_unknown"
     private const val KEY_OPERATOR_SPAM = "operator_spam"
+    private const val KEY_HIDE_SMS = "hide_spam_sms"
     private const val KEY_LOG = "spam_log"
     private const val KEY_CALL_ENABLED = "call_guard_enabled"
     private const val KEY_SMS_ENABLED = "sms_guard_enabled"
@@ -99,31 +100,78 @@ object SpamPrefs {
     }
 
     fun operatorSpamEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_OPERATOR_SPAM, false)
+        prefs(context).getBoolean(KEY_OPERATOR_SPAM, true)
 
     fun setOperatorSpamEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_OPERATOR_SPAM, enabled).apply()
     }
 
+    /** Hide spam SMS notifications; the message stays in the inbox. */
+    fun hideSpamSms(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_HIDE_SMS, true)
+
+    fun setHideSpamSms(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_HIDE_SMS, enabled).apply()
+    }
+
+    private val OPERATOR_MARKERS = listOf(
+        "HUTCH", "HUTCHISON", "MOBITEL", "SLT", "DIALOG", "AIRTEL",
+    )
+
+    fun isOperatorSender(sender: String): Boolean =
+        OPERATOR_MARKERS.any { sender.contains(it, ignoreCase = true) }
+
+    /** Strong promo/phishing phrases are worth two points. */
+    private val STRONG_SPAM_PHRASES = listOf(
+        "click here", "you have won", "you've won", "congratulation", "lottery",
+        "cash prize", "free gift", "claim your", "you are selected",
+        "you've been selected", "guaranteed", "act now", "act fast",
+        "limited time", "exclusive offer", "last chance", "urgent action",
+        "winner", "prize",
+    )
+
+    /** Weaker promo signals are worth one point. */
     private val SPAM_PHRASES = listOf(
-        "click here", "limited time", "act now", "act fast", "you have won",
-        "you've won", "congratulations", "lottery", "free gift", "claim your",
-        "verify your account", "account suspended", "bank account", "one time password",
-        "urgent action", "last chance", "exclusive offer", "guaranteed", "cash prize",
-        "work from home", "earn money fast", "confirm your password",
+        "verify your account", "account suspended", "work from home",
+        "earn money fast", "promotion", "promo code", "special offer",
+        "offer", "bonus", "cashback", "unlimited", "% off", "save up to",
+        "special deal", "discount", "voucher", "top up", "topup",
+        "recharge", "data bonus", "free data", "win a", "personal loan",
+        "loan offer", "subscribe", "unsubscribe", "dial *", "missed call",
+        "sim card", "kyc", "disconnected", "electricity bill", "tax refund",
+        "parcel", "delivery", "reschedule", "track your", "customs fee",
     )
 
     private val SHORT_LINK_HOSTS = listOf(
         "bit.ly", "tinyurl", "t.co", "goo.gl", "ow.ly", "cutt.ly", "is.gd", "s.id",
     )
 
-    /** Heuristic only: two or more signals means a warning, not silent deletion. */
-    fun isSpamSms(context: Context, body: String): Boolean {
+    private val URL_PATTERN = Regex("""https?://|www\.""", RegexOption.IGNORE_CASE)
+
+    /**
+     * Heuristic only. Strong phrases count double. Short codes, operator
+     * senders, and unknown mobile numbers need two points; saved contact names
+     * need four. OTP and balance messages intentionally score zero.
+     */
+    fun isSpamSms(context: Context, body: String, sender: String = ""): Boolean {
         if (!keywordFilter(context)) return false
         val lower = body.lowercase()
-        var score = SPAM_PHRASES.count { lower.contains(it) }
-        if (SHORT_LINK_HOSTS.any { lower.contains(it) }) score++
-        return score >= 2
+        var score = STRONG_SPAM_PHRASES.count { lower.contains(it) } * 2 +
+            SPAM_PHRASES.count { lower.contains(it) }
+        if (SHORT_LINK_HOSTS.any { lower.contains(it) }) score += 2
+        else if (URL_PATTERN.containsMatchIn(lower)) score++
+
+        val senderDigits = sender.filter(Char::isDigit)
+        val shortCode = senderDigits.isNotEmpty() && senderDigits.length <= 6
+        val operatorSender = isOperatorSender(sender)
+
+        val threshold = when {
+            operatorSender && operatorSpamEnabled(context) -> 2
+            shortCode -> 2
+            senderDigits.isNotEmpty() -> 2
+            else -> 4
+        }
+        return score >= threshold
     }
 
     fun log(context: Context): List<String> =
