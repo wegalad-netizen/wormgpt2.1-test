@@ -232,7 +232,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="CRYPTO CHART SIGNAL"
+                            android:text="LIVE CRYPTO CHART SIGNAL"
                             android:textColor="@color/worm_text"
                             android:textSize="15sp"
                             android:textStyle="bold" />
@@ -240,19 +240,69 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:paddingTop="3dp"
-                            android:text="Upload a chart screenshot for a visual trend read"
+                            android:text="Price chart and technical trend from current spot data"
+                            android:textColor="@color/worm_muted"
+                            android:textSize="11sp" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+                            <Spinner
+                                android:id="@+id/cryptoSymbolSpinner"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/input_bg"
+                                android:paddingHorizontal="8dp" />
+                            <Button
+                                android:id="@+id/refreshCryptoButton"
+                                style="@style/WormButton.Outline"
+                                android:layout_width="92dp"
+                                android:layout_height="40dp"
+                                android:layout_marginStart="8dp"
+                                android:text="REFRESH"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+                        <TextView
+                            android:id="@+id/cryptoPriceText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="10dp"
+                            android:text="Waiting for market data…"
+                            android:textColor="@color/worm_text"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/cryptoChangeText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="2dp"
+                            android:text="24H CHANGE —"
                             android:textColor="@color/worm_muted"
                             android:textSize="11sp" />
                         <com.wegalad.wormgpt.CryptoChartPreview
+                            android:id="@+id/cryptoChartView"
                             android:layout_width="match_parent"
                             android:layout_height="112dp"
                             android:layout_marginTop="8dp"
-                            android:contentDescription="Illustrative crypto price chart preview; not live market data" />
+                            android:contentDescription="Live cryptocurrency hourly closing price chart" />
                         <TextView
+                            android:id="@+id/cryptoSignalText"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:text="ILLUSTRATIVE · NOT LIVE DATA"
+                            android:paddingTop="7dp"
+                            android:text="SIGNAL: WAITING FOR DATA"
+                            android:textColor="@color/worm_cyan"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/cryptoUpdatedText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="3dp"
+                            android:text="Binance Spot · 1h candles · refreshing every minute"
                             android:textColor="@color/worm_faint"
                             android:textSize="9sp" />
                         <Button

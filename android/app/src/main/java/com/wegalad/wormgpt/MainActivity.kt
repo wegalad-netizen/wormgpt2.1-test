@@ -43,12 +43,15 @@ import android.view.inputmethod.InputMethodManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.Button
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -146,6 +149,12 @@ Scope:
     )
     private data class CodeBlock(val lang: String, val code: String)
     private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int)
+    private data class CryptoSnapshot(
+        val symbol: String,
+        val price: Double,
+        val change24h: Double,
+        val hourlyCloses: List<Double>,
+    )
 
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var netStatus: TextView
@@ -156,6 +165,10 @@ Scope:
     private lateinit var chatText: TextView
     private var stickToBottom = true
     private lateinit var promptInput: EditText
+    private lateinit var cryptoSymbolSpinner: Spinner
+    private var cryptoRefreshJob: Job? = null
+    private var cryptoAutoRefreshJob: Job? = null
+    private var cryptoRequestId = 0
     private lateinit var apiKeyInput: EditText
     private lateinit var apiFallbacksInput: EditText
     private lateinit var safeBrowsingKeyInput: EditText
@@ -291,6 +304,20 @@ Scope:
         highlightMasterText()
         lastResponse = savedInstanceState?.getString(KEY_LAST_RESPONSE).orEmpty()
         promptInput = findViewById(R.id.promptInput)
+        cryptoSymbolSpinner = findViewById(R.id.cryptoSymbolSpinner)
+        cryptoSymbolSpinner.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            listOf("BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"),
+        ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        cryptoSymbolSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                refreshCryptoMarket()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
+        findViewById<Button>(R.id.refreshCryptoButton).setOnClickListener { refreshCryptoMarket() }
         apiKeyInput = findViewById(R.id.apiKeyInput)
         apiFallbacksInput = findViewById(R.id.apiFallbacksInput)
         drawerLayout.setScrimColor(0x99000000.toInt())
@@ -467,9 +494,12 @@ Scope:
         super.onResume()
         updateGuardStatus()
         startNetMonitor()
+        if (::cryptoSymbolSpinner.isInitialized) startCryptoAutoRefresh()
     }
 
     override fun onPause() {
+        cryptoAutoRefreshJob?.cancel()
+        cryptoRefreshJob?.cancel()
         stopNetMonitor()
         super.onPause()
     }
@@ -1518,6 +1548,159 @@ User request: $prompt"""
                 }
             }
         }
+    }
+
+    private fun startCryptoAutoRefresh() {
+        if (cryptoAutoRefreshJob?.isActive == true) return
+        cryptoAutoRefreshJob = lifecycleScope.launch {
+            refreshCryptoMarket()
+            while (isActive) {
+                delay(60_000)
+                refreshCryptoMarket()
+            }
+        }
+    }
+
+    private fun refreshCryptoMarket() {
+        if (!::cryptoSymbolSpinner.isInitialized) return
+        val baseAsset = cryptoSymbolSpinner.selectedItem?.toString()?.substringBefore('/') ?: return
+        val symbol = baseAsset + "USDT"
+        val requestId = ++cryptoRequestId
+        cryptoRefreshJob?.cancel()
+        findViewById<Button>(R.id.refreshCryptoButton).isEnabled = false
+        findViewById<TextView>(R.id.cryptoPriceText).text = "$baseAsset / USDT · loading"
+        findViewById<TextView>(R.id.cryptoSignalText).text = "SIGNAL: FETCHING LIVE MARKET DATA"
+        findViewById<TextView>(R.id.cryptoUpdatedText).text = "Binance Spot · 1h candles · 48-hour chart"
+        findViewById<CryptoChartPreview>(R.id.cryptoChartView).setPrices(emptyList())
+
+        cryptoRefreshJob = lifecycleScope.launch {
+            val outcome = withContext(Dispatchers.IO) {
+                runCatching { fetchCryptoSnapshot(symbol) }
+            }
+            if (requestId != cryptoRequestId || isFinishing) return@launch
+            findViewById<Button>(R.id.refreshCryptoButton).isEnabled = true
+            outcome.onSuccess { snapshot ->
+                renderCryptoSnapshot(snapshot)
+            }.onFailure { error ->
+                findViewById<TextView>(R.id.cryptoPriceText).text = "$baseAsset / USDT · unavailable"
+                findViewById<TextView>(R.id.cryptoChangeText).text = "No current market data received"
+                findViewById<TextView>(R.id.cryptoSignalText).text = "SIGNAL: UNAVAILABLE"
+                findViewById<TextView>(R.id.cryptoSignalText).setTextColor(
+                    ContextCompat.getColor(this@MainActivity, R.color.worm_amber),
+                )
+                findViewById<TextView>(R.id.cryptoUpdatedText).text =
+                    "${error.message ?: error.javaClass.simpleName}. Tap REFRESH to try again."
+            }
+        }
+    }
+
+    private fun fetchCryptoSnapshot(symbol: String): CryptoSnapshot {
+        val tickerUrl = HttpUrl.Builder()
+            .scheme("https")
+            .host("data-api.binance.vision")
+            .addPathSegments("api/v3/ticker/24hr")
+            .addQueryParameter("symbol", symbol)
+            .build()
+        val ticker = JSONObject(fetchMarketEndpoint(tickerUrl))
+
+        val candleUrl = HttpUrl.Builder()
+            .scheme("https")
+            .host("data-api.binance.vision")
+            .addPathSegments("api/v3/klines")
+            .addQueryParameter("symbol", symbol)
+            .addQueryParameter("interval", "1h")
+            .addQueryParameter("limit", "48")
+            .build()
+        val candles = JSONArray(fetchMarketEndpoint(candleUrl))
+        val closes = buildList {
+            for (index in 0 until candles.length()) {
+                val candle = candles.optJSONArray(index) ?: continue
+                val close = candle.optString(4).toDoubleOrNull() ?: continue
+                add(close)
+            }
+        }
+        require(closes.size >= 25) { "Not enough hourly candles returned" }
+        return CryptoSnapshot(
+            symbol = symbol,
+            price = ticker.getString("lastPrice").toDouble(),
+            change24h = ticker.getString("priceChangePercent").toDouble(),
+            hourlyCloses = closes,
+        )
+    }
+
+    private fun fetchMarketEndpoint(url: HttpUrl): String {
+        val request = Request.Builder()
+            .url(url)
+            .header("Cache-Control", "no-cache")
+            .get()
+            .build()
+        client.newCall(request).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                throw IOException("Market data HTTP ${response.code}: ${body.take(160)}")
+            }
+            return body
+        }
+    }
+
+    private fun renderCryptoSnapshot(snapshot: CryptoSnapshot) {
+        val baseAsset = snapshot.symbol.removeSuffix("USDT")
+        val priceFormat = when {
+            snapshot.price >= 1.0 -> "%,.2f"
+            snapshot.price >= 0.01 -> "%,.4f"
+            else -> "%,.7f"
+        }
+        findViewById<TextView>(R.id.cryptoPriceText).text =
+            "$baseAsset / USDT   $" + String.format(Locale.US, priceFormat, snapshot.price)
+
+        val change = snapshot.change24h
+        val changeView = findViewById<TextView>(R.id.cryptoChangeText)
+        changeView.text = String.format(Locale.US, "24H CHANGE   %+.2f%%", change)
+        changeView.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (change >= 0) R.color.worm_emerald else R.color.worm_red_bright,
+            ),
+        )
+
+        findViewById<CryptoChartPreview>(R.id.cryptoChartView)
+            .setPrices(snapshot.hourlyCloses)
+        val (signal, evidence) = calculateCryptoSignal(snapshot.hourlyCloses)
+        val signalView = findViewById<TextView>(R.id.cryptoSignalText)
+        signalView.text = "$signal  ·  $evidence"
+        signalView.setTextColor(
+            ContextCompat.getColor(
+                this,
+                when {
+                    signal == "UPWARD BIAS" -> R.color.worm_emerald
+                    signal == "DOWNWARD BIAS" -> R.color.worm_red_bright
+                    else -> R.color.worm_cyan
+                },
+            ),
+        )
+        findViewById<TextView>(R.id.cryptoUpdatedText).text =
+            "Binance Spot · 48 hourly closes · Updated ${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())}"
+    }
+
+    private fun calculateCryptoSignal(closes: List<Double>): Pair<String, String> {
+        if (closes.size < 26) return "MIXED" to "insufficient candles"
+        val sma7 = closes.takeLast(7).average()
+        val sma25 = closes.takeLast(25).average()
+        val changes = closes.takeLast(15).zipWithNext { first, second -> second - first }
+        val gains = changes.filter { it > 0.0 }.sum() / 14.0
+        val losses = -changes.filter { it < 0.0 }.sum() / 14.0
+        val rsi = when {
+            gains == 0.0 && losses == 0.0 -> 50.0
+            losses == 0.0 -> 100.0
+            else -> 100.0 - 100.0 / (1.0 + gains / losses)
+        }
+        val signal = when {
+            sma7 > sma25 && rsi in 50.0..70.0 -> "UPWARD BIAS"
+            sma7 < sma25 && rsi in 30.0..50.0 -> "DOWNWARD BIAS"
+            else -> "MIXED"
+        }
+        val evidence = "SMA7 ${if (sma7 >= sma25) ">" else "<"} SMA25 · RSI14 ${String.format(Locale.US, "%.0f", rsi)}"
+        return signal to evidence
     }
 
     private fun launchChartPicker() {
@@ -2758,7 +2941,16 @@ class CryptoChartPreview(context: Context, attrs: android.util.AttributeSet? = n
         color = Color.argb(32, 6, 182, 212)
         style = Paint.Style.FILL
     }
-    private val values = floatArrayOf(0.78f, 0.66f, 0.70f, 0.52f, 0.58f, 0.42f, 0.47f, 0.30f, 0.38f, 0.22f, 0.27f, 0.16f)
+    private var prices: List<Double> = emptyList()
+
+    fun setPrices(values: List<Double>) {
+        prices = values
+        val rising = values.size > 1 && values.last() >= values.first()
+        val color = if (rising) Color.rgb(16, 185, 129) else Color.rgb(239, 68, 68)
+        linePaint.color = color
+        fillPaint.color = Color.argb(30, Color.red(color), Color.green(color), Color.blue(color))
+        invalidate()
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -2775,10 +2967,15 @@ class CryptoChartPreview(context: Context, attrs: android.util.AttributeSet? = n
             val x = left + (right - left) * column / 6f
             canvas.drawLine(x, top, x, bottom, gridPaint)
         }
+        if (prices.size < 2) return
+        val minimum = prices.minOrNull() ?: return
+        val maximum = prices.maxOrNull() ?: return
+        val spread = (maximum - minimum).takeIf { it > 0.0 } ?: (maximum * 0.001).coerceAtLeast(0.00000001)
         val pricePath = Path()
-        values.forEachIndexed { index, value ->
-            val x = left + (right - left) * index / (values.size - 1)
-            val y = top + (bottom - top) * value
+        prices.forEachIndexed { index, value ->
+            val x = left + (right - left) * index / (prices.size - 1)
+            val normalized = ((value - minimum) / spread).toFloat()
+            val y = bottom - normalized * (bottom - top)
             if (index == 0) pricePath.moveTo(x, y) else pricePath.lineTo(x, y)
         }
         val areaPath = Path(pricePath).apply {
