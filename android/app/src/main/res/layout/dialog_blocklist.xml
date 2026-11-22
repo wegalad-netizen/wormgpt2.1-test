@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="ADD A NUMBER"
-        android:textColor="@color/worm_red_bright"
+        android:textColor="@color/sentinal_red_bright"
         android:textSize="11sp"
         android:textStyle="bold" />
 
@@ -26,8 +26,8 @@
         android:inputType="phone"
         android:padding="12dp"
         android:singleLine="true"
-        android:textColor="@color/worm_text"
-        android:textColorHint="@color/worm_faint"
+        android:textColor="@color/sentinal_text"
+        android:textColorHint="@color/sentinal_faint"
         android:textSize="13sp" />
 
     <TextView
@@ -35,7 +35,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
         android:text="BLOCKED NUMBERS"
-        android:textColor="@color/worm_faint"
+        android:textColor="@color/sentinal_faint"
         android:textSize="10sp"
         android:textStyle="bold" />
 

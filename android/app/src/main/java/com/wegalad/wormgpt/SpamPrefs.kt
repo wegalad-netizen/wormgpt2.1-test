@@ -8,7 +8,7 @@ import android.content.SharedPreferences
  * all read the same settings so the UI controls actually affect blocking.
  */
 object SpamPrefs {
-    private const val PREFS = "wormgpt_spam_prefs"
+    private const val PREFS = "sentinal_spam_prefs"
     private const val KEY_BLOCKED = "blocked_numbers"
     private const val KEY_KEYWORDS = "keyword_filter"
     private const val KEY_UNKNOWN = "block_unknown"

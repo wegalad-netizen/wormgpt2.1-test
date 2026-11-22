@@ -102,7 +102,7 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private companion object {
-        const val PREFS_NAME = "wormgpt_prefs"
+        const val PREFS_NAME = "sentinal_prefs"
         const val KEY_API = "api_key"
         const val KEY_API_FALLBACKS = "api_fallback_profiles"
         const val KEY_SAFE_BROWSING = "safe_browsing_api_key"
@@ -650,7 +650,7 @@ Scope:
     private fun playLaunchAnimation() {
         val root = window.decorView as? ViewGroup ?: return
         val overlay = FrameLayout(this).apply {
-            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.worm_bg))
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_bg))
             isClickable = true
             isFocusable = true
             elevation = dp(24).toFloat()
@@ -665,7 +665,7 @@ Scope:
         }
         val title = TextView(this).apply {
             text = "Sentinal Security"
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_text))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
             textSize = 23f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             alpha = 0f
@@ -673,7 +673,7 @@ Scope:
         }
         val subtitle = TextView(this).apply {
             text = "SECURITY TOOLS"
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_red_bright))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_red_bright))
             textSize = 11f
             letterSpacing = 0.18f
             alpha = 0f
@@ -1005,7 +1005,7 @@ Scope:
             status.setTextColor(
                 ContextCompat.getColor(
                     this,
-                    if (callOn && smsOn) R.color.worm_emerald else R.color.worm_amber,
+                    if (callOn && smsOn) R.color.sentinal_emerald else R.color.sentinal_amber,
                 ),
             )
         }
@@ -1013,7 +1013,7 @@ Scope:
         guardStatus.setTextColor(
             ContextCompat.getColor(
                 this,
-                if (callOn) R.color.worm_green else R.color.worm_amber,
+                if (callOn) R.color.sentinal_green else R.color.sentinal_amber,
             ),
         )
 
@@ -1055,7 +1055,7 @@ Scope:
         }
         listOf(R.id.navDashboard, R.id.navChat, R.id.navTools).forEach { id ->
             findViewById<Button>(id).setTextColor(
-                ContextCompat.getColor(this, if (id == selected) R.color.worm_cyan else R.color.worm_muted),
+                ContextCompat.getColor(this, if (id == selected) R.color.sentinal_cyan else R.color.sentinal_muted),
             )
         }
         if (page == "chat") promptInput.clearFocus()
@@ -1311,7 +1311,7 @@ Scope:
                 list.addView(TextView(this).apply {
                     text = "No numbers blocked yet."
                     textSize = 12f
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_faint))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
                 })
                 return
             }
@@ -1324,7 +1324,7 @@ Scope:
                 val label = TextView(this).apply {
                     text = number
                     textSize = 13f
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_text))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
                     layoutParams = LinearLayout.LayoutParams(
                         0,
                         LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -1334,7 +1334,7 @@ Scope:
                 val remove = Button(this).apply {
                     text = "X"
                     textSize = 11f
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_red_bright))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_red_bright))
                     setBackgroundResource(R.drawable.pill_outline)
                     layoutParams = LinearLayout.LayoutParams(48, 36)
                     setOnClickListener {
@@ -1763,7 +1763,7 @@ User request: $prompt"""
                     appendChat("\n\n── ERROR\n${result.error}")
                 } else {
                     lastResponse = result.text.orEmpty()
-                    appendChat("\n\n── RESPONSE (${result.model ?: MODEL})\n$lastResponse", R.color.worm_green)
+                    appendChat("\n\n── RESPONSE (${result.model ?: MODEL})\n$lastResponse", R.color.sentinal_green)
                 }
             }
         }
@@ -1805,7 +1805,7 @@ User request: $prompt"""
                 findViewById<TextView>(R.id.cryptoChangeText).text = "No current market data received"
                 findViewById<TextView>(R.id.cryptoSignalText).text = "SIGNAL: UNAVAILABLE"
                 findViewById<TextView>(R.id.cryptoSignalText).setTextColor(
-                    ContextCompat.getColor(this@MainActivity, R.color.worm_amber),
+                    ContextCompat.getColor(this@MainActivity, R.color.sentinal_amber),
                 )
                 findViewById<TextView>(R.id.cryptoUpdatedText).text =
                     "${error.message ?: error.javaClass.simpleName}. Tap REFRESH to try again."
@@ -1878,7 +1878,7 @@ User request: $prompt"""
         changeView.setTextColor(
             ContextCompat.getColor(
                 this,
-                if (change >= 0) R.color.worm_emerald else R.color.worm_red_bright,
+                if (change >= 0) R.color.sentinal_emerald else R.color.sentinal_red_bright,
             ),
         )
 
@@ -1891,9 +1891,9 @@ User request: $prompt"""
             ContextCompat.getColor(
                 this,
                 when {
-                    signal == "UPWARD BIAS" -> R.color.worm_emerald
-                    signal == "DOWNWARD BIAS" -> R.color.worm_red_bright
-                    else -> R.color.worm_cyan
+                    signal == "UPWARD BIAS" -> R.color.sentinal_emerald
+                    signal == "DOWNWARD BIAS" -> R.color.sentinal_red_bright
+                    else -> R.color.sentinal_cyan
                 },
             ),
         )
@@ -2044,8 +2044,8 @@ User request: $prompt"""
             maxLines = 14
             gravity = Gravity.TOP or Gravity.START
             setPadding(dp(12), dp(10), dp(12), dp(10))
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_text))
-            setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_faint))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+            setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
             setBackgroundResource(R.drawable.input_bg)
         }
         val container = LinearLayout(this).apply {
@@ -2247,7 +2247,7 @@ User request: $prompt"""
             ApiResult(
                 null,
                 "Timeout (${e.message ?: "no detail"}). " +
-                    "If a VPN or firewall is active, allow WormGPT direct access.",
+                    "If a VPN or firewall is active, allow Sentinal Security direct access.",
             )
         } catch (e: java.net.UnknownHostException) {
             ApiResult(null, "DNS failure: cannot resolve $API_HOST (${e.message ?: "unknown"}).")
@@ -2288,7 +2288,7 @@ User request: $prompt"""
         }
 
         val dir = getExternalFilesDir(null) ?: filesDir
-        val file = File(dir, "wormgpt_snippet_${System.currentTimeMillis()}.txt")
+        val file = File(dir, "sentinal_snippet_${System.currentTimeMillis()}.txt")
         file.writeText(
             blocks.joinToString("\n\n") { "```${it.lang}\n${it.code}\n```" },
         )
@@ -2313,16 +2313,16 @@ User request: $prompt"""
             return
         }
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("WormGPT", lastResponse))
+        clipboard.setPrimaryClip(ClipData.newPlainText("Sentinal Security", lastResponse))
         val dir = getExternalFilesDir(null) ?: filesDir
-        val file = File(dir, "wormgpt_last_response.txt")
+        val file = File(dir, "sentinal_last_response.txt")
         file.writeText(lastResponse)
         appendChat("\n\n[*] Last response copied -> ${file.absolutePath}")
     }
 
     private fun saveTranscript() {
         val dir = getExternalFilesDir(null) ?: filesDir
-        val file = File(dir, "wormgpt_history.txt")
+        val file = File(dir, "sentinal_history.txt")
         file.writeText(chatText.text.toString())
         appendChat("\n\n[*] History saved -> ${file.absolutePath}")
     }
@@ -2400,14 +2400,14 @@ User request: $prompt"""
         }
         layout.addView(TextView(this).apply {
             text = "Enter exact hostnames you are authorized to test, one per line. Wildcards are not accepted."
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_faint))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
             textSize = 12f
             setPadding(0, 0, 0, dp(8))
         })
         layout.addView(scopeInput)
         layout.addView(TextView(this).apply {
             text = "Authorization expires after this date:"
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_faint))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
             textSize = 12f
             setPadding(0, dp(10), 0, dp(4))
         })
@@ -2533,7 +2533,7 @@ User request: $prompt"""
     private fun performWebConfigurationCheck(url: String): String {
         val head = Request.Builder()
             .url(url)
-            .header("User-Agent", "WormGPT-Security-Check/1.0")
+            .header("User-Agent", "SentinalSecurity/1.0")
             .head()
             .build()
         val headResult = scopeCheckClient.newCall(head).execute().use { response ->
@@ -2544,7 +2544,7 @@ User request: $prompt"""
 
         val fallback = Request.Builder()
             .url(url)
-            .header("User-Agent", "WormGPT-Security-Check/1.0")
+            .header("User-Agent", "SentinalSecurity/1.0")
             .header("Range", "bytes=0-0")
             .get()
             .build()
@@ -2594,8 +2594,8 @@ User request: $prompt"""
     private fun newToolInput(hint: String, inputType: Int): EditText = EditText(this).apply {
         this.hint = hint
         this.inputType = inputType
-        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_text))
-        setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_faint))
+        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+        setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
         setTextSize(16f)
         setPadding(dp(12), dp(10), dp(12), dp(10))
         setBackgroundResource(R.drawable.input_bg)
@@ -2689,7 +2689,7 @@ User request: $prompt"""
                     .put(
                         "client",
                         JSONObject()
-                            .put("clientId", "wormgpt-android")
+                            .put("clientId", "sentinal-android")
                             .put("clientVersion", packageManager.getPackageInfo(packageName, 0).versionName),
                     )
                     .put(
@@ -2739,7 +2739,7 @@ User request: $prompt"""
         val password = newToolInput("Password (checked only on this device)", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         val result = TextView(this).apply {
             text = "Strength estimate: not checked"
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.worm_green))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_green))
             textSize = 13f
             setPadding(0, dp(10), 0, 0)
         }
@@ -2758,7 +2758,7 @@ User request: $prompt"""
         layout.addView(result)
         val dialog = AlertDialog.Builder(this)
             .setTitle("OFFLINE PASSWORD TOOL")
-            .setMessage("The password stays on this device and is never sent to WormGPT.")
+            .setMessage("The password stays on this device and is never sent to Sentinal Security.")
             .setView(layout)
             .setNegativeButton("DONE", null)
             .setNeutralButton("CHECK", null)
@@ -2970,7 +2970,7 @@ User request: $prompt"""
                 }
 
                 AlertDialog.Builder(this@MainActivity)
-                    .setTitle("WormGPT update")
+                    .setTitle("Sentinal Security update")
                     .setMessage("A new APK is available. Download and install it now?")
                     .setPositiveButton("Update") { _, _ ->
                         downloadAndInstall(info, prefs)
@@ -2998,7 +2998,7 @@ User request: $prompt"""
             val request = Request.Builder()
                 .url(RELEASE_API)
                 .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "WormGPT-Android")
+                .header("User-Agent", "SentinalSecurity-Android")
                 .build()
 
             updateClient.newCall(request).execute().use { response ->
@@ -3029,7 +3029,7 @@ User request: $prompt"""
     private fun downloadAndInstall(info: UpdateInfo, prefs: SharedPreferences) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val file = File(getExternalFilesDir(null) ?: filesDir, "wormgpt-update.apk")
+                val file = File(getExternalFilesDir(null) ?: filesDir, "sentinal-update.apk")
                 downloadUpdateApk(info.downloadUrl, file)
 
                 withContext(Dispatchers.Main) {
@@ -3064,7 +3064,7 @@ User request: $prompt"""
                 val request = Request.Builder()
                     .url(url)
                     .header("Accept", "application/octet-stream")
-                    .header("User-Agent", "WormGPT-Android")
+                    .header("User-Agent", "SentinalSecurity-Android")
                     .build()
 
                 updateClient.newCall(request).execute().use { response ->
@@ -3111,7 +3111,7 @@ User request: $prompt"""
         }
         Regex("(?i)\\bmaster\\b").findAll(text).forEach { match ->
             formatted.setSpan(
-                ForegroundColorSpan(ContextCompat.getColor(this, R.color.worm_red_bright)),
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.sentinal_red_bright)),
                 match.range.first,
                 match.range.last + 1,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
@@ -3126,7 +3126,7 @@ User request: $prompt"""
         val formatted = SpannableString(content)
         Regex("(?i)\\bmaster\\b").findAll(content).forEach { match ->
             formatted.setSpan(
-                ForegroundColorSpan(ContextCompat.getColor(this, R.color.worm_red_bright)),
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.sentinal_red_bright)),
                 match.range.first,
                 match.range.last + 1,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,

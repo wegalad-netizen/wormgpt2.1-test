@@ -1,6 +1,6 @@
-# WormGPT for Android
+# Sentinal Security for Android
 
-Native Android app (Kotlin) for WormGPT. It calls Gemini directly using a key you enter in the app; no key is baked into the source or the APK.
+Native Android app (Kotlin) for Sentinal Security. It calls Gemini directly using a key you enter in the app; no key is baked into the source or the APK.
 
 ## Build the APK without installing an SDK
 

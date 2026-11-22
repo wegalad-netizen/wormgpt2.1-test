@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.WormGPT" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/worm_cyan</item>
-        <item name="colorPrimaryDark">@color/worm_bg</item>
-        <item name="colorAccent">@color/worm_cyan</item>
-        <item name="android:windowBackground">@color/worm_bg</item>
-        <item name="android:textColorPrimary">@color/worm_text</item>
-        <item name="android:textColorSecondary">@color/worm_muted</item>
+    <style name="Theme.SentinalSecurity" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/sentinal_cyan</item>
+        <item name="colorPrimaryDark">@color/sentinal_bg</item>
+        <item name="colorAccent">@color/sentinal_cyan</item>
+        <item name="android:windowBackground">@color/sentinal_bg</item>
+        <item name="android:textColorPrimary">@color/sentinal_text</item>
+        <item name="android:textColorSecondary">@color/sentinal_muted</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">@color/worm_bg</item>
-        <item name="android:navigationBarColor">@color/worm_bg</item>
+        <item name="android:statusBarColor">@color/sentinal_bg</item>
+        <item name="android:navigationBarColor">@color/sentinal_bg</item>
     </style>
 
-    <style name="WormButton" parent="Widget.AppCompat.Button">
+    <style name="SentinalButton" parent="Widget.AppCompat.Button">
         <item name="android:background">@drawable/pill_cyan</item>
         <item name="android:textColor">#FFFFFF</item>
         <item name="android:textSize">11sp</item>
@@ -22,36 +22,36 @@
         <item name="android:minHeight">40dp</item>
     </style>
 
-    <style name="WormButton.Outline" parent="Widget.AppCompat.Button">
+    <style name="SentinalButton.Outline" parent="Widget.AppCompat.Button">
         <item name="android:background">@drawable/pill_outline</item>
-        <item name="android:textColor">@color/worm_cyan</item>
+        <item name="android:textColor">@color/sentinal_cyan</item>
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:minHeight">40dp</item>
     </style>
 
-    <style name="WormButton.Ghost" parent="Widget.AppCompat.Button">
+    <style name="SentinalButton.Ghost" parent="Widget.AppCompat.Button">
         <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
-        <item name="android:textColor">@color/worm_muted</item>
+        <item name="android:textColor">@color/sentinal_muted</item>
         <item name="android:textSize">11sp</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:minHeight">40dp</item>
     </style>
 
-    <style name="WormMenuItem">
+    <style name="SentinalMenuItem">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">46dp</item>
         <item name="android:background">?attr/selectableItemBackground</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:paddingStart">12dp</item>
         <item name="android:paddingEnd">12dp</item>
-        <item name="android:textColor">@color/worm_text</item>
+        <item name="android:textColor">@color/sentinal_text</item>
         <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 
-    <style name="WormSocialRow">
+    <style name="SentinalSocialRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">44dp</item>
         <item name="android:layout_marginBottom">6dp</item>
@@ -59,7 +59,7 @@
         <item name="android:gravity">center_vertical</item>
         <item name="android:paddingStart">12dp</item>
         <item name="android:paddingEnd">12dp</item>
-        <item name="android:textColor">@color/worm_text</item>
+        <item name="android:textColor">@color/sentinal_text</item>
         <item name="android:textSize">12sp</item>
     </style>
 

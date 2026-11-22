@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 
 object SpamNotifier {
-    private const val CHANNEL_ID = "wormgpt_spam_guard"
+    private const val CHANNEL_ID = "sentinal_spam_guard"
 
     fun notify(context: Context, title: String, message: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&

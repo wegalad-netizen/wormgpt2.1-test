@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "WormGPT"
+rootProject.name = "Sentinal Security"
 include(":app")

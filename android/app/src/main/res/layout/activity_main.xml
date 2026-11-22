@@ -34,7 +34,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Open menu"
                 android:src="@drawable/ic_menu"
-                android:tint="@color/worm_text" />
+                android:tint="@color/sentinal_text" />
 
             <ImageView
                 android:id="@+id/appLogo"
@@ -55,7 +55,7 @@
                 android:paddingTop="2dp"
                 android:paddingBottom="2dp"
                 android:text="2.1"
-                android:textColor="@color/worm_cyan"
+                android:textColor="@color/sentinal_cyan"
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
@@ -73,7 +73,7 @@
                     android:ellipsize="end"
                     android:singleLine="true"
                     android:text="Sentinal Security"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -84,7 +84,7 @@
                     android:letterSpacing="0.08"
                     android:singleLine="true"
                     android:text="OWNER · SEEKER OF TRUTH"
-                    android:textColor="@color/worm_red_bright"
+                    android:textColor="@color/sentinal_red_bright"
                     android:textSize="8sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -96,7 +96,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Settings"
                 android:src="@drawable/ic_settings"
-                android:tint="@color/worm_text" />
+                android:tint="@color/sentinal_text" />
         </LinearLayout>
 
         <LinearLayout
@@ -115,7 +115,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="LOCAL MONITORING"
-                android:textColor="@color/worm_emerald"
+                android:textColor="@color/sentinal_emerald"
                 android:textSize="11sp"
                 android:textStyle="bold" />
             <View
@@ -127,7 +127,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="NET  ↓ 0 Kbps  ↑ 0 Kbps"
-                android:textColor="@color/worm_cyan"
+                android:textColor="@color/sentinal_cyan"
                 android:textSize="10sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -156,7 +156,7 @@
                         android:layout_height="wrap_content"
                         android:paddingTop="8dp"
                         android:text="Security overview"
-                        android:textColor="@color/worm_text"
+                        android:textColor="@color/sentinal_text"
                         android:textSize="22sp"
                         android:textStyle="bold" />
                     <TextView
@@ -165,7 +165,7 @@
                         android:paddingTop="3dp"
                         android:paddingBottom="12dp"
                         android:text="A quick view of protection available on this device"
-                        android:textColor="@color/worm_muted"
+                        android:textColor="@color/sentinal_muted"
                         android:textSize="12sp" />
 
                     <LinearLayout
@@ -191,14 +191,14 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="⌁"
-                                    android:textColor="@color/worm_cyan"
+                                    android:textColor="@color/sentinal_cyan"
                                     android:textSize="38sp"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="LOCAL GUARD"
-                                    android:textColor="@color/worm_text"
+                                    android:textColor="@color/sentinal_text"
                                     android:textSize="10sp"
                                     android:textStyle="bold" />
                             </LinearLayout>
@@ -209,16 +209,16 @@
                             android:gravity="center"
                             android:paddingTop="10dp"
                             android:text="Call and message protection status"
-                            android:textColor="@color/worm_muted"
+                            android:textColor="@color/sentinal_muted"
                             android:textSize="12sp" />
                         <Button
                             android:id="@+id/quickCheckButton"
-                            style="@style/WormButton"
+                            style="@style/SentinalButton"
                             android:layout_width="match_parent"
                             android:layout_height="48dp"
                             android:layout_marginTop="12dp"
                             android:text="QUICK CHECK"
-                            android:textColor="@color/worm_bg"
+                            android:textColor="@color/sentinal_bg"
                             android:background="@drawable/pill_cyan" />
                     </LinearLayout>
 
@@ -233,7 +233,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="LIVE CRYPTO CHART SIGNAL"
-                            android:textColor="@color/worm_text"
+                            android:textColor="@color/sentinal_text"
                             android:textSize="15sp"
                             android:textStyle="bold" />
                         <TextView
@@ -241,7 +241,7 @@
                             android:layout_height="wrap_content"
                             android:paddingTop="3dp"
                             android:text="Price chart and technical trend from current spot data"
-                            android:textColor="@color/worm_muted"
+                            android:textColor="@color/sentinal_muted"
                             android:textSize="11sp" />
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -258,7 +258,7 @@
                                 android:paddingHorizontal="8dp" />
                             <Button
                                 android:id="@+id/refreshCryptoButton"
-                                style="@style/WormButton.Outline"
+                                style="@style/SentinalButton.Outline"
                                 android:layout_width="92dp"
                                 android:layout_height="40dp"
                                 android:layout_marginStart="8dp"
@@ -271,7 +271,7 @@
                             android:layout_height="wrap_content"
                             android:paddingTop="10dp"
                             android:text="Waiting for market data…"
-                            android:textColor="@color/worm_text"
+                            android:textColor="@color/sentinal_text"
                             android:textSize="18sp"
                             android:textStyle="bold" />
                         <TextView
@@ -280,7 +280,7 @@
                             android:layout_height="wrap_content"
                             android:paddingTop="2dp"
                             android:text="24H CHANGE —"
-                            android:textColor="@color/worm_muted"
+                            android:textColor="@color/sentinal_muted"
                             android:textSize="11sp" />
                         <com.wegalad.wormgpt.CryptoChartPreview
                             android:id="@+id/cryptoChartView"
@@ -294,7 +294,7 @@
                             android:layout_height="wrap_content"
                             android:paddingTop="7dp"
                             android:text="SIGNAL: WAITING FOR DATA"
-                            android:textColor="@color/worm_cyan"
+                            android:textColor="@color/sentinal_cyan"
                             android:textSize="12sp"
                             android:textStyle="bold" />
                         <TextView
@@ -303,16 +303,16 @@
                             android:layout_height="wrap_content"
                             android:paddingTop="3dp"
                             android:text="Binance Spot · 1h candles · refreshing every minute"
-                            android:textColor="@color/worm_faint"
+                            android:textColor="@color/sentinal_faint"
                             android:textSize="9sp" />
                         <Button
                             android:id="@+id/homeCryptoButton"
-                            style="@style/WormButton"
+                            style="@style/SentinalButton"
                             android:layout_width="match_parent"
                             android:layout_height="44dp"
                             android:layout_marginTop="8dp"
                             android:text="ANALYZE SCREENSHOT"
-                            android:textColor="@color/worm_bg"
+                            android:textColor="@color/sentinal_bg"
                             android:background="@drawable/pill_cyan" />
                     </LinearLayout>
 
@@ -322,7 +322,7 @@
                         android:paddingTop="18dp"
                         android:paddingBottom="8dp"
                         android:text="TOOLS"
-                        android:textColor="@color/worm_muted"
+                        android:textColor="@color/sentinal_muted"
                         android:textSize="11sp"
                         android:textStyle="bold" />
                     <LinearLayout
@@ -339,9 +339,9 @@
                             android:focusable="true"
                             android:orientation="vertical"
                             android:padding="12dp">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="↗" android:textColor="@color/worm_cyan" android:textSize="23sp" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Link safety" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Review a URL" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="↗" android:textColor="@color/sentinal_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Link safety" android:textColor="@color/sentinal_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Review a URL" android:textColor="@color/sentinal_muted" android:textSize="10sp" />
                         </LinearLayout>
                         <LinearLayout
                             android:id="@+id/passwordToolCard"
@@ -354,9 +354,9 @@
                             android:focusable="true"
                             android:orientation="vertical"
                             android:padding="12dp">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⌑" android:textColor="@color/worm_cyan" android:textSize="23sp" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Password" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Check or generate" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⌑" android:textColor="@color/sentinal_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Password" android:textColor="@color/sentinal_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Check or generate" android:textColor="@color/sentinal_muted" android:textSize="10sp" />
                         </LinearLayout>
                     </LinearLayout>
                     <LinearLayout
@@ -374,9 +374,9 @@
                             android:focusable="true"
                             android:orientation="vertical"
                             android:padding="12dp">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="#" android:textColor="@color/worm_cyan" android:textSize="23sp" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="File reputation" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Look up file hash" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="#" android:textColor="@color/sentinal_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="File reputation" android:textColor="@color/sentinal_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Look up file hash" android:textColor="@color/sentinal_muted" android:textSize="10sp" />
                         </LinearLayout>
                         <LinearLayout
                             android:id="@+id/messageToolCard"
@@ -389,9 +389,9 @@
                             android:focusable="true"
                             android:orientation="vertical"
                             android:padding="12dp">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="!" android:textColor="@color/worm_cyan" android:textSize="23sp" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Message review" android:textColor="@color/worm_text" android:textSize="13sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Check for phishing" android:textColor="@color/worm_muted" android:textSize="10sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="!" android:textColor="@color/sentinal_cyan" android:textSize="23sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Message review" android:textColor="@color/sentinal_text" android:textSize="13sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Check for phishing" android:textColor="@color/sentinal_muted" android:textSize="10sp" />
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
@@ -420,7 +420,7 @@
                         android:layout_height="wrap_content"
                         android:lineSpacingExtra="3dp"
                         android:text="@string/welcome_chat"
-                        android:textColor="@color/worm_text"
+                        android:textColor="@color/sentinal_text"
                         android:textIsSelectable="false"
                         android:textSize="13sp" />
                 </ScrollView>
@@ -435,7 +435,7 @@
                     android:padding="6dp">
                     <Button
                         android:id="@+id/chartButton"
-                        style="@style/WormButton.Outline"
+                        style="@style/SentinalButton.Outline"
                         android:layout_width="46dp"
                         android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
@@ -459,12 +459,12 @@
                         android:paddingEnd="12dp"
                         android:gravity="center_vertical"
                         android:singleLine="true"
-                        android:textColor="@color/worm_green"
-                        android:textColorHint="@color/worm_faint"
+                        android:textColor="@color/sentinal_green"
+                        android:textColorHint="@color/sentinal_faint"
                         android:textSize="16sp" />
                     <Button
                         android:id="@+id/sendButton"
-                        style="@style/WormButton"
+                        style="@style/SentinalButton"
                         android:layout_width="76dp"
                         android:layout_height="40dp"
                         android:drawableTop="@drawable/ic_send"
@@ -478,11 +478,11 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:orientation="horizontal">
-                    <Button android:id="@+id/codeButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:text="CODE" />
-                    <Button android:id="@+id/testButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="TEST" />
-                    <Button android:id="@+id/copyButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="COPY" />
-                    <Button android:id="@+id/saveButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="SAVE" />
-                    <Button android:id="@+id/clearButton" style="@style/WormButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="CLEAR" />
+                    <Button android:id="@+id/codeButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:text="CODE" />
+                    <Button android:id="@+id/testButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="TEST" />
+                    <Button android:id="@+id/copyButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="COPY" />
+                    <Button android:id="@+id/saveButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="SAVE" />
+                    <Button android:id="@+id/clearButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="CLEAR" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -497,14 +497,14 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:paddingTop="10dp">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Security tools" android:textColor="@color/worm_text" android:textSize="22sp" android:textStyle="bold" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="4dp" android:paddingBottom="12dp" android:text="Local checks and authorized assessment helpers" android:textColor="@color/worm_muted" android:textSize="12sp" />
-                    <Button android:id="@+id/wifiDetailsButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:text="WI-FI DETAILS" />
-                    <Button android:id="@+id/permissionSummaryButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="APP PERMISSION SUMMARY" />
-                    <Button android:id="@+id/toolsSpamLogButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="SECURITY ALERTS LOG" />
-                    <Button android:id="@+id/securityToolsButton" style="@style/WormButton" android:layout_width="match_parent" android:layout_height="46dp" android:text="OPEN SECURITY TOOLS" android:background="@drawable/pill_cyan" android:textColor="@color/worm_bg" />
-                    <Button android:id="@+id/toolsSimulateButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="RUN LOCAL SPAM SIMULATION" />
-                    <Button android:id="@+id/toolsBlocklistButton" style="@style/WormButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="MANAGE BLOCKLIST" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Security tools" android:textColor="@color/sentinal_text" android:textSize="22sp" android:textStyle="bold" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="4dp" android:paddingBottom="12dp" android:text="Local checks and authorized assessment helpers" android:textColor="@color/sentinal_muted" android:textSize="12sp" />
+                    <Button android:id="@+id/wifiDetailsButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:text="WI-FI DETAILS" />
+                    <Button android:id="@+id/permissionSummaryButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="APP PERMISSION SUMMARY" />
+                    <Button android:id="@+id/toolsSpamLogButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="SECURITY ALERTS LOG" />
+                    <Button android:id="@+id/securityToolsButton" style="@style/SentinalButton" android:layout_width="match_parent" android:layout_height="46dp" android:text="OPEN SECURITY TOOLS" android:background="@drawable/pill_cyan" android:textColor="@color/sentinal_bg" />
+                    <Button android:id="@+id/toolsSimulateButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="RUN LOCAL SPAM SIMULATION" />
+                    <Button android:id="@+id/toolsBlocklistButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="MANAGE BLOCKLIST" />
                 </LinearLayout>
             </ScrollView>
         </FrameLayout>
@@ -518,10 +518,10 @@
             android:gravity="center"
             android:orientation="horizontal"
             android:paddingHorizontal="4dp">
-            <Button android:id="@+id/navDashboard" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="HOME" android:textColor="@color/worm_cyan" />
-            <Button android:id="@+id/navChat" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="CHAT" />
-            <Button android:id="@+id/navTools" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="TOOLS" />
-            <Button android:id="@+id/navSettings" style="@style/WormButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="SETTINGS" />
+            <Button android:id="@+id/navDashboard" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="HOME" android:textColor="@color/sentinal_cyan" />
+            <Button android:id="@+id/navChat" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="CHAT" />
+            <Button android:id="@+id/navTools" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="TOOLS" />
+            <Button android:id="@+id/navSettings" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="SETTINGS" />
         </LinearLayout>
     </LinearLayout>
 
@@ -531,7 +531,7 @@
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
-        android:background="@color/worm_bg"
+        android:background="@color/sentinal_bg"
         android:orientation="vertical">
 
         <ScrollView
@@ -552,7 +552,7 @@
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.15"
                     android:text="SEEKER OF TRUTH"
-                    android:textColor="@color/worm_red_bright"
+                    android:textColor="@color/sentinal_red_bright"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -561,12 +561,12 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="SYSTEM CONTROL"
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="10sp" />
 
                 <Button
                     android:id="@+id/ownerButton"
-                    style="@style/WormButton.Outline"
+                    style="@style/SentinalButton.Outline"
                     android:layout_width="match_parent"
                     android:layout_height="38dp"
                     android:layout_marginTop="10dp"
@@ -576,13 +576,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="12dp"
-                    android:background="@color/worm_border" />
+                    android:background="@color/sentinal_border" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="PRIMARY GEMINI API KEY"
-                    android:textColor="@color/worm_red_bright"
+                    android:textColor="@color/sentinal_red_bright"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -596,8 +596,8 @@
                     android:inputType="textPassword"
                     android:padding="12dp"
                     android:singleLine="true"
-                    android:textColor="@color/worm_text"
-                    android:textColorHint="@color/worm_faint"
+                    android:textColor="@color/sentinal_text"
+                    android:textColorHint="@color/sentinal_faint"
                     android:textSize="13sp" />
 
                 <TextView
@@ -605,7 +605,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:text="FALLBACK KEYS AND MODELS"
-                    android:textColor="@color/worm_red_bright"
+                    android:textColor="@color/sentinal_red_bright"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
@@ -614,7 +614,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="API_KEY | MODEL per line, or just MODEL to reuse the primary key. Up to 5 profiles; safety blocks are not retried."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <EditText
@@ -630,13 +630,13 @@
                     android:minLines="3"
                     android:padding="12dp"
                     android:singleLine="false"
-                    android:textColor="@color/worm_text"
-                    android:textColorHint="@color/worm_faint"
+                    android:textColor="@color/sentinal_text"
+                    android:textColorHint="@color/sentinal_faint"
                     android:textSize="12sp" />
 
                 <Button
                     android:id="@+id/saveKeyButton"
-                    style="@style/WormButton"
+                    style="@style/SentinalButton"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:layout_marginTop="8dp"
@@ -644,7 +644,7 @@
 
                 <Button
                     android:id="@+id/testConnectionButton"
-                    style="@style/WormButton.Outline"
+                    style="@style/SentinalButton.Outline"
                     android:layout_width="match_parent"
                     android:layout_height="38dp"
                     android:layout_marginTop="6dp"
@@ -655,7 +655,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:text="OPTIONAL REPUTATION API KEYS"
-                    android:textColor="@color/worm_red_bright"
+                    android:textColor="@color/sentinal_red_bright"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
@@ -669,8 +669,8 @@
                     android:inputType="textPassword"
                     android:padding="10dp"
                     android:singleLine="true"
-                    android:textColor="@color/worm_text"
-                    android:textColorHint="@color/worm_faint"
+                    android:textColor="@color/sentinal_text"
+                    android:textColorHint="@color/sentinal_faint"
                     android:textSize="12sp" />
 
                 <EditText
@@ -683,13 +683,13 @@
                     android:inputType="textPassword"
                     android:padding="10dp"
                     android:singleLine="true"
-                    android:textColor="@color/worm_text"
-                    android:textColorHint="@color/worm_faint"
+                    android:textColor="@color/sentinal_text"
+                    android:textColorHint="@color/sentinal_faint"
                     android:textSize="12sp" />
 
                 <Button
                     android:id="@+id/saveSecurityKeysButton"
-                    style="@style/WormButton.Outline"
+                    style="@style/SentinalButton.Outline"
                     android:layout_width="match_parent"
                     android:layout_height="36dp"
                     android:layout_marginTop="6dp"
@@ -700,18 +700,18 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="URL checks send URLs to Google. File reputation sends only the SHA-256 hash to VirusTotal; files stay on this device."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="14dp"
-                    android:background="@color/worm_border" />
+                    android:background="@color/sentinal_border" />
 
                 <Button
                     android:id="@+id/updateButton"
-                    style="@style/WormButton.Outline"
+                    style="@style/SentinalButton.Outline"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:text="CHECK FOR UPDATES" />
@@ -721,7 +721,7 @@
                     android:layout_height="wrap_content"
                     android:padding="8dp"
                     android:text="Auto-checks on launch. Pull from the right edge to open this panel."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="10sp" />
 
                 <!-- NETWORK MONITOR -->
@@ -729,14 +729,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="8dp"
-                    android:background="@color/worm_border" />
+                    android:background="@color/sentinal_border" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.12"
                     android:text="NETWORK MONITOR"
-                    android:textColor="@color/worm_cyan"
+                    android:textColor="@color/sentinal_cyan"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -745,10 +745,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:buttonTint="@color/worm_cyan"
+                    android:buttonTint="@color/sentinal_cyan"
                     android:switchMinWidth="34dp"
                     android:text="SHOW NET SPEED"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -757,7 +757,7 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
                     android:text="Live device-wide download and upload rate. No extra permissions."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <Switch
@@ -765,10 +765,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:buttonTint="@color/worm_cyan"
+                    android:buttonTint="@color/sentinal_cyan"
                     android:switchMinWidth="34dp"
                     android:text="JARVIS VOICE + UI SOUNDS"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -777,7 +777,7 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
                     android:text="Bundled Jarvis voice plus futuristic button sounds. Disable all audio anytime."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <!-- SPAM GUARD -->
@@ -785,14 +785,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="8dp"
-                    android:background="@color/worm_border" />
+                    android:background="@color/sentinal_border" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.12"
                     android:text="SPAM GUARD"
-                    android:textColor="@color/worm_red_bright"
+                    android:textColor="@color/sentinal_red_bright"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -803,7 +803,7 @@
                     android:layout_marginTop="5dp"
                     android:lineSpacingExtra="2dp"
                     android:text="CALL GUARD: OFF   |   SMS GUARD: OFF   |   SMS HIDE: OFF   |   OTP HIDE: OFF"
-                    android:textColor="@color/worm_green"
+                    android:textColor="@color/sentinal_green"
                     android:textSize="10sp" />
 
                 <Switch
@@ -811,10 +811,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:buttonTint="@color/worm_red"
+                    android:buttonTint="@color/sentinal_red"
                     android:switchMinWidth="34dp"
                     android:text="CALL GUARD"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -823,10 +823,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:buttonTint="@color/worm_red"
+                    android:buttonTint="@color/sentinal_red"
                     android:switchMinWidth="34dp"
                     android:text="SMS GUARD"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -835,10 +835,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:buttonTint="@color/worm_red"
+                    android:buttonTint="@color/sentinal_red"
                     android:switchMinWidth="34dp"
                     android:text="HIDE SPAM SMS"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -847,7 +847,7 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
                     android:text="HIDE SPAM SMS needs notification access. It cancels spam alerts from your messaging app; the messages stay in your inbox."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <Switch
@@ -855,10 +855,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:buttonTint="@color/worm_red"
+                    android:buttonTint="@color/sentinal_red"
                     android:switchMinWidth="34dp"
                     android:text="HIDE OTP SMS ALERTS"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -867,7 +867,7 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
                     android:text="Optional and off by default. Hides code notifications only; messages stay in your inbox. Turn it off anytime."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <TextView
@@ -875,7 +875,7 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
                     android:text="Toggle off to stop blocking without removing permissions."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <LinearLayout
@@ -886,7 +886,7 @@
 
                     <Button
                         android:id="@+id/blocklistButton"
-                        style="@style/WormButton.Outline"
+                        style="@style/SentinalButton.Outline"
                         android:layout_width="0dp"
                         android:layout_height="36dp"
                         android:layout_weight="1"
@@ -894,7 +894,7 @@
 
                     <Button
                         android:id="@+id/spamLogButton"
-                        style="@style/WormButton.Outline"
+                        style="@style/SentinalButton.Outline"
                         android:layout_width="0dp"
                         android:layout_height="36dp"
                         android:layout_weight="1"
@@ -907,10 +907,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:buttonTint="@color/worm_red"
+                    android:buttonTint="@color/sentinal_red"
                     android:switchMinWidth="34dp"
                     android:text="KEYWORD FILTER"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="11sp" />
 
                 <Switch
@@ -918,10 +918,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:buttonTint="@color/worm_red"
+                    android:buttonTint="@color/sentinal_red"
                     android:switchMinWidth="34dp"
                     android:text="BLOCK HIDDEN NUMBERS"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="11sp" />
 
                 <Switch
@@ -929,10 +929,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:buttonTint="@color/worm_red"
+                    android:buttonTint="@color/sentinal_red"
                     android:switchMinWidth="34dp"
                     android:text="AUTO-BLOCK OPERATOR SPAM"
-                    android:textColor="@color/worm_text"
+                    android:textColor="@color/sentinal_text"
                     android:textSize="11sp" />
 
                 <TextView
@@ -940,7 +940,7 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="4dp"
                     android:text="Automatically rejects calls and hides promo SMS from Hutch, Mobitel, Dialog, Airtel, or SLT. On by default."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <TextView
@@ -948,12 +948,12 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="6dp"
                     android:text="Incoming calls from your blocklist or hidden numbers are rejected. Spam SMS alerts are hidden when notification access is granted; Android does not let third-party apps delete messages."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <Button
                     android:id="@+id/simulateButton"
-                    style="@style/WormButton.Ghost"
+                    style="@style/SentinalButton.Ghost"
                     android:layout_width="match_parent"
                     android:layout_height="34dp"
                     android:text="RUN LOCAL SIMULATION" />
@@ -963,14 +963,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="10dp"
-                    android:background="@color/worm_border" />
+                    android:background="@color/sentinal_border" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.12"
                     android:text="WHATSAPP STATUS"
-                    android:textColor="@color/worm_red_bright"
+                    android:textColor="@color/sentinal_red_bright"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 
@@ -979,7 +979,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="No public ban-check API exists. To check your own account, open the official WhatsApp app and read any account restriction notice. This check does not send your number to a third party."
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
                 <EditText
@@ -992,13 +992,13 @@
                     android:inputType="phone"
                     android:padding="12dp"
                     android:singleLine="true"
-                    android:textColor="@color/worm_text"
-                    android:textColorHint="@color/worm_faint"
+                    android:textColor="@color/sentinal_text"
+                    android:textColorHint="@color/sentinal_faint"
                     android:textSize="13sp" />
 
                 <Button
                     android:id="@+id/waStatusButton"
-                    style="@style/WormButton.Outline"
+                    style="@style/SentinalButton.Outline"
                     android:layout_width="match_parent"
                     android:layout_height="38dp"
                     android:layout_marginTop="6dp"
@@ -1006,7 +1006,7 @@
 
                 <Button
                     android:id="@+id/waBanCheckButton"
-                    style="@style/WormButton.Outline"
+                    style="@style/SentinalButton.Outline"
                     android:layout_width="match_parent"
                     android:layout_height="38dp"
                     android:layout_marginTop="6dp"
@@ -1014,14 +1014,14 @@
 
                 <Button
                     android:id="@+id/waHelpButton"
-                    style="@style/WormButton.Ghost"
+                    style="@style/SentinalButton.Ghost"
                     android:layout_width="match_parent"
                     android:layout_height="36dp"
                     android:text="OFFICIAL BAN HELP" />
 
                 <Button
                     android:id="@+id/unofficialInfoButton"
-                    style="@style/WormButton.Ghost"
+                    style="@style/SentinalButton.Ghost"
                     android:layout_width="match_parent"
                     android:layout_height="36dp"
                     android:text="UNOFFICIAL CLIENT RISKS" />
@@ -1030,11 +1030,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="12dp"
-                    android:background="@color/worm_border" />
+                    android:background="@color/sentinal_border" />
 
                 <Button
                     android:id="@+id/closeSettingsButton"
-                    style="@style/WormButton.Ghost"
+                    style="@style/SentinalButton.Ghost"
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:text="CLOSE" />
@@ -1045,7 +1045,7 @@
                     android:gravity="center"
                     android:paddingTop="10dp"
                     android:text="SENTINAL SECURITY // TOOLS"
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
             </LinearLayout>
         </ScrollView>
@@ -1056,7 +1056,7 @@
         android:layout_width="292dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="@color/worm_bg"
+        android:background="@color/sentinal_bg"
         android:orientation="vertical">
 
         <ScrollView
@@ -1091,7 +1091,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:text="Seeker Of Truth"
-                        android:textColor="@color/worm_text"
+                        android:textColor="@color/sentinal_text"
                         android:textSize="21sp"
                         android:textStyle="bold" />
 
@@ -1101,7 +1101,7 @@
                         android:layout_marginTop="2dp"
                         android:letterSpacing="0.1"
                         android:text="OWNER · SENTINAL SECURITY"
-                        android:textColor="@color/worm_red_bright"
+                        android:textColor="@color/sentinal_red_bright"
                         android:textSize="9sp"
                         android:textStyle="bold" />
 
@@ -1111,7 +1111,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="● NET  ↓ 0 Kbps  ↑ 0 Kbps"
-                        android:textColor="@color/worm_emerald"
+                        android:textColor="@color/sentinal_emerald"
                         android:textSize="10sp" />
                 </LinearLayout>
 
@@ -1123,60 +1123,60 @@
                     android:layout_marginBottom="8dp"
                     android:letterSpacing="0.12"
                     android:text="OWNER LINKS"
-                    android:textColor="@color/worm_faint"
+                    android:textColor="@color/sentinal_faint"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/drawerTikTok"
-                    style="@style/WormSocialRow"
+                    style="@style/SentinalSocialRow"
                     android:text="TikTok   ↗   @sad.developer0" />
 
                 <TextView
                     android:id="@+id/drawerWhatsApp"
-                    style="@style/WormSocialRow"
+                    style="@style/SentinalSocialRow"
                     android:text="WhatsApp   ↗   +94 70 534 5029" />
 
                 <TextView
                     android:id="@+id/drawerTelegram"
-                    style="@style/WormSocialRow"
+                    style="@style/SentinalSocialRow"
                     android:text="Telegram   ↗   +94 72 408 5416" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="12dp"
-                    android:background="@color/worm_border" />
+                    android:background="@color/sentinal_border" />
 
                 <!-- Navigation -->
                 <TextView
                     android:id="@+id/drawerHome"
-                    style="@style/WormMenuItem"
+                    style="@style/SentinalMenuItem"
                     android:text="HOME" />
 
                 <TextView
                     android:id="@+id/drawerChat"
-                    style="@style/WormMenuItem"
+                    style="@style/SentinalMenuItem"
                     android:text="CHAT" />
 
                 <TextView
                     android:id="@+id/drawerTools"
-                    style="@style/WormMenuItem"
+                    style="@style/SentinalMenuItem"
                     android:text="SECURITY TOOLS" />
 
                 <TextView
                     android:id="@+id/drawerOwner"
-                    style="@style/WormMenuItem"
+                    style="@style/SentinalMenuItem"
                     android:text="OWNER PROFILE" />
 
                 <TextView
                     android:id="@+id/drawerSettings"
-                    style="@style/WormMenuItem"
+                    style="@style/SentinalMenuItem"
                     android:text="SETTINGS" />
 
                 <TextView
                     android:id="@+id/drawerUpdates"
-                    style="@style/WormMenuItem"
+                    style="@style/SentinalMenuItem"
                     android:text="CHECK FOR UPDATES" />
             </LinearLayout>
         </ScrollView>
@@ -1187,7 +1187,7 @@
             android:gravity="center"
             android:padding="16dp"
             android:text="SENTINAL SECURITY · OWNER SEEKER OF TRUTH"
-            android:textColor="@color/worm_faint"
+            android:textColor="@color/sentinal_faint"
             android:textSize="9sp" />
 
         <TextView
@@ -1199,7 +1199,7 @@
             android:paddingEnd="16dp"
             android:paddingBottom="16dp"
             android:text="github.com/wegalad-netizen/wormgpt2.1-test"
-            android:textColor="@color/worm_cyan"
+            android:textColor="@color/sentinal_cyan"
             android:textSize="9sp" />
     </LinearLayout>
 

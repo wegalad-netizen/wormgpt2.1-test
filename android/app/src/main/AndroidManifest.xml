@@ -19,7 +19,7 @@
         android:roundIcon="@drawable/security_shield_icon"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.WormGPT">
+        android:theme="@style/Theme.SentinalSecurity">
 
         <activity
             android:name=".MainActivity"
