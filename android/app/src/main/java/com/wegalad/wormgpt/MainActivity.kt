@@ -936,6 +936,76 @@ Scope:
             )
             socialRows += row
         }
+
+        // ---- Security tools: quarantine, blocklist, alerts log, report ----
+        content.addView(TextView(this).apply {
+            text = "SECURITY TOOLS"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_red_bright))
+            textSize = 11f
+            letterSpacing = 0.12f
+            setPadding(0, dp(14), 0, dp(8))
+        })
+        val callOn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            isCallRoleHeld() && SpamPrefs.callGuardEnabled(this)
+        } else {
+            SpamPrefs.callGuardEnabled(this)
+        }
+        val smsOn = hasSmsPermission() && SpamPrefs.smsGuardEnabled(this)
+        content.addView(TextView(this).apply {
+            text = buildString {
+                append("CALL GUARD: ").append(if (callOn) "ACTIVE" else "OFF")
+                append(" · SMS GUARD: ").append(if (smsOn) "ACTIVE" else "OFF")
+                append(" · QUARANTINED: ").append(SpamPrefs.quarantineCount(this@MainActivity))
+                append(" · BLOCKED: ").append(SpamPrefs.blockedNumbers(this@MainActivity).size)
+                append(" · CAUGHT: ").append(SpamPrefs.log(this@MainActivity).size)
+            }
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
+            textSize = 11f
+            setPadding(0, 0, 0, dp(10))
+        })
+
+        fun ownerToolButton(label: String, onClick: () -> Unit): Button = Button(this).apply {
+            text = label
+            textSize = 11f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+            setBackgroundResource(R.drawable.pill_outline)
+            setOnClickListener { onClick() }
+        }
+
+        fun ownerToolRow(vararg items: Pair<String, () -> Unit>): LinearLayout =
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                items.forEachIndexed { i, item ->
+                    addView(
+                        ownerToolButton(item.first, item.second),
+                        LinearLayout.LayoutParams(0, dp(38), 1f).apply {
+                            if (i > 0) marginStart = dp(6)
+                        },
+                    )
+                }
+            }
+
+        content.addView(
+            ownerToolRow(
+                "QUARANTINE" to { showQuarantineDialog() },
+                "MANAGE BLOCKLIST" to { showBlocklistDialog() },
+            ),
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(10) },
+        )
+        content.addView(
+            ownerToolRow(
+                "ALERTS LOG" to { showSpamLogDialog() },
+                "EXPORT REPORT" to { showReportDialog() },
+            ),
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(10) },
+        )
+
         content.addView(TextView(this).apply {
             text = "Tap a social card to open the owner’s profile or contact."
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
@@ -1688,20 +1758,27 @@ Scope:
     private fun runSpamSimulation() {
         val samples = listOf(
             "5550100" to "Hey, are we still on for tomorrow?",
+            "5550104" to "See you at 7 pm?",
+            "5550102" to "Lunch at 1?",
             "+1 555 0101" to "URGENT: click here to verify your account, limited time only!",
             "9001234567" to "You have won a cash prize! Claim your free gift now.",
             "HUTCH" to "Promotion: recharge now and get a data bonus. Dial *123#",
             "MOBITEL" to "Your bill is ready. Pay now at www.mobitel.lk",
-            "5550102" to "Lunch at 1?",
+            "94777123456" to "Suspicious sign-in detected. Your card ending in 4242 will be blocked. Verify now at https://secure-login.example/verify",
+            "+1 555 0200" to "Invoice attached: pay the overdue invoice at https://payment-update.example/update",
+            "35612345678901" to "You have received an airdrop of 0.5 ETH. Claim your free crypto wallet token at https://airdrop.example/claim now",
+            "9477112233" to "Apple ID account suspended: verify your apple id at https://apple-verify.example/login immediately",
+            "5550103" to "Your package is lost. Track your delivery at https://track.example/update",
         )
         val output = StringBuilder("\n\n── SPAM SIMULATION (local only)\n")
         samples.forEach { (sender, body) ->
             val numberHit = SpamPrefs.isBlocked(this, sender)
             val keywordHit = SpamPrefs.isSpamSms(this, body, sender)
+            val score = SpamPrefs.spamScore(this, body, sender)
             val verdict = if (numberHit || keywordHit) "FLAGGED" else "allowed"
             output.append("$sender → $verdict ")
                 .append("[number=${if (numberHit) "hit" else "clear"}, ")
-                .append("keywords=${if (keywordHit) "hit" else "clear"}]\n")
+                .append("keywords=${if (keywordHit) "hit" else "clear"}, score=$score]\n")
         }
         output.append("Synthetic data only — nothing was sent, Master.")
         appendChat(output.toString())
