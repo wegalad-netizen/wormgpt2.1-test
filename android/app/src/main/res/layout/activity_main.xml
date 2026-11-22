@@ -761,11 +761,30 @@
                     android:textColor="@color/worm_text"
                     android:textSize="11sp" />
 
+                <Switch
+                    android:id="@+id/operatorSpamSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:buttonTint="@color/worm_red"
+                    android:switchMinWidth="34dp"
+                    android:text="BLOCK OPERATOR CALLER IDS"
+                    android:textColor="@color/worm_text"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text="Operator filter rejects calls whose caller ID shows Hutch, Mobitel, Dialog, Airtel, or SLT. It is off by default."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingTop="6dp"
-                    android:text="Incoming calls from your blocklist are rejected. Spam SMS gets a warning — Android does not let third-party apps delete messages."
+                    android:text="Incoming calls from your blocklist or hidden numbers are rejected. Spam SMS gets a warning — Android does not let third-party apps delete messages."
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 

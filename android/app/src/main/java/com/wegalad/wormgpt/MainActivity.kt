@@ -157,6 +157,7 @@ Scope:
     private lateinit var guardStatus: TextView
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
+    private lateinit var operatorSpamSwitch: Switch
     private lateinit var callGuardSwitch: Switch
     private lateinit var smsGuardSwitch: Switch
     private var syncingGuardSwitches = false
@@ -286,15 +287,21 @@ Scope:
         guardStatus = findViewById(R.id.guardStatus)
         keywordSwitch = findViewById(R.id.keywordSwitch)
         unknownSwitch = findViewById(R.id.unknownSwitch)
+        operatorSpamSwitch = findViewById(R.id.operatorSpamSwitch)
         callGuardSwitch = findViewById(R.id.callGuardSwitch)
         smsGuardSwitch = findViewById(R.id.smsGuardSwitch)
         keywordSwitch.isChecked = SpamPrefs.keywordFilter(this)
         unknownSwitch.isChecked = SpamPrefs.blockUnknown(this)
+        operatorSpamSwitch.isChecked = SpamPrefs.operatorSpamEnabled(this)
         keywordSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setKeywordFilter(this, checked)
         }
         unknownSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setBlockUnknown(this, checked)
+        }
+        operatorSpamSwitch.setOnCheckedChangeListener { _, checked ->
+            SpamPrefs.setOperatorSpamEnabled(this, checked)
+            updateGuardStatus()
         }
         callGuardSwitch.setOnCheckedChangeListener { _, checked ->
             if (!syncingGuardSwitches) setCallGuard(checked)
@@ -776,6 +783,9 @@ Scope:
             append("\nLAST SCREENED: ").append(
                 SpamPrefs.lastScreenedCall(this@MainActivity) ?: "none yet",
             )
+            if (SpamPrefs.operatorSpamEnabled(this@MainActivity)) {
+                append("\nOPERATOR IDS: ").append(if (callOn) "BLOCKING" else "ON · CALL GUARD OFF")
+            }
             if (!notifOn) append("\nNotifications off — no alerts.")
             when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !callAvailable ->
@@ -851,6 +861,7 @@ Scope:
                     "SMS guard: ${if (smsActive) "Active" else "Off or permission needed"}\n" +
                     "Blocked numbers: ${SpamPrefs.blockedNumbers(this).size}\n" +
                     "Alerts logged: ${SpamPrefs.log(this).size}\n" +
+                    "Operator caller IDs: ${if (SpamPrefs.operatorSpamEnabled(this)) "On" else "Off"}\n" +
                     "Last screened call: ${SpamPrefs.lastScreenedCall(this) ?: "none yet"}\n\n" +
                     "This checks local call/SMS settings only. It is not a malware or network scan.",
             )

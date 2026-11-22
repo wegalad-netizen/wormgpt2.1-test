@@ -38,7 +38,7 @@ The app checks the public GitHub Release named `latest` when it opens. If a newe
 - Launcher icon: red oni/ox mask with adaptive-icon support on Android 8+.
 - Minimum Android version: 7.0 (API 24).
 - Permissions used: `INTERNET`, `ACCESS_NETWORK_STATE`, `REQUEST_INSTALL_PACKAGES`, `RECEIVE_SMS`, `POST_NOTIFICATIONS`, and legacy storage read/write on Android 9 and below. No contacts, location, camera, or microphone access.
-- **Spam Guard:** turn on **CALL GUARD** and grant the call screening role. On Android 9 and older, set Sentinal Security as the **Caller ID & spam app** in Phone settings. Blocked numbers match on their last 10 digits, so country codes and trunk prefixes do not matter. **LAST SCREENED** shows whether the service is receiving calls.
+- **Spam Guard:** turn on **CALL GUARD** and grant the call screening role. On Android 9 and older, set Sentinal Security as the **Caller ID & spam app** in Phone settings. Blocked numbers match on their last 10 digits, so country codes and trunk prefixes do not matter. **LAST SCREENED** shows whether the service is receiving calls. An optional **BLOCK OPERATOR CALLER IDS** switch rejects calls whose caller ID shows Hutch, Mobitel, Dialog, Airtel, or SLT; it is off by default and never blocks normal numbers.
 - Every push to `master` rebuilds and republishes the APK; there are no path filters.
 - Your API key is stored only in the app’s private preferences. Tap **KEY** to save or clear it.
 - **TEST** validates `json` blocks, saves Python/shell snippets to the app’s files folder, and marks other languages as skipped. Android sandboxes cannot execute Python or shell code; full execution testing remains in the Termux CLI (`wormgpt`).

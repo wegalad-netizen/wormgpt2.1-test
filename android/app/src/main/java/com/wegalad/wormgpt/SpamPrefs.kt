@@ -12,6 +12,7 @@ object SpamPrefs {
     private const val KEY_BLOCKED = "blocked_numbers"
     private const val KEY_KEYWORDS = "keyword_filter"
     private const val KEY_UNKNOWN = "block_unknown"
+    private const val KEY_OPERATOR_SPAM = "operator_spam"
     private const val KEY_LOG = "spam_log"
     private const val KEY_CALL_ENABLED = "call_guard_enabled"
     private const val KEY_SMS_ENABLED = "sms_guard_enabled"
@@ -59,10 +60,10 @@ object SpamPrefs {
         }
     }
 
-    fun recordScreenedCall(context: Context, number: String, blocked: Boolean) {
-        val label = number.ifBlank { "Hidden / unknown" }
+    fun recordScreenedCall(context: Context, label: String, blocked: Boolean) {
+        val shown = label.ifBlank { "Hidden / unknown" }
         prefs(context).edit()
-            .putString(KEY_LAST_CALL, "$label · ${if (blocked) "BLOCKED" else "ALLOWED"}")
+            .putString(KEY_LAST_CALL, "$shown · ${if (blocked) "BLOCKED" else "ALLOWED"}")
             .apply()
     }
 
@@ -95,6 +96,13 @@ object SpamPrefs {
 
     fun setBlockUnknown(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_UNKNOWN, enabled).apply()
+    }
+
+    fun operatorSpamEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_OPERATOR_SPAM, false)
+
+    fun setOperatorSpamEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_OPERATOR_SPAM, enabled).apply()
     }
 
     private val SPAM_PHRASES = listOf(
