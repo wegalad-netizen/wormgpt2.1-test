@@ -31,7 +31,10 @@ class SpamSmsNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val notification = sbn?.notification ?: return
         if (sbn.packageName == packageName) return
-        if (!SpamPrefs.smsGuardEnabled(this) || !SpamPrefs.hideSpamSms(this)) return
+        if (!SpamPrefs.smsGuardEnabled(this)) return
+        val hideSpam = SpamPrefs.hideSpamSms(this)
+        val hideOtp = SpamPrefs.hideOtpSms(this)
+        if (!hideSpam && !hideOtp) return
         if (!isSmsNotification(sbn, notification)) return
 
         val extras = notification.extras ?: return
@@ -43,12 +46,18 @@ class SpamSmsNotificationListener : NotificationListenerService() {
         if (body.isBlank()) return
 
         val sender = title.ifBlank { body.substringBefore(":").trim().take(32) }
-        val numberHit = SpamPrefs.isBlocked(this, sender)
-        val keywordHit = SpamPrefs.isSpamSms(this, body, sender)
-        if (!numberHit && !keywordHit) return
+        val otpHit = hideOtp && SpamPrefs.isOneTimeCodeMessage(body)
+        val numberHit = hideSpam && SpamPrefs.isBlocked(this, sender)
+        val keywordHit = hideSpam && SpamPrefs.isSpamSms(this, body, sender)
+        if (!otpHit && !numberHit && !keywordHit) return
 
         cancelNotification(sbn.key)
 
+        if (otpHit) {
+            // OTP codes are sensitive; log only that an alert was hidden, never the message body/code.
+            SpamPrefs.addLog(this, "OTP SMS ALERT HIDDEN  $sender")
+            return
+        }
         val reason = if (numberHit) "blocked number" else "spam keywords"
         val preview = body.replace(Regex("\\s+"), " ").take(140)
         SpamPrefs.addLog(this, "SMS HIDDEN  $sender  [$reason]  $preview")

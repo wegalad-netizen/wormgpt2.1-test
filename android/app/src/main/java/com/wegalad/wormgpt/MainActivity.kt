@@ -28,6 +28,7 @@ import android.os.Bundle
 import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
+import android.speech.tts.TextToSpeech
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.InputType
@@ -114,6 +115,7 @@ class MainActivity : AppCompatActivity() {
         const val KEY_CHAT_TEXT = "chat_text"
         const val KEY_LAST_RESPONSE = "last_response"
         const val KEY_SHOW_NET = "show_net_speed"
+        const val KEY_JARVIS_VOICE = "jarvis_voice_feedback"
         const val OWNER_TIKTOK =
             "https://www.tiktok.com/@sad.developer0?_r=1&_t=ZS-9Bac24QcWwM"
         const val OWNER_WHATSAPP = "https://wa.me/94705345029"
@@ -182,6 +184,12 @@ Scope:
     private lateinit var callGuardSwitch: Switch
     private lateinit var smsGuardSwitch: Switch
     private lateinit var hideSmsSwitch: Switch
+    private lateinit var otpBlockSwitch: Switch
+    private lateinit var jarvisVoiceSwitch: Switch
+    private var textToSpeech: TextToSpeech? = null
+    private var fallbackVoicePlayer: MediaPlayer? = null
+    private var ttsReady = false
+    private var voiceGreetingPending = false
     private var syncingGuardSwitches = false
     private var lastResponse: String = ""
     private var pendingChartUri: Uri? = null
@@ -343,28 +351,61 @@ Scope:
         callGuardSwitch = findViewById(R.id.callGuardSwitch)
         smsGuardSwitch = findViewById(R.id.smsGuardSwitch)
         hideSmsSwitch = findViewById(R.id.hideSmsSwitch)
+        otpBlockSwitch = findViewById(R.id.otpBlockSwitch)
+        jarvisVoiceSwitch = findViewById(R.id.jarvisVoiceSwitch)
         keywordSwitch.isChecked = SpamPrefs.keywordFilter(this)
         unknownSwitch.isChecked = SpamPrefs.blockUnknown(this)
         operatorSpamSwitch.isChecked = SpamPrefs.operatorSpamEnabled(this)
         hideSmsSwitch.isChecked = SpamPrefs.hideSpamSms(this)
+        otpBlockSwitch.isChecked = SpamPrefs.hideOtpSms(this)
         keywordSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setKeywordFilter(this, checked)
+            animateSystemToggle(keywordSwitch)
+            speakSystemSwitch("Keyword filter", checked)
         }
         unknownSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setBlockUnknown(this, checked)
+            animateSystemToggle(unknownSwitch)
+            speakSystemSwitch("Unknown caller filter", checked)
         }
         operatorSpamSwitch.setOnCheckedChangeListener { _, checked ->
             SpamPrefs.setOperatorSpamEnabled(this, checked)
             updateGuardStatus()
+            animateSystemToggle(operatorSpamSwitch)
+            animateGuardFeedback()
+            speakSystemSwitch("Operator spam filter", checked)
         }
         hideSmsSwitch.setOnCheckedChangeListener { _, checked ->
-            if (!syncingGuardSwitches) setHideSpamSms(checked)
+            if (!syncingGuardSwitches) {
+                setHideSpamSms(checked)
+                animateSystemToggle(hideSmsSwitch)
+                animateGuardFeedback()
+                speakSystemSwitch("Spam SMS alerts", checked)
+            }
+        }
+        otpBlockSwitch.setOnCheckedChangeListener { _, checked ->
+            if (!syncingGuardSwitches) {
+                setHideOtpSms(checked)
+                animateSystemToggle(otpBlockSwitch)
+                animateGuardFeedback()
+                speakSystemSwitch("OTP SMS alerts", checked)
+            }
         }
         callGuardSwitch.setOnCheckedChangeListener { _, checked ->
-            if (!syncingGuardSwitches) setCallGuard(checked)
+            if (!syncingGuardSwitches) {
+                setCallGuard(checked)
+                animateSystemToggle(callGuardSwitch)
+                animateGuardFeedback()
+                speakSystemSwitch("Call guard", checked)
+            }
         }
         smsGuardSwitch.setOnCheckedChangeListener { _, checked ->
-            if (!syncingGuardSwitches) setSmsGuard(checked)
+            if (!syncingGuardSwitches) {
+                setSmsGuard(checked)
+                animateSystemToggle(smsGuardSwitch)
+                animateGuardFeedback()
+                speakSystemSwitch("SMS guard", checked)
+            }
         }
 
         netStatus = findViewById(R.id.netStatus)
@@ -375,7 +416,24 @@ Scope:
             prefs.edit().putBoolean(KEY_SHOW_NET, checked).apply()
             applyNetVisibility(checked)
             if (checked) startNetMonitor() else stopNetMonitor()
+            animateSystemToggle(showNetSwitch)
         }
+        jarvisVoiceSwitch.isChecked = prefs.getBoolean(KEY_JARVIS_VOICE, true)
+        jarvisVoiceSwitch.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(KEY_JARVIS_VOICE, checked).apply()
+            animateSystemToggle(jarvisVoiceSwitch)
+            if (checked) speakJarvis("Jarvis voice feedback enabled.")
+            else {
+                voiceGreetingPending = false
+                textToSpeech?.stop()
+                fallbackVoicePlayer?.let { player ->
+                    try { if (player.isPlaying) player.stop() } catch (_: Exception) {}
+                    player.release()
+                    fallbackVoicePlayer = null
+                }
+            }
+        }
+        initializeJarvisVoice()
         applyNetVisibility(showNetSwitch.isChecked)
 
         findViewById<ImageButton>(R.id.menuButton).setOnClickListener {
@@ -513,6 +571,18 @@ Scope:
         backgroundPulseAnimator?.cancel()
         backgroundPulseAnimator = null
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        textToSpeech = null
+        fallbackVoicePlayer?.let { player ->
+            try { if (player.isPlaying) player.stop() } catch (_: Exception) {}
+            player.release()
+            fallbackVoicePlayer = null
+        }
+        super.onDestroy()
     }
 
     private fun startBackgroundPulse() {
@@ -827,8 +897,10 @@ Scope:
         val smsPermission = hasSmsPermission()
         val smsOn = smsPermission && SpamPrefs.smsGuardEnabled(this)
         val hidePref = SpamPrefs.hideSpamSms(this)
+        val otpPref = SpamPrefs.hideOtpSms(this)
         val hideAccess = hasNotificationAccess()
         val hideOn = hidePref && hideAccess && SpamPrefs.smsGuardEnabled(this)
+        val otpOn = otpPref && hideAccess && SpamPrefs.smsGuardEnabled(this)
         val notifOn = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
                 this,
@@ -852,6 +924,14 @@ Scope:
                     else -> "OFF"
                 },
             )
+            append("   |   OTP HIDE: ").append(
+                when {
+                    otpOn -> "ACTIVE"
+                    otpPref && !hideAccess -> "SETUP NEEDED"
+                    otpPref && !smsOn -> "SMS GUARD OFF"
+                    else -> "OFF"
+                },
+            )
             append("\nBLOCKED: ").append(SpamPrefs.blockedNumbers(this@MainActivity).size)
             append("   |   CAUGHT: ").append(SpamPrefs.log(this@MainActivity).size)
             append("\nLAST SCREENED: ").append(
@@ -872,6 +952,8 @@ Scope:
                     append("\nVerify Sentinal Security in Phone > Caller ID & spam.")
                 hidePref && !hideAccess ->
                     append("\nTap HIDE SPAM SMS to grant notification access.")
+                otpPref && !hideAccess ->
+                    append("\nTap HIDE OTP SMS ALERTS to grant notification access.")
             }
         }
 
@@ -909,6 +991,12 @@ Scope:
             } else {
                 "HIDE SPAM SMS"
             }
+            otpBlockSwitch.isChecked = otpPref
+            otpBlockSwitch.text = if (otpPref && !hideAccess) {
+                "HIDE OTP SMS ALERTS — GRANT ACCESS"
+            } else {
+                "HIDE OTP SMS ALERTS"
+            }
             syncingGuardSwitches = false
         }
     }
@@ -938,6 +1026,7 @@ Scope:
         }
         val smsActive = hasSmsPermission() && SpamPrefs.smsGuardEnabled(this)
         val hideActive = hasNotificationAccess() && SpamPrefs.hideSpamSms(this)
+        val otpActive = hasNotificationAccess() && SpamPrefs.hideOtpSms(this) && SpamPrefs.smsGuardEnabled(this)
         val status = if (callActive && smsActive && hideActive) "Monitoring"
         else if (callActive || smsActive || hideActive) "Partial protection"
         else "Action needed"
@@ -947,6 +1036,7 @@ Scope:
                 "$status\n\nCall guard: ${if (callActive) "Active" else "Off or permission needed"}\n" +
                     "SMS guard: ${if (smsActive) "Active" else "Off or permission needed"}\n" +
                     "SMS hiding: ${if (hideActive) "Active" else "Off or access needed"}\n" +
+                    "OTP alert hiding: ${if (otpActive) "Active" else "Off or access needed"}\n" +
                     "Blocked numbers: ${SpamPrefs.blockedNumbers(this).size}\n" +
                     "Alerts logged: ${SpamPrefs.log(this).size}\n" +
                     "Operator spam auto-detect: ${if (SpamPrefs.operatorSpamEnabled(this)) "On" else "Off"}\n" +
@@ -1019,8 +1109,33 @@ Scope:
         updateGuardStatus()
     }
 
+    private fun setHideOtpSms(enabled: Boolean) {
+        SpamPrefs.setHideOtpSms(this, enabled)
+        if (enabled) SpamPrefs.setSmsGuardEnabled(this, true)
+        if (!enabled) {
+            Toast.makeText(this, "OTP alerts will appear again.", Toast.LENGTH_SHORT).show()
+            updateGuardStatus()
+            return
+        }
+        if (!hasNotificationAccess()) {
+            Toast.makeText(
+                this,
+                "Grant notification access to hide OTP alerts. SMS messages stay in your inbox.",
+                Toast.LENGTH_LONG,
+            ).show()
+            openNotificationAccessSettings()
+        } else {
+            Toast.makeText(
+                this,
+                "OTP code alerts are hidden. Messages remain in your inbox.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+        updateGuardStatus()
+    }
+
     private fun promptNotificationAccessIfNeeded() {
-        if (!SpamPrefs.hideSpamSms(this) || hasNotificationAccess()) return
+        if ((!SpamPrefs.hideSpamSms(this) && !SpamPrefs.hideOtpSms(this)) || hasNotificationAccess()) return
         AlertDialog.Builder(this)
             .setTitle("HIDE SPAM SMS")
             .setMessage(
@@ -1413,15 +1528,112 @@ Scope:
             .show()
     }
 
-    private fun playWelcome() {
+    private fun initializeJarvisVoice() {
         try {
-            // Termux UI startup pack: pick one of the three sounds at random, like the shell script does.
+            textToSpeech = TextToSpeech(applicationContext) { status ->
+                window.decorView.post {
+                    val engine = textToSpeech ?: return@post
+                    if (status == TextToSpeech.SUCCESS) {
+                        engine.language = Locale.US
+                        engine.setPitch(0.82f)
+                        engine.setSpeechRate(0.92f)
+                        ttsReady = true
+                        if (voiceGreetingPending && isJarvisVoiceEnabled()) {
+                            voiceGreetingPending = false
+                            speakJarvis("Systems online. Sentinal Security is ready.")
+                        }
+                    } else if (voiceGreetingPending && isJarvisVoiceEnabled()) {
+                        voiceGreetingPending = false
+                        playWelcomeSoundFallback()
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            ttsReady = false
+            if (voiceGreetingPending && isJarvisVoiceEnabled()) playWelcomeSoundFallback()
+        }
+    }
+
+    private fun isJarvisVoiceEnabled(): Boolean = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getBoolean(KEY_JARVIS_VOICE, true)
+
+    private fun playWelcome() {
+        if (!isJarvisVoiceEnabled()) return
+        voiceGreetingPending = true
+        if (ttsReady) {
+            voiceGreetingPending = false
+            speakJarvis("Systems online. Sentinal Security is ready.")
+        } else if (textToSpeech == null) {
+            voiceGreetingPending = false
+            playWelcomeSoundFallback()
+        }
+    }
+
+    private fun speakJarvis(message: String) {
+        if (!isJarvisVoiceEnabled() || !ttsReady) return
+        textToSpeech?.speak(
+            message,
+            TextToSpeech.QUEUE_FLUSH,
+            null,
+            "sentinal-voice-${SystemClock.uptimeMillis()}",
+        )
+    }
+
+    private fun speakSystemSwitch(label: String, enabled: Boolean) {
+        speakJarvis("$label switched ${if (enabled) "on" else "off"}.")
+    }
+
+    private fun animateSystemToggle(view: View) {
+        view.animate().cancel()
+        view.animate()
+            .scaleX(1.025f)
+            .scaleY(1.025f)
+            .alpha(0.82f)
+            .setDuration(110L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .withEndAction {
+                view.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .alpha(1f)
+                    .setDuration(240L)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun animateGuardFeedback() {
+        if (!::guardStatus.isInitialized) return
+        guardStatus.animate().cancel()
+        guardStatus.animate()
+            .alpha(0.55f)
+            .translationY(dp(3).toFloat())
+            .setDuration(100L)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .withEndAction {
+                guardStatus.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(240L)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun playWelcomeSoundFallback() {
+        try {
             val sound = intArrayOf(R.raw.access_granted, R.raw.jarvis2, R.raw.jarvis).random()
             val player = MediaPlayer.create(this, sound) ?: return
-            player.setOnCompletionListener { it.release() }
+            fallbackVoicePlayer = player
+            player.setOnCompletionListener {
+                it.release()
+                fallbackVoicePlayer = null
+            }
             player.start()
         } catch (_: Exception) {
-            // Audio is cosmetic; never block the UI if it fails.
+            // The voice is cosmetic; keep startup usable without audio.
         }
     }
 

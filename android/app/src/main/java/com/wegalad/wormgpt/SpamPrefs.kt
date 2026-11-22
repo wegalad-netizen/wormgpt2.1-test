@@ -14,6 +14,7 @@ object SpamPrefs {
     private const val KEY_UNKNOWN = "block_unknown"
     private const val KEY_OPERATOR_SPAM = "operator_spam"
     private const val KEY_HIDE_SMS = "hide_spam_sms"
+    private const val KEY_HIDE_OTP_SMS = "hide_otp_sms"
     private const val KEY_LOG = "spam_log"
     private const val KEY_CALL_ENABLED = "call_guard_enabled"
     private const val KEY_SMS_ENABLED = "sms_guard_enabled"
@@ -113,6 +114,26 @@ object SpamPrefs {
     fun setHideSpamSms(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_HIDE_SMS, enabled).apply()
     }
+
+    /** Hide OTP-like SMS notifications only; SMS messages remain in the inbox. */
+    fun hideOtpSms(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_HIDE_OTP_SMS, false)
+
+    fun setHideOtpSms(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_HIDE_OTP_SMS, enabled).apply()
+    }
+
+    fun isOneTimeCodeMessage(body: String): Boolean {
+        val hasCodeContext = OTP_CONTEXT.containsMatchIn(body)
+        val hasNumericCode = OTP_NUMERIC_CODE.containsMatchIn(body)
+        return hasCodeContext && hasNumericCode
+    }
+
+    private val OTP_CONTEXT = Regex(
+        """\b(?:otp|one[- ]time (?:password|code|pin)|verification code|verify(?:ication)? code|security code|login code|authentication code|passcode|pin)\b""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val OTP_NUMERIC_CODE = Regex("\\b\\d{4,8}\\b")
 
     private val OPERATOR_MARKERS = listOf(
         "HUTCH", "HUTCHISON", "MOBITEL", "SLT", "DIALOG", "AIRTEL",

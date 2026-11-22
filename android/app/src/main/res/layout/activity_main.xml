@@ -760,6 +760,26 @@
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 
+                <Switch
+                    android:id="@+id/jarvisVoiceSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:buttonTint="@color/worm_cyan"
+                    android:switchMinWidth="34dp"
+                    android:text="JARVIS VOICE FEEDBACK"
+                    android:textColor="@color/worm_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:text="Speaks system status and startup greeting. Disable it here anytime."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+
                 <!-- SPAM GUARD -->
                 <View
                     android:layout_width="match_parent"
@@ -782,7 +802,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="5dp"
                     android:lineSpacingExtra="2dp"
-                    android:text="CALL GUARD: OFF   |   SMS GUARD: OFF   |   SMS HIDE: OFF"
+                    android:text="CALL GUARD: OFF   |   SMS GUARD: OFF   |   SMS HIDE: OFF   |   OTP HIDE: OFF"
                     android:textColor="@color/worm_green"
                     android:textSize="10sp" />
 
@@ -827,6 +847,26 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
                     android:text="HIDE SPAM SMS needs notification access. It cancels spam alerts from your messaging app; the messages stay in your inbox."
+                    android:textColor="@color/worm_faint"
+                    android:textSize="9sp" />
+
+                <Switch
+                    android:id="@+id/otpBlockSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:buttonTint="@color/worm_red"
+                    android:switchMinWidth="34dp"
+                    android:text="HIDE OTP SMS ALERTS"
+                    android:textColor="@color/worm_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:text="Optional and off by default. Hides code notifications only; messages stay in your inbox. Turn it off anytime."
                     android:textColor="@color/worm_faint"
                     android:textSize="9sp" />
 
