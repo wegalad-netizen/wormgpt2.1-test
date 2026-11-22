@@ -24,5 +24,5 @@ Your security research question. Your next move.
 
     <string name="prompt_hint">Message Sentinal Security…</string>
     <string name="key_hint">API key</string>
-    <string name="call_screening_description">Sentinal Security Spam Guard rejects incoming calls from numbers you block.</string>
+    <string name="call_screening_description">Sentinal Security rejects incoming calls from numbers you block.</string>
 </resources>

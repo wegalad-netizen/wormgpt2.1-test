@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /**
- * Shared storage for Spam Guard. The activity, call screener and SMS receiver
+ * Shared storage for Sentinal Security. The activity, call screener and SMS receiver
  * all read the same settings so the UI controls actually affect blocking.
  */
 object SpamPrefs {

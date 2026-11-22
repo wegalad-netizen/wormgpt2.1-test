@@ -31,7 +31,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Spam Guard: incoming call rejection (user must enable as caller ID & spam app) -->
+        <!-- Sentinal Security: incoming call rejection (user must enable as caller ID & spam app) -->
         <service
             android:name=".SpamCallScreeningService"
             android:exported="true"
@@ -44,7 +44,7 @@
                 android:resource="@xml/call_screening_service" />
         </service>
 
-        <!-- Spam Guard: warn about likely spam SMS (no silent deletion) -->
+        <!-- Sentinal Security: warn about likely spam SMS (no silent deletion) -->
         <receiver
             android:name=".SmsSpamReceiver"
             android:exported="true"
@@ -54,7 +54,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Spam Guard: hide spam SMS notifications (needs user-granted access) -->
+        <!-- Sentinal Security: hide spam SMS notifications (needs user-granted access) -->
         <service
             android:name=".SpamSmsNotificationListener"
             android:exported="true"

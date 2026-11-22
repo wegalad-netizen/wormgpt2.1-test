@@ -28,7 +28,7 @@ object SpamNotifier {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Spam Guard",
+                "Sentinal Security",
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply { description = "Blocked calls and spam SMS alerts" }
             manager.createNotificationChannel(channel)

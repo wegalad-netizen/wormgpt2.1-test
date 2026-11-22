@@ -780,7 +780,7 @@
                     android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
-                <!-- SPAM GUARD -->
+                <!-- SENTINAL SECURITY -->
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
@@ -791,7 +791,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.12"
-                    android:text="SPAM GUARD"
+                    android:text="SENTINAL SECURITY"
                     android:textColor="@color/sentinal_red_bright"
                     android:textSize="11sp"
                     android:textStyle="bold" />
