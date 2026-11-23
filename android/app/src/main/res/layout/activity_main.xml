@@ -594,6 +594,7 @@
                     <Button android:id="@+id/toolsBlocklistButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="MANAGE BLOCKLIST" />
                     <Button android:id="@+id/toolsQuarantineButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="QUARANTINE" />
                     <Button android:id="@+id/toolsReportButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="EXPORT REPORT" />
+                    <Button android:id="@+id/autoImproveButton" style="@style/SentinalButton" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="8dp" android:text="AUTO IMPROVEMENT RESEARCH" android:background="@drawable/pill_cyan" android:textColor="@color/sentinal_bg" />
                 </LinearLayout>
             </ScrollView>
         </FrameLayout>
@@ -866,6 +867,26 @@
                     android:layout_height="wrap_content"
                     android:paddingTop="2dp"
                     android:text="Bundled Jarvis voice plus futuristic button sounds. Disable all audio anytime."
+                    android:textColor="@color/sentinal_faint"
+                    android:textSize="9sp" />
+
+                <Switch
+                    android:id="@+id/autoImproveSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:buttonTint="@color/sentinal_cyan"
+                    android:switchMinWidth="34dp"
+                    android:text="AUTO IMPROVEMENT RESEARCH"
+                    android:textColor="@color/sentinal_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:text="When enabled, researches public Android/security guidance online and suggests app quality improvements. Uses your Gemini API profile."
                     android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 

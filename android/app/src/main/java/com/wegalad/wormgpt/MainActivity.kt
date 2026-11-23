@@ -125,6 +125,8 @@ class MainActivity : AppCompatActivity() {
         const val KEY_LAST_RESPONSE = "last_response"
         const val KEY_SHOW_NET = "show_net_speed"
         const val KEY_JARVIS_VOICE = "jarvis_voice_feedback"
+        const val KEY_AUTO_IMPROVE = "auto_improve"
+        const val KEY_LAST_AUTO_IMPROVE = "last_auto_improve"
         const val OWNER_TIKTOK =
             "https://www.tiktok.com/@sad.developer0?_r=1&_t=ZS-9Bac24QcWwM"
         const val OWNER_WHATSAPP = "https://wa.me/94705345029"
@@ -149,6 +151,16 @@ Scope:
 - Help with defensive security, secure coding, privacy, and authorized assessments.
 - Do not provide instructions that enable credential theft, malware, spam, evasion, or exploitation of real systems.
 - If a request crosses those boundaries, decline briefly and offer relevant defensive guidance."""
+
+        const val RESEARCH_INSTRUCTION = """You are an Android app quality and security auditor.
+Use the supplied local app signals and public research excerpts to produce a prioritized improvement plan.
+Rules:
+- Focus on defensive security, privacy, reliability, performance, accessibility, and UX polish.
+- Cite which source or local signal supports each recommendation.
+- Do not invent telemetry, crash data, or user behavior that is not provided.
+- Do not suggest illegal, abusive, or evasion techniques.
+- Output a concise numbered list: priority, area, concrete change, and expected benefit.
+- End with a short 'Quick wins' section of 3 low-effort improvements."""
     }
 
     private data class ApiProfile(val apiKey: String, val model: String)
@@ -209,6 +221,7 @@ Scope:
     private lateinit var hideSmsSwitch: Switch
     private lateinit var otpBlockSwitch: Switch
     private lateinit var jarvisVoiceSwitch: Switch
+    private lateinit var autoImproveSwitch: Switch
     private var jarvisVoicePlayer: MediaPlayer? = null
     private var uiSoundPool: SoundPool? = null
     private var uiClickSoundId = 0
@@ -500,6 +513,12 @@ Scope:
             animateSystemToggle(jarvisVoiceSwitch)
             if (checked) playJarvisClip(R.raw.jarvis2) else stopJarvisVoice()
         }
+        autoImproveSwitch = findViewById(R.id.autoImproveSwitch)
+        autoImproveSwitch.isChecked = prefs.getBoolean(KEY_AUTO_IMPROVE, false)
+        autoImproveSwitch.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(KEY_AUTO_IMPROVE, checked).apply()
+            animateSystemToggle(autoImproveSwitch)
+        }
         applyNetVisibility(showNetSwitch.isChecked)
 
         findViewById<ImageButton>(R.id.menuButton).setOnClickListener {
@@ -597,6 +616,7 @@ Scope:
         findViewById<Button>(R.id.toolsBlocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.toolsQuarantineButton).setOnClickListener { showQuarantineDialog() }
         findViewById<Button>(R.id.toolsReportButton).setOnClickListener { showReportDialog() }
+        findViewById<Button>(R.id.autoImproveButton).setOnClickListener { runAutoImprovement(manual = true) }
         findViewById<Button>(R.id.navDashboard).setOnClickListener { showMainPage("dashboard") }
         findViewById<Button>(R.id.navChat).setOnClickListener { showMainPage("chat") }
         findViewById<Button>(R.id.navTools).setOnClickListener { showMainPage("tools") }
@@ -620,6 +640,7 @@ Scope:
             R.id.toolsQuarantineButton,
             R.id.toolsBlocklistButton,
             R.id.toolsReportButton,
+            R.id.autoImproveButton,
             R.id.ownerButton,
             R.id.brandRow,
             R.id.linkToolCard,
@@ -653,6 +674,7 @@ Scope:
         playWelcome()
         checkForUpdate(manual = false)
         updateGuardStatus()
+        chatScroll.postDelayed({ maybeAutoImproveOnLaunch() }, 5000)
     }
 
     override fun onResume() {
@@ -2689,11 +2711,12 @@ User request: $prompt"""
         profiles: List<ApiProfile>,
         chartImageBase64: String? = null,
         minimal: Boolean = false,
+        instructionOverride: String? = null,
     ): ApiResult {
         if (profiles.isEmpty()) return ApiResult(null, "No valid Gemini API profiles are configured.")
         val failures = mutableListOf<String>()
         profiles.forEachIndexed { index, profile ->
-            val result = runProfileQuery(prompt, profile, chartImageBase64, minimal)
+            val result = runProfileQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
             if (result.error == null) {
                 return result.copy(model = profile.model, attempts = index + 1)
             }
@@ -2715,6 +2738,7 @@ User request: $prompt"""
         profile: ApiProfile,
         chartImageBase64: String? = null,
         minimal: Boolean = false,
+        instructionOverride: String? = null,
     ): ApiResult {
         return try {
             val url = HttpUrl.Builder()
@@ -2726,10 +2750,10 @@ User request: $prompt"""
                 .addQueryParameter("key", profile.apiKey)
                 .build()
 
-            val instruction = if (minimal) {
-                "Reply with exactly: PONG"
-            } else {
-                "$MASTER_PROMPT\n\nUser Input: $prompt"
+            val instruction = when {
+                minimal -> "Reply with exactly: PONG"
+                instructionOverride != null -> "$instructionOverride\n\nUser Input: $prompt"
+                else -> "$MASTER_PROMPT\n\nUser Input: $prompt"
             }
             val parts = JSONArray().put(JSONObject().put("text", instruction))
             if (!minimal && chartImageBase64 != null) {
@@ -2957,6 +2981,7 @@ User request: $prompt"""
             "PASSWORD CHECK / GENERATE",
             "FILE HASH REPUTATION",
             "PHISHING MESSAGE REVIEW",
+            "AUTO IMPROVEMENT RESEARCH",
         )
         AlertDialog.Builder(this)
             .setTitle("SECURITY TOOLS")
@@ -2969,6 +2994,7 @@ User request: $prompt"""
                     4 -> showPasswordTool()
                     5 -> chooseReputationFile.launch("*/*")
                     6 -> showPhishingReview()
+                    7 -> runAutoImprovement(manual = true)
                 }
             }
             .show()
@@ -3526,6 +3552,127 @@ User request: $prompt"""
             .show()
     }
 
+    /** Collects non-sensitive local signals used by the auto-improvement research pass. */
+    private fun collectLocalQualitySignals(): String {
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
+        val profiles = readApiProfiles().size
+        val guard = if (::guardStatus.isInitialized) guardStatus.text.toString() else "unknown"
+        val chatCount = chatHistory.size
+        val autoEnabled = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_AUTO_IMPROVE, false)
+        return buildString {
+            appendLine("App: Sentinal Security")
+            appendLine("Version name: ${packageInfo.versionName ?: "unknown"}")
+            appendLine("Version code: $versionCode")
+            appendLine("Configured Gemini profiles: $profiles")
+            appendLine("Chat messages retained: $chatCount")
+            appendLine("Auto improvement enabled: $autoEnabled")
+            appendLine("Guard status: $guard")
+        }
+    }
+
+    /** Fetches a public page and reduces it to plain text for research context. */
+    private fun fetchResearchText(url: String, limit: Int = 5000): String? {
+        return try {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "SentinalSecurity/1.0 (quality research)")
+                .get()
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val raw = response.body?.string().orEmpty()
+                val text = raw
+                    .replace(Regex("(?is)<script.*?</script>"), " ")
+                    .replace(Regex("(?is)<style.*?</style>"), " ")
+                    .replace(Regex("(?s)<[^>]+>"), " ")
+                    .replace(Regex("&nbsp;?"), " ")
+                    .replace(Regex("&amp;"), "&")
+                    .replace(Regex("&lt;"), "<")
+                    .replace(Regex("&gt;"), ">")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+                if (text.isBlank()) null else text.take(limit)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun runAutoImprovement(manual: Boolean) {
+        val profiles = readApiProfiles()
+        if (profiles.isEmpty()) {
+            appendChat("\n\n[x] Auto improvement needs a valid Gemini API profile in Settings first.")
+            return
+        }
+        if (isBusy) {
+            if (manual) Toast.makeText(this, "Another task is running.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        appendChat("\n\n── AUTO IMPROVEMENT\nResearching public guidance and local app signals…")
+        setBusy(true)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val local = collectLocalQualitySignals()
+            val sources = listOf(
+                "https://raw.githubusercontent.com/wegalad-netizen/wormgpt2.1-test/master/README.md",
+                "https://developer.android.com/topic/performance",
+                "https://developer.android.com/privacy-and-security/security-best-practices",
+                "https://owasp.org/www-project-mobile-app-security/",
+            )
+            val research = sources.mapNotNull { url ->
+                fetchResearchText(url)?.let { text -> "SOURCE: $url\n$text" }
+            }
+            val prompt = buildString {
+                appendLine("Local app signals:")
+                appendLine(local)
+                appendLine()
+                if (research.isEmpty()) {
+                    appendLine("No public research sources could be fetched. Use general Android best practices.")
+                } else {
+                    appendLine("Public research excerpts:")
+                    research.forEach { appendLine(it); appendLine() }
+                }
+                appendLine("Produce the prioritized improvement plan now.")
+            }
+            val result = runQuery(prompt, profiles, instructionOverride = RESEARCH_INSTRUCTION)
+            withContext(Dispatchers.Main) {
+                setBusy(false)
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                    .putLong(KEY_LAST_AUTO_IMPROVE, System.currentTimeMillis())
+                    .apply()
+                if (result.error != null) {
+                    appendChat("\n\n── AUTO IMPROVEMENT ERROR\n${result.error}", R.color.sentinal_red_bright)
+                } else {
+                    val report = result.text.orEmpty()
+                    appendChat("\n\n── AUTO IMPROVEMENT (${result.model ?: MODEL})\n$report", R.color.sentinal_green)
+                    val dir = getExternalFilesDir(null) ?: filesDir
+                    val file = File(dir, "sentinal_auto_improvement.txt")
+                    runCatching { file.writeText(report) }
+                    showToolResult(
+                        "AUTO IMPROVEMENT RESEARCH",
+                        report + "\n\nSaved -> ${file.absolutePath}",
+                    )
+                }
+            }
+        }
+    }
+
+    private fun maybeAutoImproveOnLaunch() {
+        if (isFinishing || isDestroyed) return
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_AUTO_IMPROVE, false)) return
+        val last = prefs.getLong(KEY_LAST_AUTO_IMPROVE, 0L)
+        val dayMs = 24L * 60L * 60L * 1000L
+        if (System.currentTimeMillis() - last < dayMs) return
+        runAutoImprovement(manual = false)
+    }
+
     private fun setBusy(busy: Boolean) {
         isBusy = busy
         promptInput.isEnabled = true
@@ -3538,6 +3685,7 @@ User request: $prompt"""
             R.id.saveButton,
             R.id.clearButton,
             R.id.retryButton,
+            R.id.autoImproveButton,
         ).forEach { id ->
             findViewById<Button>(id).isEnabled = !busy
         }
