@@ -107,6 +107,17 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - Security tools menu uses staggered sliding rows instead of a plain list
 - Owner profile tool buttons have press feedback and the dialog keeps its staggered reveal
 
+### avast-inspired defensive additions
+
+Inspired by common commercial-suite features, implemented as local, privacy-preserving checks:
+
+- **Smart Scan** — animated multi-step local configuration review covering device lock, call/SMS guards, notifications, blocklist, quarantine, AI profile, Wi-Fi, and app cache, with a 0–100 score
+- **Wi-Fi Inspector** — read-only report of SSID, band, signal, link speed, IP, and internet validation, plus WPA2/WPA3 guidance
+- **Storage / App Cache** — measures and clears only Sentinal Security's own cache
+- Ransomware-readiness check folded into Smart Scan via Android's secure-lock state
+
+These are local checks only. The app does not scan for malware, run a firewall/VPN, or upload device data.
+
 ## Commands
 
 - `exit`, `quit`, `q` — leave the app

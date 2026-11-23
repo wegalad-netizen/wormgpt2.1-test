@@ -4,6 +4,7 @@ import android.Manifest
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.app.AlertDialog
+import android.app.KeyguardManager
 import android.app.ProgressDialog
 import android.app.role.RoleManager
 import android.content.ClipData
@@ -27,6 +28,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.TrafficStats
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -258,6 +260,7 @@ Rules:
     private var scoreCountAnimator: ValueAnimator? = null
     private var chatBackdrop: GradientDrawable? = null
     private var chatBackdropAnimator: ValueAnimator? = null
+    private var scanRunning = false
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
     private lateinit var operatorSpamSwitch: Switch
@@ -667,6 +670,8 @@ Rules:
         findViewById<Button>(R.id.toolsQuarantineButton).setOnClickListener { showQuarantineDialog() }
         findViewById<Button>(R.id.toolsReportButton).setOnClickListener { showReportDialog() }
         findViewById<Button>(R.id.autoImproveButton).setOnClickListener { runAutoImprovement(manual = true) }
+        findViewById<Button>(R.id.smartScanButton).setOnClickListener { runSmartScan() }
+        findViewById<Button>(R.id.storageToolButton).setOnClickListener { showStorageTool() }
         findViewById<Button>(R.id.navDashboard).setOnClickListener { showMainPage("dashboard") }
         findViewById<Button>(R.id.navChat).setOnClickListener { showMainPage("chat") }
         findViewById<Button>(R.id.navTools).setOnClickListener { showMainPage("tools") }
@@ -691,6 +696,8 @@ Rules:
             R.id.toolsBlocklistButton,
             R.id.toolsReportButton,
             R.id.autoImproveButton,
+            R.id.smartScanButton,
+            R.id.storageToolButton,
             R.id.ownerButton,
             R.id.brandRow,
             R.id.linkToolCard,
@@ -2106,7 +2113,7 @@ Rules:
         val network = connectivity.activeNetwork
         val capabilities = network?.let(connectivity::getNetworkCapabilities)
         if (network == null || capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) {
-            showToolResult("WI-FI DETAILS", "This device is not currently connected over Wi-Fi.\n\nThis is a read-only local check.")
+            showToolResult("WI-FI INSPECTOR", "This device is not currently connected over Wi-Fi.\n\nThis is a read-only local check.")
             return
         }
 
@@ -2116,18 +2123,291 @@ Rules:
             .filterNot { it == "127.0.0.1" || it == "::1" }
             .distinct()
         val internetValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
+        @Suppress("DEPRECATION")
+        val wifiInfo = runCatching {
+            (applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager)?.connectionInfo
+        }.getOrNull()
+        val rssi = wifiInfo?.rssi
+        val signal = when {
+            rssi == null -> "Unavailable"
+            rssi >= -55 -> "Strong"
+            rssi >= -70 -> "Good"
+            rssi >= -80 -> "Fair"
+            else -> "Weak"
+        }
+        val frequency = wifiInfo?.frequency ?: 0
+        val band = when {
+            frequency in 2400..2499 -> "2.4 GHz"
+            frequency in 5000..5899 -> "5 GHz"
+            frequency >= 6000 -> "6 GHz"
+            else -> "Unknown"
+        }
+        val ssid = wifiInfo?.ssid
+            ?.trim('"')
+            ?.takeIf { it.isNotBlank() && it != "<unknown ssid>" && it != "0x" }
+            ?: "Hidden by Android"
+        val linkSpeed = wifiInfo?.linkSpeed ?: 0
+
         val details = buildString {
-            append("Wi-Fi: Connected\n")
+            append("NETWORK\n")
+            append("SSID: $ssid\n")
+            append("Band: $band\n")
+            append("Signal: $signal").append(if (rssi != null) " ($rssi dBm)" else "").append('\n')
+            if (linkSpeed > 0) append("Link speed: $linkSpeed Mbps\n")
             append("Internet validated: ").append(if (internetValidated) "Yes" else "No / unknown").append('\n')
-            append("Local IP address: ").append(addresses.joinToString().ifBlank { "Unavailable" }).append('\n')
+            append("Local IP: ").append(addresses.joinToString().ifBlank { "Unavailable" }).append('\n')
             append("Estimated link: ")
                 .append(capabilities.linkDownstreamBandwidthKbps)
                 .append(" Kbps down / ")
                 .append(capabilities.linkUpstreamBandwidthKbps)
                 .append(" Kbps up\n\n")
-            append("Read locally from Android network status. No network scan was run and these details were not sent anywhere.")
+            append("LOCAL REVIEW\n")
+            append("- Prefer WPA2/WPA3 networks; avoid OPEN or WEP.\n")
+            append("- Avoid networks with generic names that mimic neighbours.\n")
+            append("- Keep Wi-Fi auto-join off for untrusted networks.\n\n")
+            append("Android does not expose the connected network's encryption type to apps, so this report cannot confirm WPA2/WPA3. Nothing here was sent anywhere.")
         }
-        showToolResult("WI-FI DETAILS", details)
+        showToolResult("WI-FI INSPECTOR", details)
+    }
+
+    private fun runSmartScan() {
+        if (scanRunning) {
+            Toast.makeText(this, "A scan is already running.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        scanRunning = true
+        val steps = listOf(
+            "DEVICE LOCK" to {
+                val manager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                val secure = manager?.isDeviceSecure == true
+                secure to if (secure) {
+                    "PIN, pattern, or biometric lock is configured."
+                } else {
+                    "No secure lock screen detected."
+                }
+            },
+            "CALL GUARD" to {
+                val on = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    isCallRoleHeld() && SpamPrefs.callGuardEnabled(this)
+                } else {
+                    SpamPrefs.callGuardEnabled(this)
+                }
+                on to if (on) "Call screening is active." else "Enable call guard in Settings."
+            },
+            "SMS GUARD" to {
+                val on = hasSmsPermission() && SpamPrefs.smsGuardEnabled(this)
+                on to if (on) "SMS screening is active." else "Enable SMS guard and grant access."
+            },
+            "ALERT NOTIFICATIONS" to {
+                val on = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.POST_NOTIFICATIONS,
+                    ) == PackageManager.PERMISSION_GRANTED
+                on to if (on) "Alerts can be shown." else "Notifications are blocked."
+            },
+            "BLOCKLIST" to {
+                val count = SpamPrefs.blockedNumbers(this).size
+                (count > 0) to if (count > 0) {
+                    "$count number(s) blocked locally."
+                } else {
+                    "No blocked numbers yet."
+                }
+            },
+            "QUARANTINE" to {
+                val count = SpamPrefs.quarantineCount(this)
+                (count >= 0) to "$count spam message(s) held in quarantine."
+            },
+            "AI PROFILE" to {
+                val count = readApiProfiles().size
+                (count > 0) to if (count > 0) {
+                    "$count Gemini profile(s) configured."
+                } else {
+                    "Add a Gemini key to enable chat."
+                }
+            },
+            "WI-FI STATUS" to {
+                val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val wifi = manager.activeNetwork
+                    ?.let(manager::getNetworkCapabilities)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                wifi to if (wifi) "Connected over Wi-Fi." else "Not on Wi-Fi right now."
+            },
+            "APP CACHE" to {
+                val bytes = appCacheSize()
+                val clean = bytes < 64L * 1024L * 1024L
+                clean to "Sentinal cache uses ${formatBytes(bytes)}."
+            },
+        )
+
+        val status = TextView(this).apply {
+            text = "Preparing local checks…"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+            textSize = 12f
+        }
+        val bar = ProgressBar(
+            this,
+            null,
+            android.R.attr.progressBarStyleHorizontal,
+        ).apply {
+            max = steps.size
+            progress = 0
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(18), dp(20), dp(14))
+            setBackgroundResource(R.drawable.owner_card_bg)
+            addView(TextView(this@MainActivity).apply {
+                text = "SMART SCAN"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+                textSize = 15f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                letterSpacing = 0.1f
+                setPadding(0, 0, 0, dp(12))
+            })
+            addView(status)
+            addView(
+                bar,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(14) },
+            )
+            addView(TextView(this@MainActivity).apply {
+                text = "Local checks only · nothing is uploaded"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                textSize = 10f
+                setPadding(0, dp(8), 0, 0)
+            })
+        }
+
+        var scanJob: Job? = null
+        val dialog = AlertDialog.Builder(this)
+            .setView(content)
+            .setNegativeButton("CANCEL", null)
+            .setCancelable(false)
+            .create()
+        dialog.setOnDismissListener {
+            scanJob?.cancel()
+            scanRunning = false
+        }
+        dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+        dialog.show()
+
+        scanJob = lifecycleScope.launch {
+            val lines = mutableListOf<String>()
+            var passed = 0
+            steps.forEachIndexed { index, step ->
+                status.text = "Checking ${step.first}…"
+                bar.progress = index
+                if (animationsEnabled()) delay(220L)
+                val (ok, detail) = step.second()
+                if (ok) passed++
+                lines += "${if (ok) "PASS" else "REVIEW"}  ${step.first}\n      $detail"
+            }
+            bar.progress = steps.size
+            status.text = "Scan complete"
+            if (animationsEnabled()) delay(260L)
+            dialog.dismiss()
+            val score = passed * 100 / steps.size
+            val report = buildString {
+                append("LOCAL SMART SCAN\n")
+                append("Score: $score / 100\n")
+                append("Passed: $passed of ${steps.size}\n\n")
+                lines.forEach { append(it).append("\n\n") }
+                append("This is a local configuration review, not a malware scan. It cannot detect infections or guarantee safety.")
+            }
+            showToolResult("SMART SCAN RESULT", report)
+        }
+    }
+
+    private fun appCacheSize(): Long =
+        runCatching {
+            cacheDir.walkTopDown()
+                .filter { it.isFile }
+                .map { it.length() }
+                .sum()
+        }.getOrDefault(0L)
+
+    private fun formatBytes(bytes: Long): String = when {
+        bytes >= 1024L * 1024L * 1024L ->
+            String.format(Locale.US, "%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        bytes >= 1024L * 1024L ->
+            String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
+        bytes >= 1024L -> String.format(Locale.US, "%.0f KB", bytes / 1024.0)
+        else -> "$bytes B"
+    }
+
+    private fun showStorageTool() {
+        val sizeText = TextView(this).apply {
+            text = "Sentinal app cache: ${formatBytes(appCacheSize())}"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+            textSize = 13f
+        }
+        val note = TextView(this).apply {
+            text = "Only this app's own cache is counted. No other app data is touched."
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+            textSize = 10f
+            setPadding(0, dp(8), 0, 0)
+        }
+        val clear = Button(this).apply {
+            text = "CLEAR APP CACHE"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_bg))
+            setBackgroundResource(R.drawable.pill_cyan)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(42),
+            ).apply { topMargin = dp(14) }
+            setOnClickListener {
+                val deleted = runCatching {
+                    var count = 0
+                    cacheDir.walkTopDown()
+                        .filter { it.isFile }
+                        .forEach { file -> if (file.delete()) count++ }
+                    count
+                }.getOrDefault(0)
+                sizeText.text = "Sentinal app cache: ${formatBytes(appCacheSize())}"
+                note.text = "Cleared $deleted cached file(s). Only this app's cache was affected."
+                applyPressFeedback(this@apply)
+            }
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(18), dp(20), dp(16))
+            setBackgroundResource(R.drawable.owner_card_bg)
+            addView(TextView(this@MainActivity).apply {
+                text = "STORAGE / APP CACHE"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+                textSize = 15f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setPadding(0, 0, 0, dp(12))
+            })
+            addView(sizeText)
+            addView(note)
+            addView(clear)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setView(content)
+            .setPositiveButton("DONE", null)
+            .create()
+        dialog.setOnShowListener {
+            if (animationsEnabled()) {
+                for (index in 0 until content.childCount) {
+                    val child = content.getChildAt(index)
+                    child.alpha = 0f
+                    child.translationY = dp(8).toFloat()
+                    child.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setStartDelay(index * 55L)
+                        .setDuration(260L)
+                        .start()
+                }
+            }
+        }
+        dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+        dialog.show()
     }
 
     private fun showPermissionSummary() {
@@ -3173,6 +3453,8 @@ User request: $prompt"""
             "FILE HASH REPUTATION",
             "PHISHING MESSAGE REVIEW",
             "AUTO IMPROVEMENT RESEARCH",
+            "SMART SCAN",
+            "STORAGE / APP CACHE",
         )
         val actions = listOf(
             { showAuthorizedScopeManager() },
@@ -3183,6 +3465,8 @@ User request: $prompt"""
             { chooseReputationFile.launch("*/*") },
             { showPhishingReview() },
             { runAutoImprovement(manual = true) },
+            { runSmartScan() },
+            { showStorageTool() },
         )
         var dialogRef: AlertDialog? = null
         val content = LinearLayout(this).apply {
@@ -4030,6 +4314,8 @@ User request: $prompt"""
             R.id.clearButton,
             R.id.retryButton,
             R.id.autoImproveButton,
+            R.id.smartScanButton,
+            R.id.storageToolButton,
         ).forEach { id ->
             findViewById<Button>(id).isEnabled = !busy
         }
