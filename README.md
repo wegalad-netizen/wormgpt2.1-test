@@ -28,14 +28,19 @@ wormgpt
 
 Or set `WORMGPT_API_KEY` in your environment and run `python3 wormgpt.py` directly.
 
-Optional ordered fallback profiles go in `~/.wormgpt_profiles`, one per line:
+Optional ordered API profiles go in `~/.wormgpt_profiles`, one per line:
 
 ```text
-another-api-key | gemini-2.5-flash
-gemini-2.0-flash
+gemini | another-api-key | gemini-2.5-flash
+openai | sk-... | gpt-4o-mini
+groq | gsk_... | llama-3.3-70b-versatile
+openrouter | sk-or-... | openai/gpt-4o-mini
+anthropic | sk-ant-... | claude-3-5-haiku-latest
 ```
 
-The first line supplies its own key and model. A model-only line reuses the primary `WORMGPT_API_KEY`; a key-only line reuses the default model. Models must start with `gemini-`, so a pasted key is never mistaken for a model name. Keep this file private with `chmod 600 ~/.wormgpt_profiles`. The app tries profiles in order after connection or API errors, and `/model` lists the configured model order without showing keys. If a model returns HTTP 503 / high demand, the app automatically retries with `gemini-2.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-flash` using the same key.
+Supported providers: `gemini`, `openai` / `chatgpt`, `openrouter`, `groq`, `together`, and `anthropic` / `claude`. Shorthands: `KEY | MODEL` defaults to Gemini, a model-only line reuses the primary key, and a key-only line uses that provider's default model. Keys are never mistaken for model names. Keep this file private with `chmod 600 ~/.wormgpt_profiles`. `/model` lists configured providers and models without showing keys. Gemini profiles that return HTTP 503 / high demand automatically retry with `gemini-2.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-flash`.
+
+The Android app uses the same profile format in Settings → **API PROFILES / FALLBACKS**.
 
 For a home-screen shortcut, copy `termux-widget/wormgpt` into `~/.shortcuts/` and add a Termux:Widget widget.
 

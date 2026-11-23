@@ -25,6 +25,29 @@ import aiohttp
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 MODEL = "gemini-3.1-flash-lite"
 FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+PROVIDER_ALIASES = {
+    "gemini": "gemini", "google": "gemini",
+    "openai": "openai", "chatgpt": "openai", "gpt": "openai",
+    "openrouter": "openrouter",
+    "groq": "groq",
+    "together": "together", "togetherai": "together",
+    "anthropic": "anthropic", "claude": "anthropic",
+}
+PROVIDER_ENDPOINTS = {
+    "openai": "https://api.openai.com/v1/chat/completions",
+    "openrouter": "https://openrouter.ai/api/v1/chat/completions",
+    "groq": "https://api.groq.com/openai/v1/chat/completions",
+    "together": "https://api.together.xyz/v1/chat/completions",
+    "anthropic": "https://api.anthropic.com/v1/messages",
+}
+PROVIDER_DEFAULT_MODELS = {
+    "gemini": MODEL,
+    "openai": "gpt-4o-mini",
+    "openrouter": "openai/gpt-4o-mini",
+    "groq": "llama-3.3-70b-versatile",
+    "together": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "anthropic": "claude-3-5-haiku-latest",
+}
 # No key is stored in source. Set WORMGPT_API_KEY before running.
 API_KEY = os.environ.get("WORMGPT_API_KEY", "")
 PROFILE_FILE = os.path.join(os.path.expanduser("~"), ".wormgpt_profiles")
@@ -220,26 +243,37 @@ def copy_to_clipboard(text: str, path: str = COPY_FILE) -> str:
     return path
 
 
-def normalize_model(value: str) -> str | None:
-    """Accept only real Gemini model names, never a pasted API key."""
+def normalize_provider(value: str) -> str:
+    return PROVIDER_ALIASES.get(value.strip().lower(), "gemini")
+
+
+def normalize_model(value: str, provider: str = "gemini") -> str | None:
+    """Accept model names, never a pasted API key."""
     candidate = value.strip().removeprefix("models/")
-    if re.fullmatch(r"gemini[-A-Za-z0-9._]*", candidate):
-        return candidate
-    return None
+    if not candidate or len(candidate) > 120 or looks_like_api_key(candidate):
+        return None
+    if provider == "gemini":
+        return candidate if re.fullmatch(r"gemini[-A-Za-z0-9._]*", candidate) else None
+    return candidate if re.fullmatch(r"[A-Za-z0-9._/-]+", candidate) else None
 
 
 def looks_like_api_key(value: str) -> bool:
-    """API keys are long opaque tokens; model names always start with gemini-."""
+    """Keys are opaque tokens; model names never look like one."""
     candidate = value.strip()
-    return len(candidate) >= 30 and not candidate.lower().startswith("gemini")
+    return len(candidate) >= 24 and (
+        candidate.lower().startswith("sk-")
+        or candidate.lower().startswith("gsk_")
+        or candidate.startswith("AIza")
+        or (len(candidate) >= 32 and "/" not in candidate and not candidate.lower().startswith("gemini"))
+    )
 
 
-def load_api_profiles() -> list[tuple[str, str]]:
-    """Load the primary key and ordered Gemini fallbacks from a private file."""
-    profiles: list[tuple[str, str]] = []
+def load_api_profiles() -> list[tuple[str, str, str]]:
+    """Load (provider, key, model) profiles from the private file."""
+    profiles: list[tuple[str, str, str]] = []
     primary_key = API_KEY.strip()
     if primary_key:
-        profiles.append((primary_key, MODEL))
+        profiles.append(("gemini", primary_key, MODEL))
 
     try:
         with open(PROFILE_FILE, encoding="utf-8") as handle:
@@ -247,26 +281,38 @@ def load_api_profiles() -> list[tuple[str, str]]:
                 line = raw_line.strip()
                 if not line or line.startswith("#"):
                     continue
-                if "|" in line:
-                    key, raw_model = (part.strip() for part in line.split("|", 1))
-                    model = normalize_model(raw_model) or MODEL
+                parts = [part.strip() for part in line.split("|")]
+                provider = "gemini"
+                key = primary_key
+                model: str | None = None
+
+                if len(parts) >= 3:
+                    provider = normalize_provider(parts[0])
+                    key = parts[1]
+                    model = normalize_model(parts[2], provider)
+                elif len(parts) == 2 and parts[0].lower() in PROVIDER_ALIASES and \
+                        PROVIDER_ALIASES[parts[0].lower()] != "gemini":
+                    provider = PROVIDER_ALIASES[parts[0].lower()]
+                    key = parts[1]
+                elif len(parts) == 2:
+                    key = parts[0]
+                    model = normalize_model(parts[1])
                 else:
-                    model = normalize_model(line)
-                    if model is not None:
-                        key = primary_key
-                    elif looks_like_api_key(line):
-                        key, model = line, MODEL
-                    else:
-                        continue
-                if key and not looks_like_api_key(model):
-                    profiles.append((key, model))
+                    token = parts[0]
+                    model = normalize_model(token)
+                    if model is None and looks_like_api_key(token):
+                        key, model = token, None
+
+                if not key or key.lower().startswith("gemini"):
+                    continue
+                profiles.append((provider, key, model or PROVIDER_DEFAULT_MODELS.get(provider, MODEL)))
     except FileNotFoundError:
         pass
     except OSError:
         pass
 
-    unique: list[tuple[str, str]] = []
-    seen: set[tuple[str, str]] = set()
+    unique: list[tuple[str, str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
     for profile in profiles:
         if profile not in seen:
             seen.add(profile)
@@ -667,25 +713,25 @@ def safety_block_reason(data: dict) -> str:
 async def runquery(
     user_input: str,
     on_status: Callable[[str], None],
-    profiles: list[tuple[str, str]],
+    profiles: list[tuple[str, str, str]],
     history: list[dict],
     system_prompt: str = MASTER_PROMPT,
 ) -> tuple[str, str, str]:
-    """Try configured Gemini profiles with recent chat context."""
+    """Try configured API profiles with recent chat context."""
     headers = {"Content-Type": "application/json"}
-    contents = []
+    gemini_contents = []
     for item in history[-30:]:
         label = item.get("label")
         if label == "YOU":
-            contents.append({"role": "user", "parts": [{"text": str(item.get("text", ""))}]})
+            gemini_contents.append({"role": "user", "parts": [{"text": str(item.get("text", ""))}]})
         elif label in {"RESPONSE", "ERROR"} and item.get("ok"):
             answer = str(item.get("text", ""))
             answer = re.sub(r"^\[[^\]]+\]\n", "", answer)
-            contents.append({"role": "model", "parts": [{"text": answer}]})
-    contents.append({"role": "user", "parts": [{"text": user_input}]})
-    payload = {
+            gemini_contents.append({"role": "model", "parts": [{"text": answer}]})
+    gemini_contents.append({"role": "user", "parts": [{"text": user_input}]})
+    gemini_payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
-        "contents": contents,
+        "contents": gemini_contents,
         "generationConfig": {
             "temperature": 0.9,
             "maxOutputTokens": 2048,
@@ -698,16 +744,57 @@ async def runquery(
     failures: list[str] = []
     try:
         async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
-            for index, (api_key, model) in enumerate(profiles, 1):
-                models_to_try = [model] + [alt for alt in FALLBACK_MODELS if alt != model]
+            for index, (provider, api_key, model) in enumerate(profiles, 1):
+                models_to_try = [model]
+                if provider == "gemini":
+                    models_to_try += [alt for alt in FALLBACK_MODELS if alt != model]
                 for attempt_model in models_to_try:
-                    on_status(f"Trying {attempt_model} ({index}/{len(profiles)})")
-                    url = f"{API_URL}/{attempt_model}:generateContent?{urlencode({'key': api_key})}"
+                    label = f"{provider}/{attempt_model}"
+                    on_status(f"Trying {label} ({index}/{len(profiles)})")
                     try:
-                        async with session.post(url, json=payload, headers=headers) as response:
+                        if provider == "gemini":
+                            url = f"{API_URL}/{attempt_model}:generateContent?{urlencode({'key': api_key})}"
+                            post_headers = headers
+                            post_payload = gemini_payload
+                        elif provider == "anthropic":
+                            url = PROVIDER_ENDPOINTS["anthropic"]
+                            post_headers = {
+                                "Content-Type": "application/json",
+                                "x-api-key": api_key,
+                                "anthropic-version": "2023-06-01",
+                            }
+                            post_payload = {
+                                "model": attempt_model,
+                                "max_tokens": 2048,
+                                "system": system_prompt,
+                                "messages": [{"role": "user", "content": user_input}],
+                            }
+                        else:
+                            url = PROVIDER_ENDPOINTS.get(provider)
+                            if not url:
+                                failures.append(f"{label}: unsupported provider")
+                                break
+                            post_headers = {
+                                "Content-Type": "application/json",
+                                "Authorization": f"Bearer {api_key}",
+                            }
+                            if provider == "openrouter":
+                                post_headers["HTTP-Referer"] = "https://github.com/wegalad-netizen/wormgpt2.1-test"
+                                post_headers["X-Title"] = "WormGPT Terminal UI"
+                            post_payload = {
+                                "model": attempt_model,
+                                "messages": [
+                                    {"role": "system", "content": system_prompt},
+                                    {"role": "user", "content": user_input},
+                                ],
+                                "temperature": 0.9,
+                                "max_tokens": 2048,
+                            }
+
+                        async with session.post(url, json=post_payload, headers=post_headers) as response:
                             if response.status != 200:
                                 failures.append(
-                                    f"{attempt_model}: HTTP {response.status}: {await response.text()}"
+                                    f"{label}: HTTP {response.status}: {await response.text()}"
                                 )
                                 if response.status == 503:
                                     continue
@@ -716,25 +803,38 @@ async def runquery(
                             try:
                                 data = await response.json()
                             except (json.JSONDecodeError, aiohttp.ContentTypeError) as exc:
-                                failures.append(f"{attempt_model}: invalid JSON response ({exc})")
+                                failures.append(f"{label}: invalid JSON response ({exc})")
                                 break
 
-                            blocked = safety_block_reason(data)
-                            if blocked:
-                                return "", f"Blocked by API safety filter ({blocked}).", attempt_model
-                            try:
-                                return extract_response_text(data), "", attempt_model
-                            except (KeyError, IndexError, TypeError) as exc:
-                                failures.append(f"{attempt_model}: unexpected response format ({exc})")
-                                break
+                            if provider == "gemini":
+                                blocked = safety_block_reason(data)
+                                if blocked:
+                                    return "", f"Blocked by API safety filter ({blocked}).", attempt_model
+                                try:
+                                    text = extract_response_text(data)
+                                except (KeyError, IndexError, TypeError) as exc:
+                                    failures.append(f"{label}: unexpected response format ({exc})")
+                                    break
+                            elif provider == "anthropic":
+                                content = data.get("content") or []
+                                text = str(content[0].get("text", "")) if content else ""
+                            else:
+                                choices = data.get("choices") or []
+                                message = choices[0].get("message", {}) if choices else {}
+                                text = str(message.get("content", ""))
+
+                            if text:
+                                return text, "", attempt_model
+                            failures.append(f"{label}: empty response")
+                            break
                     except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
-                        failures.append(f"{attempt_model}: connection error ({exc})")
+                        failures.append(f"{label}: connection error ({exc})")
                         break
                     except Exception as exc:
-                        failures.append(f"{attempt_model}: {type(exc).__name__}: {exc}")
+                        failures.append(f"{label}: {type(exc).__name__}: {exc}")
                         break
 
-        return "", "All configured Gemini profiles failed:\n" + "\n".join(failures), ""
+        return "", "All configured API profiles failed:\n" + "\n".join(failures), ""
     except Exception as e:
         return "", f"Unexpected error: {e}", ""
     finally:
@@ -764,20 +864,20 @@ async def fetch_research(url: str, limit: int = 5000) -> str:
     return text[:limit]
 
 
-def local_quality_signals(history: list[dict], session_id: str, profiles: list[tuple[str, str]]) -> str:
+def local_quality_signals(history: list[dict], session_id: str, profiles: list[tuple[str, str, str]]) -> str:
     user_count = sum(1 for item in history if item.get("label") == "YOU")
     response_count = sum(1 for item in history if item.get("label") == "RESPONSE")
     return (
         f"App: WormGPT Terminal UI\n"
         f"Session: {session_id}\n"
-        f"Configured Gemini profiles: {len(profiles)}\n"
+        f"Configured API profiles: {len(profiles)}\n"
         f"Messages: {len(history)}  ·  Prompts: {user_count}  ·  Replies: {response_count}\n"
     )
 
 
 async def auto_improve(
     on_status: Callable[[str], None],
-    profiles: list[tuple[str, str]],
+    profiles: list[tuple[str, str, str]],
     history: list[dict],
     session_id: str,
 ) -> tuple[str, str, str]:
@@ -865,7 +965,10 @@ def main() -> None:
                 continue
 
             if command in MODEL_COMMANDS:
-                models = "\n".join(f"{index}. {model}" for index, (_, model) in enumerate(profiles, 1))
+                models = "\n".join(
+                    f"{index}. {provider} / {model}"
+                    for index, (provider, _, model) in enumerate(profiles, 1)
+                )
                 add_local_entry("MODELS", "Configured model order (API keys hidden):\n" + models)
                 continue
 

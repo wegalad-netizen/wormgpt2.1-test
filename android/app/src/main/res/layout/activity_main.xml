@@ -709,7 +709,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="FALLBACK KEYS AND MODELS"
+                    android:text="API PROFILES / FALLBACKS"
                     android:textColor="@color/sentinal_red_bright"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -718,7 +718,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="API_KEY | MODEL per line, or just MODEL to reuse the primary key. Up to 5 profiles; safety blocks are not retried."
+                    android:text="Per line: PROVIDER | KEY | MODEL. Providers: gemini, openai, chatgpt, openrouter, groq, together, anthropic. Shorthands: KEY | MODEL or MODEL (reuses primary key). Up to 5 profiles."
                     android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 
@@ -730,7 +730,7 @@
                     android:background="@drawable/card_bg"
                     android:fontFamily="monospace"
                     android:gravity="top|start"
-                    android:hint="key_2 | gemini-2.5-flash\nkey_3 | gemini-2.0-flash"
+                    android:hint="gemini | key | gemini-2.5-flash\nopenai | sk-... | gpt-4o-mini\ngroq | gsk_... | llama-3.3-70b-versatile"
                     android:inputType="textMultiLine|textPassword"
                     android:minLines="3"
                     android:padding="12dp"

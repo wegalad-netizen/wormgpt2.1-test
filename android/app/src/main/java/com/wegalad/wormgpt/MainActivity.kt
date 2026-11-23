@@ -142,6 +142,29 @@ class MainActivity : AppCompatActivity() {
         const val REPO_URL = "https://github.com/wegalad-netizen/wormgpt2.1-test"
         const val API_HOST = "generativelanguage.googleapis.com"
         val FALLBACK_MODELS = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
+        val PROVIDER_ALIASES = mapOf(
+            "gemini" to "gemini", "google" to "gemini",
+            "openai" to "openai", "chatgpt" to "openai", "gpt" to "openai",
+            "openrouter" to "openrouter",
+            "groq" to "groq",
+            "together" to "together", "togetherai" to "together",
+            "anthropic" to "anthropic", "claude" to "anthropic",
+        )
+        val PROVIDER_DEFAULT_MODELS = mapOf(
+            "gemini" to MODEL,
+            "openai" to "gpt-4o-mini",
+            "openrouter" to "openai/gpt-4o-mini",
+            "groq" to "llama-3.3-70b-versatile",
+            "together" to "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            "anthropic" to "claude-3-5-haiku-latest",
+        )
+        val PROVIDER_ENDPOINTS = mapOf(
+            "openai" to "https://api.openai.com/v1/chat/completions",
+            "openrouter" to "https://openrouter.ai/api/v1/chat/completions",
+            "groq" to "https://api.groq.com/openai/v1/chat/completions",
+            "together" to "https://api.together.xyz/v1/chat/completions",
+            "anthropic" to "https://api.anthropic.com/v1/messages",
+        )
         const val MODEL = "gemini-3.1-flash-lite"
         const val MAX_API_PROFILES = 5
         const val RELEASE_API =
@@ -172,7 +195,11 @@ Rules:
 - End with a short 'Quick wins' section of 3 low-effort improvements."""
     }
 
-    private data class ApiProfile(val apiKey: String, val model: String)
+    private data class ApiProfile(
+        val provider: String,
+        val apiKey: String,
+        val model: String,
+    )
     private data class ApiResult(
         val text: String?,
         val error: String?,
@@ -2688,50 +2715,78 @@ Rules:
         }
     }
 
-    private fun normalizeModel(raw: String): String? {
+    private fun normalizeProvider(raw: String): String =
+        PROVIDER_ALIASES[raw.trim().lowercase()] ?: "gemini"
+
+    private fun normalizeModel(raw: String, provider: String = "gemini"): String? {
         val candidate = raw.trim().removePrefix("models/")
-        return candidate.takeIf { Regex("^gemini[-A-Za-z0-9._]*$").matches(it) }
+        if (candidate.isEmpty() || candidate.length > 120 || looksLikeApiKey(candidate)) return null
+        return if (provider == "gemini") {
+            candidate.takeIf { Regex("^gemini[-A-Za-z0-9._]*$").matches(it) }
+        } else {
+            candidate.takeIf { Regex("^[A-Za-z0-9._/-]+$").matches(it) }
+        }
     }
 
     private fun looksLikeApiKey(raw: String): Boolean {
         val value = raw.trim()
-        return value.length >= 30 && !value.startsWith("gemini", ignoreCase = true)
+        return value.length >= 24 && (
+            value.startsWith("sk-", ignoreCase = true) ||
+                value.startsWith("gsk_", ignoreCase = true) ||
+                value.startsWith("AIza", ignoreCase = true) ||
+                (value.length >= 32 && !value.contains('/') && !value.startsWith("gemini", ignoreCase = true))
+            )
     }
 
     private fun readApiProfiles(): List<ApiProfile> {
         val profiles = mutableListOf<ApiProfile>()
         val primaryKey = apiKeyInput.text.toString().trim()
-        if (primaryKey.isNotEmpty()) profiles += ApiProfile(primaryKey, MODEL)
+        if (primaryKey.isNotEmpty()) profiles += ApiProfile("gemini", primaryKey, MODEL)
 
         apiFallbacksInput.text.toString().lineSequence()
             .map(String::trim)
-            .filter(String::isNotEmpty)
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
             .forEach { line ->
-                val pair = line.split('|', limit = 2)
-                val key: String
-                val model: String
-                if (pair.size == 1) {
-                    val token = pair[0].trim()
-                    val parsed = normalizeModel(token)
-                    if (parsed != null) {
-                        key = primaryKey
-                        model = parsed
-                    } else if (looksLikeApiKey(token)) {
-                        key = token
-                        model = MODEL
-                    } else {
-                        return@forEach
+                val parts = line.split('|').map(String::trim)
+                var provider = "gemini"
+                var key = primaryKey
+                var model: String?
+
+                when {
+                    parts.size >= 3 -> {
+                        provider = normalizeProvider(parts[0])
+                        key = parts[1]
+                        model = normalizeModel(parts[2], provider)
                     }
-                } else {
-                    key = pair[0].trim()
-                    model = normalizeModel(pair[1]) ?: MODEL
+                    parts.size == 2 && normalizeProvider(parts[0]) != "gemini" &&
+                        PROVIDER_ALIASES.containsKey(parts[0].lowercase()) -> {
+                        provider = normalizeProvider(parts[0])
+                        key = parts[1]
+                        model = null
+                    }
+                    parts.size == 2 -> {
+                        key = parts[0]
+                        model = normalizeModel(parts[1])
+                    }
+                    else -> {
+                        val token = parts[0]
+                        model = normalizeModel(token)
+                        if (model == null && looksLikeApiKey(token)) {
+                            key = token
+                            model = null
+                        }
+                    }
                 }
-                if (key.isNotEmpty() && !looksLikeApiKey(model)) {
-                    profiles += ApiProfile(key, model)
+
+                if (key.isEmpty() || key.startsWith("gemini", ignoreCase = true)) {
+                    return@forEach
                 }
+                val finalModel = model ?: PROVIDER_DEFAULT_MODELS[provider] ?: MODEL
+                profiles += ApiProfile(provider, key, finalModel)
             }
 
-        return profiles.distinctBy { "${it.apiKey}\u0000${it.model}" }.take(MAX_API_PROFILES)
+        return profiles.distinctBy { "${it.provider}\u0000${it.apiKey}\u0000${it.model}" }
+            .take(MAX_API_PROFILES)
     }
 
     private fun saveKey() {
@@ -3209,8 +3264,9 @@ User request: $prompt"""
         profiles.forEachIndexed { index, profile ->
             var usedModel = profile.model
             var result = runProfileQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
-            if (result.error != null && isUnavailableError(result.error)) {
-                failures += "$usedModel: ${result.error}"
+            var error = result.error
+            if (profile.provider == "gemini" && error != null && isUnavailableError(error)) {
+                failures += "$usedModel: $error"
                 for (fallback in FALLBACK_MODELS) {
                     if (fallback == profile.model) continue
                     usedModel = fallback
@@ -3221,21 +3277,18 @@ User request: $prompt"""
                         minimal,
                         instructionOverride,
                     )
-                    if (result.error == null ||
-                        result.error.startsWith("Blocked by API safety filter")
-                    ) {
+                    error = result.error
+                    if (error == null || error.startsWith("Blocked by API safety filter")) {
                         return result.copy(model = usedModel, attempts = index + 1)
                     }
-                    failures += "$usedModel: ${result.error}"
-                    if (!isUnavailableError(result.error)) break
+                    failures += "$usedModel: $error"
+                    if (!isUnavailableError(error)) break
                 }
             } else {
-                if (result.error == null ||
-                    result.error.startsWith("Blocked by API safety filter")
-                ) {
+                if (error == null || error.startsWith("Blocked by API safety filter")) {
                     return result.copy(model = usedModel, attempts = index + 1)
                 }
-                failures += "$usedModel: ${result.error}"
+                failures += "$usedModel: $error"
             }
         }
         return ApiResult(
@@ -3253,6 +3306,21 @@ User request: $prompt"""
     }
 
     private fun runProfileQuery(
+        prompt: String,
+        profile: ApiProfile,
+        chartImageBase64: String? = null,
+        minimal: Boolean = false,
+        instructionOverride: String? = null,
+    ): ApiResult = when (profile.provider) {
+        "openai", "openrouter", "groq", "together" ->
+            runOpenAiCompatibleQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
+        "anthropic" ->
+            runAnthropicQuery(prompt, profile, minimal, instructionOverride)
+        else ->
+            runGeminiQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
+    }
+
+    private fun runGeminiQuery(
         prompt: String,
         profile: ApiProfile,
         chartImageBase64: String? = null,
@@ -3352,6 +3420,134 @@ User request: $prompt"""
             ApiResult(null, "DNS failure: cannot resolve $API_HOST (${e.message ?: "unknown"}).")
         } catch (e: Exception) {
             ApiResult(null, "${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
+    private fun runOpenAiCompatibleQuery(
+        prompt: String,
+        profile: ApiProfile,
+        chartImageBase64: String? = null,
+        minimal: Boolean = false,
+        instructionOverride: String? = null,
+    ): ApiResult {
+        val endpoint = PROVIDER_ENDPOINTS[profile.provider]
+            ?: return ApiResult(null, "Unsupported provider: ${profile.provider}")
+        val instruction = when {
+            minimal -> "Reply with exactly: PONG"
+            instructionOverride != null -> "$instructionOverride\n\nUser Input: $prompt"
+            else -> "$MASTER_PROMPT\n\nUser Input: $prompt"
+        }
+        return try {
+            val userContent: Any = if (!minimal && chartImageBase64 != null) {
+                JSONArray()
+                    .put(JSONObject().put("type", "text").put("text", prompt))
+                    .put(
+                        JSONObject()
+                            .put("type", "image_url")
+                            .put(
+                                "image_url",
+                                JSONObject().put("url", "data:image/jpeg;base64,$chartImageBase64"),
+                            ),
+                    )
+            } else {
+                prompt
+            }
+            val payload = JSONObject()
+                .put("model", profile.model)
+                .put(
+                    "messages",
+                    JSONArray()
+                        .put(JSONObject().put("role", "system").put("content", instruction))
+                        .put(JSONObject().put("role", "user").put("content", userContent)),
+                )
+                .put("temperature", 0.9)
+                .put("max_tokens", 2048)
+
+            val builder = Request.Builder()
+                .url(endpoint)
+                .header("Authorization", "Bearer ${profile.apiKey}")
+                .header("Content-Type", "application/json")
+            if (profile.provider == "openrouter") {
+                builder.header("HTTP-Referer", REPO_URL)
+                builder.header("X-Title", "Sentinal Security")
+            }
+            val request = builder
+                .post(payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val raw = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    return ApiResult(null, "HTTP ${response.code} ${response.message}: ${raw.take(1500)}")
+                }
+                val json = JSONObject(raw)
+                val choices = json.optJSONArray("choices")
+                if (choices == null || choices.length() == 0) {
+                    return ApiResult(null, "No choices returned: ${raw.take(1000)}")
+                }
+                val text = choices.getJSONObject(0)
+                    .optJSONObject("message")
+                    ?.optString("content")
+                    .orEmpty()
+                if (text.isEmpty()) return ApiResult(null, "Empty response: ${raw.take(500)}")
+                ApiResult(text, null, model = profile.model)
+            }
+        } catch (e: java.net.SocketTimeoutException) {
+            ApiResult(null, "Timeout talking to ${profile.provider}: ${e.message ?: "no detail"}")
+        } catch (e: java.net.UnknownHostException) {
+            ApiResult(null, "DNS failure for ${profile.provider}: ${e.message ?: "unknown"}")
+        } catch (e: Exception) {
+            ApiResult(null, "${profile.provider} ${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
+    private fun runAnthropicQuery(
+        prompt: String,
+        profile: ApiProfile,
+        minimal: Boolean = false,
+        instructionOverride: String? = null,
+    ): ApiResult {
+        val endpoint = PROVIDER_ENDPOINTS["anthropic"]!!
+        val instruction = when {
+            minimal -> "Reply with exactly: PONG"
+            instructionOverride != null -> "$instructionOverride\n\nUser Input: $prompt"
+            else -> "$MASTER_PROMPT\n\nUser Input: $prompt"
+        }
+        return try {
+            val payload = JSONObject()
+                .put("model", profile.model)
+                .put("max_tokens", 2048)
+                .put("system", instruction)
+                .put(
+                    "messages",
+                    JSONArray().put(JSONObject().put("role", "user").put("content", prompt)),
+                )
+            val request = Request.Builder()
+                .url(endpoint)
+                .header("x-api-key", profile.apiKey)
+                .header("anthropic-version", "2023-06-01")
+                .header("Content-Type", "application/json")
+                .post(payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+                .build()
+            client.newCall(request).execute().use { response ->
+                val raw = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    return ApiResult(null, "HTTP ${response.code} ${response.message}: ${raw.take(1500)}")
+                }
+                val content = JSONObject(raw).optJSONArray("content")
+                if (content == null || content.length() == 0) {
+                    return ApiResult(null, "No content returned: ${raw.take(1000)}")
+                }
+                val text = content.getJSONObject(0).optString("text")
+                if (text.isEmpty()) return ApiResult(null, "Empty response: ${raw.take(500)}")
+                ApiResult(text, null, model = profile.model)
+            }
+        } catch (e: java.net.SocketTimeoutException) {
+            ApiResult(null, "Timeout talking to Anthropic: ${e.message ?: "no detail"}")
+        } catch (e: java.net.UnknownHostException) {
+            ApiResult(null, "DNS failure for Anthropic: ${e.message ?: "unknown"}")
+        } catch (e: Exception) {
+            ApiResult(null, "Anthropic ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
