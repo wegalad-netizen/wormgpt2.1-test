@@ -718,7 +718,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="Per line: PROVIDER | KEY | MODEL. Providers: gemini, openai, chatgpt, openrouter, groq, together, anthropic. Shorthands: KEY | MODEL or MODEL (reuses primary key). Up to 5 profiles."
+                    android:text="Per line: PROVIDER | KEY | MODEL. Providers: gemini, openai, chatgpt, openrouter, groq, together, anthropic, opencode. Shorthands: KEY | MODEL or MODEL (reuses primary key). Up to 5 profiles."
                     android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
 

@@ -141,8 +141,20 @@ class MainActivity : AppCompatActivity() {
         const val OWNER_TELEGRAM = "https://t.me/+94724085416"
         const val REPO_URL = "https://github.com/wegalad-netizen/wormgpt2.1-test"
         const val API_HOST = "generativelanguage.googleapis.com"
-        const val MODEL = "gemini-3.1-flash-lite"
-        val FALLBACK_MODELS = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
+        const val MODEL = "gemini-3.8-flash"
+        val FALLBACK_MODELS = listOf(
+            "gemini-3.8-flash",
+            "gemini-3.1-flash",
+            "gemini-3.1-flash-lite",
+        )
+        val DEPRECATED_GEMINI_MODELS = mapOf(
+            "gemini-2.5-flash" to "gemini-3.8-flash",
+            "gemini-2.5-flash-lite" to "gemini-3.8-flash",
+            "gemini-2.0-flash" to "gemini-3.8-flash",
+            "gemini-2.0-flash-lite" to "gemini-3.8-flash",
+            "gemini-1.5-flash" to "gemini-3.8-flash",
+            "gemini-1.5-pro" to "gemini-3.8-flash",
+        )
         val PROVIDER_ALIASES = mapOf(
             "gemini" to "gemini", "google" to "gemini",
             "openai" to "openai", "chatgpt" to "openai", "gpt" to "openai",
@@ -150,6 +162,7 @@ class MainActivity : AppCompatActivity() {
             "groq" to "groq",
             "together" to "together", "togetherai" to "together",
             "anthropic" to "anthropic", "claude" to "anthropic",
+            "opencode" to "opencode", "zen" to "opencode",
         )
         val PROVIDER_DEFAULT_MODELS = mapOf(
             "gemini" to MODEL,
@@ -158,6 +171,7 @@ class MainActivity : AppCompatActivity() {
             "groq" to "llama-3.3-70b-versatile",
             "together" to "meta-llama/Llama-3.3-70B-Instruct-Turbo",
             "anthropic" to "claude-3-5-haiku-latest",
+            "opencode" to "hy4-flash-free",
         )
         val PROVIDER_ENDPOINTS = mapOf(
             "openai" to "https://api.openai.com/v1/chat/completions",
@@ -165,6 +179,7 @@ class MainActivity : AppCompatActivity() {
             "groq" to "https://api.groq.com/openai/v1/chat/completions",
             "together" to "https://api.together.xyz/v1/chat/completions",
             "anthropic" to "https://api.anthropic.com/v1/messages",
+            "opencode" to "https://opencode.ai/inference/openai/v1/chat/completions",
         )
         const val MAX_API_PROFILES = 5
         const val RELEASE_API =
@@ -289,6 +304,7 @@ Rules:
     private var chatBackdrop: GradientDrawable? = null
     private var chatBackdropAnimator: ValueAnimator? = null
     private var scanRunning = false
+    private val geminiModelCache = mutableMapOf<String, Pair<Long, List<String>>>()
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
     private lateinit var operatorSpamSwitch: Switch
@@ -2723,6 +2739,7 @@ Rules:
         if (candidate.isEmpty() || candidate.length > 120 || looksLikeApiKey(candidate)) return null
         return if (provider == "gemini") {
             candidate.takeIf { Regex("^gemini[-A-Za-z0-9._]*$").matches(it) }
+                ?.let { DEPRECATED_GEMINI_MODELS[it] ?: it }
         } else {
             candidate.takeIf { Regex("^[A-Za-z0-9._/-]+$").matches(it) }
         }
@@ -3265,14 +3282,17 @@ User request: $prompt"""
             var usedModel = profile.model
             var result = runProfileQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
             var error = result.error
-            if (profile.provider == "gemini" && error != null && isUnavailableError(error)) {
+            if (profile.provider == "gemini" && error != null && isRetryableError(error)) {
                 failures += "$usedModel: $error"
-                for (fallback in FALLBACK_MODELS) {
-                    if (fallback == profile.model) continue
-                    usedModel = fallback
+                val dynamic = availableGeminiModels(profile.apiKey, force = true)
+                val candidates = (dynamic + FALLBACK_MODELS).distinct()
+                    .filter { it != profile.model }
+                    .take(4)
+                for (candidate in candidates) {
+                    usedModel = candidate
                     result = runProfileQuery(
                         prompt,
-                        profile.copy(model = fallback),
+                        profile.copy(model = candidate),
                         chartImageBase64,
                         minimal,
                         instructionOverride,
@@ -3282,7 +3302,7 @@ User request: $prompt"""
                         return result.copy(model = usedModel, attempts = index + 1)
                     }
                     failures += "$usedModel: $error"
-                    if (!isUnavailableError(error)) break
+                    if (!isRetryableError(error)) break
                 }
             } else {
                 if (error == null || error.startsWith("Blocked by API safety filter")) {
@@ -3299,11 +3319,61 @@ User request: $prompt"""
         )
     }
 
-    private fun isUnavailableError(error: String): Boolean {
+    private fun isRetryableError(error: String): Boolean {
         val lower = error.lowercase()
-        return "503" in lower || "unavailable" in lower ||
-            "high demand" in lower || "overloaded" in lower
+        return "503" in lower || "404" in lower || "unavailable" in lower ||
+            "high demand" in lower || "overloaded" in lower ||
+            "not found" in lower || "no longer available" in lower
     }
+
+    /** Ask Gemini which models are currently available, so retired names are never used. */
+    private fun availableGeminiModels(apiKey: String, force: Boolean = false): List<String> {
+        val now = System.currentTimeMillis()
+        val cached = geminiModelCache[apiKey]
+        if (!force && cached != null && now - cached.first < 10L * 60L * 1000L &&
+            cached.second.isNotEmpty()
+        ) {
+            return cached.second
+        }
+        return try {
+            val url = HttpUrl.Builder()
+                .scheme("https")
+                .host(API_HOST)
+                .addPathSegment("v1beta")
+                .addPathSegment("models")
+                .addQueryParameter("key", apiKey)
+                .build()
+            val request = Request.Builder().url(url).get().build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return cached?.second.orEmpty()
+                val models = JSONObject(response.body?.string().orEmpty())
+                    .optJSONArray("models") ?: return cached?.second.orEmpty()
+                val names = mutableListOf<String>()
+                for (index in 0 until models.length()) {
+                    val item = models.optJSONObject(index) ?: continue
+                    val name = item.optString("name").removePrefix("models/")
+                    if (!name.startsWith("gemini-")) continue
+                    val methods = item.optJSONArray("supportedMethods") ?: continue
+                    var supports = false
+                    for (methodIndex in 0 until methods.length()) {
+                        if (methods.optString(methodIndex) == "generateContent") supports = true
+                    }
+                    if (supports) names += name
+                }
+                val ranked = names.sortedWith(
+                    compareByDescending<String> { modelVersion(it) }
+                        .thenBy { if (it.contains("flash") && !it.contains("lite")) 0 else 1 },
+                )
+                geminiModelCache[apiKey] = now to ranked
+                ranked
+            }
+        } catch (_: Exception) {
+            cached?.second.orEmpty()
+        }
+    }
+
+    private fun modelVersion(name: String): Double =
+        Regex("(\\d+(?:\\.\\d+)?)").find(name)?.value?.toDoubleOrNull() ?: 0.0
 
     private fun runProfileQuery(
         prompt: String,
@@ -3312,7 +3382,7 @@ User request: $prompt"""
         minimal: Boolean = false,
         instructionOverride: String? = null,
     ): ApiResult = when (profile.provider) {
-        "openai", "openrouter", "groq", "together" ->
+        "openai", "openrouter", "groq", "together", "opencode" ->
             runOpenAiCompatibleQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
         "anthropic" ->
             runAnthropicQuery(prompt, profile, minimal, instructionOverride)
@@ -3478,6 +3548,12 @@ User request: $prompt"""
             client.newCall(request).execute().use { response ->
                 val raw = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
+                    if (response.code == 429 && profile.provider == "opencode") {
+                        return ApiResult(
+                            null,
+                            "OpenCode free models only work inside OpenCode. Add an OpenCode Console API key in Settings to use it here, or choose another provider.",
+                        )
+                    }
                     return ApiResult(null, "HTTP ${response.code} ${response.message}: ${raw.take(1500)}")
                 }
                 val json = JSONObject(raw)

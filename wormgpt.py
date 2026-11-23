@@ -23,8 +23,16 @@ import aiohttp
 
 # --- CONFIGURATION ---
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-MODEL = "gemini-3.1-flash-lite"
-FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+MODEL = "gemini-3.8-flash"
+FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.1-flash", "gemini-3.1-flash-lite"]
+DEPRECATED_GEMINI_MODELS = {
+    "gemini-2.5-flash": "gemini-3.8-flash",
+    "gemini-2.5-flash-lite": "gemini-3.8-flash",
+    "gemini-2.0-flash": "gemini-3.8-flash",
+    "gemini-2.0-flash-lite": "gemini-3.8-flash",
+    "gemini-1.5-flash": "gemini-3.8-flash",
+    "gemini-1.5-pro": "gemini-3.8-flash",
+}
 PROVIDER_ALIASES = {
     "gemini": "gemini", "google": "gemini",
     "openai": "openai", "chatgpt": "openai", "gpt": "openai",
@@ -32,6 +40,7 @@ PROVIDER_ALIASES = {
     "groq": "groq",
     "together": "together", "togetherai": "together",
     "anthropic": "anthropic", "claude": "anthropic",
+    "opencode": "opencode", "zen": "opencode",
 }
 PROVIDER_ENDPOINTS = {
     "openai": "https://api.openai.com/v1/chat/completions",
@@ -39,7 +48,9 @@ PROVIDER_ENDPOINTS = {
     "groq": "https://api.groq.com/openai/v1/chat/completions",
     "together": "https://api.together.xyz/v1/chat/completions",
     "anthropic": "https://api.anthropic.com/v1/messages",
+    "opencode": "https://opencode.ai/inference/openai/v1/chat/completions",
 }
+GEMINI_MODEL_CACHE: dict[str, tuple[float, list[str]]] = {}
 PROVIDER_DEFAULT_MODELS = {
     "gemini": MODEL,
     "openai": "gpt-4o-mini",
@@ -47,6 +58,7 @@ PROVIDER_DEFAULT_MODELS = {
     "groq": "llama-3.3-70b-versatile",
     "together": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     "anthropic": "claude-3-5-haiku-latest",
+    "opencode": "hy4-flash-free",
 }
 # No key is stored in source. Set WORMGPT_API_KEY before running.
 API_KEY = os.environ.get("WORMGPT_API_KEY", "")
@@ -253,7 +265,9 @@ def normalize_model(value: str, provider: str = "gemini") -> str | None:
     if not candidate or len(candidate) > 120 or looks_like_api_key(candidate):
         return None
     if provider == "gemini":
-        return candidate if re.fullmatch(r"gemini[-A-Za-z0-9._]*", candidate) else None
+        if not re.fullmatch(r"gemini[-A-Za-z0-9._]*", candidate):
+            return None
+        return DEPRECATED_GEMINI_MODELS.get(candidate, candidate)
     return candidate if re.fullmatch(r"[A-Za-z0-9._/-]+", candidate) else None
 
 
@@ -710,6 +724,43 @@ def safety_block_reason(data: dict) -> str:
     return ""
 
 
+async def fetch_gemini_models(api_key: str, force: bool = False) -> list[str]:
+    """Ask Gemini which models currently support generateContent."""
+    import re as _re
+    now = time.time()
+    cached = GEMINI_MODEL_CACHE.get(api_key)
+    if not force and cached and now - cached[0] < 600 and cached[1]:
+        return list(cached[1])
+    url = f"{API_URL}?{urlencode({'key': api_key})}"
+    try:
+        async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    return list(cached[1]) if cached else []
+                data = await response.json()
+    except Exception:
+        return list(cached[1]) if cached else []
+    names: list[str] = []
+    for item in data.get("models", []):
+        name = str(item.get("name", "")).removeprefix("models/")
+        if not name.startswith("gemini-"):
+            continue
+        if "generateContent" not in item.get("supportedMethods", []):
+            continue
+        names.append(name)
+
+    def version(value: str) -> float:
+        match = _re.search(r"(\d+(?:\.\d+)?)", value)
+        return float(match.group(1)) if match else 0.0
+
+    ranked = sorted(
+        names,
+        key=lambda name: (-version(name), 0 if "flash" in name and "lite" not in name else 1),
+    )
+    GEMINI_MODEL_CACHE[api_key] = (now, ranked)
+    return ranked
+
+
 async def runquery(
     user_input: str,
     on_status: Callable[[str], None],
@@ -746,8 +797,11 @@ async def runquery(
         async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
             for index, (provider, api_key, model) in enumerate(profiles, 1):
                 models_to_try = [model]
+                refreshed = False
                 if provider == "gemini":
-                    models_to_try += [alt for alt in FALLBACK_MODELS if alt != model]
+                    dynamic = await fetch_gemini_models(api_key)
+                    models_to_try += [alt for alt in dynamic if alt != model][:3]
+                    models_to_try += [alt for alt in FALLBACK_MODELS if alt not in models_to_try]
                 for attempt_model in models_to_try:
                     label = f"{provider}/{attempt_model}"
                     on_status(f"Trying {label} ({index}/{len(profiles)})")
@@ -793,9 +847,22 @@ async def runquery(
 
                         async with session.post(url, json=post_payload, headers=post_headers) as response:
                             if response.status != 200:
+                                if response.status == 429 and provider == "opencode":
+                                    failures.append(
+                                        "opencode: free models only work inside OpenCode; "
+                                        "add an OpenCode Console API key or use another provider"
+                                    )
+                                    break
                                 failures.append(
                                     f"{label}: HTTP {response.status}: {await response.text()}"
                                 )
+                                if response.status in (503, 404) and provider == "gemini" and not refreshed:
+                                    refreshed = True
+                                    dynamic = await fetch_gemini_models(api_key, force=True)
+                                    for extra in dynamic:
+                                        if extra not in models_to_try:
+                                            models_to_try.append(extra)
+                                    continue
                                 if response.status == 503:
                                     continue
                                 break

@@ -38,7 +38,7 @@ openrouter | sk-or-... | openai/gpt-4o-mini
 anthropic | sk-ant-... | claude-3-5-haiku-latest
 ```
 
-Supported providers: `gemini`, `openai` / `chatgpt`, `openrouter`, `groq`, `together`, and `anthropic` / `claude`. Shorthands: `KEY | MODEL` defaults to Gemini, a model-only line reuses the primary key, and a key-only line uses that provider's default model. Keys are never mistaken for model names. Keep this file private with `chmod 600 ~/.wormgpt_profiles`. `/model` lists configured providers and models without showing keys. Gemini profiles that return HTTP 503 / high demand automatically retry with `gemini-2.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-flash`.
+Supported providers: `gemini`, `openai` / `chatgpt`, `openrouter`, `groq`, `together`, `anthropic` / `claude`, and `opencode` / `zen`. OpenCode's free models only work inside OpenCode and return HTTP 429 from direct API calls; to use OpenCode here you need an OpenCode Console API key. Shorthands: `KEY | MODEL` defaults to Gemini, a model-only line reuses the primary key, and a key-only line uses that provider's default model. Keys are never mistaken for model names. Keep this file private with `chmod 600 ~/.wormgpt_profiles`. `/model` lists configured providers and models without showing keys. Gemini profiles query the model list at runtime and automatically pick currently available `generateContent` models; 503/404 responses trigger a refreshed model list, so retired model names are never used.
 
 The Android app uses the same profile format in Settings → **API PROFILES / FALLBACKS**.
 
