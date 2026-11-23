@@ -141,6 +141,7 @@ class MainActivity : AppCompatActivity() {
         const val OWNER_TELEGRAM = "https://t.me/+94724085416"
         const val REPO_URL = "https://github.com/wegalad-netizen/wormgpt2.1-test"
         const val API_HOST = "generativelanguage.googleapis.com"
+        const val MODEL = "gemini-3.1-flash-lite"
         val FALLBACK_MODELS = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
         val PROVIDER_ALIASES = mapOf(
             "gemini" to "gemini", "google" to "gemini",
@@ -165,7 +166,6 @@ class MainActivity : AppCompatActivity() {
             "together" to "https://api.together.xyz/v1/chat/completions",
             "anthropic" to "https://api.anthropic.com/v1/messages",
         )
-        const val MODEL = "gemini-3.1-flash-lite"
         const val MAX_API_PROFILES = 5
         const val RELEASE_API =
             "https://api.github.com/repos/wegalad-netizen/wormgpt2.1-test/releases/latest"
