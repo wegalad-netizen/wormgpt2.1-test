@@ -55,9 +55,11 @@ import android.widget.Button
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.HorizontalScrollView
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.Switch
@@ -175,8 +177,12 @@ Scope:
     private lateinit var chatMessages: LinearLayout
     private lateinit var jumpLatestButton: Button
     private val chatHistory = mutableListOf<ChatMessage>()
-    private var typingView: TextView? = null
+    private var typingView: View? = null
     private var typingAnimator: ValueAnimator? = null
+    private val typingDots = mutableListOf<TextView>()
+    private lateinit var chatBusyBar: ProgressBar
+    private lateinit var chatSignalLine: View
+    private lateinit var quickPrompts: HorizontalScrollView
     private var isBusy = false
     private var restoringChat = false
     private var stickToBottom = true
@@ -339,6 +345,9 @@ Scope:
         chatScroll = findViewById(R.id.chatScroll)
         chatMessages = findViewById(R.id.chatMessages)
         jumpLatestButton = findViewById(R.id.jumpLatestButton)
+        chatBusyBar = findViewById(R.id.chatBusyBar)
+        chatSignalLine = findViewById(R.id.chatSignalLine)
+        quickPrompts = findViewById(R.id.quickPrompts)
         jumpLatestButton.setOnClickListener {
             stickToBottom = true
             updateJumpLatestButton()
@@ -377,6 +386,7 @@ Scope:
             }
         })
         updateSendButtonState()
+        updateQuickPrompts()
         cryptoSymbolSpinner = findViewById(R.id.cryptoSymbolSpinner)
         cryptoSymbolSpinner.adapter = ArrayAdapter(
             this,
@@ -561,6 +571,21 @@ Scope:
         findViewById<Button>(R.id.saveButton).setOnClickListener { saveTranscript() }
         findViewById<Button>(R.id.clearButton).setOnClickListener { clearChat() }
         findViewById<Button>(R.id.retryButton).setOnClickListener { retryLastPrompt() }
+        findViewById<Button>(R.id.quickPromptLink).setOnClickListener {
+            useQuickPrompt(
+                "Review this URL for phishing and safety signals: ",
+                focusForTyping = true,
+            )
+        }
+        findViewById<Button>(R.id.quickPromptCode).setOnClickListener {
+            useQuickPrompt("Review this code for security issues:\n", focusForTyping = true)
+        }
+        findViewById<Button>(R.id.quickPromptThreat).setOnClickListener {
+            useQuickPrompt(
+                "Give me a concise threat brief for a security researcher, with practical next steps.",
+                focusForTyping = false,
+            )
+        }
         findViewById<Button>(R.id.securityToolsButton).setOnClickListener { showSecurityTools() }
         findViewById<Button>(R.id.blocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.spamLogButton).setOnClickListener { showSpamLogDialog() }
@@ -2268,6 +2293,7 @@ Scope:
         promptInput.text?.clear()
         val context = conversationContext()
         appendChat("\n\nMaster ❯ $prompt${if (chartUri != null) " [chart screenshot attached]" else ""}")
+        pulseSendButton()
         setBusy(true)
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -3523,12 +3549,23 @@ User request: $prompt"""
             hideTypingIndicator()
             updateSendButtonState()
         }
+        chatBusyBar.visibility = if (busy) View.VISIBLE else View.GONE
+        updateChatStatus()
+    }
+
+    private fun updateChatStatus() {
+        if (!::chatBusyBar.isInitialized) return
         val status = findViewById<TextView>(R.id.chatStatus)
-        status.text = if (busy) "SECURE CHANNEL · THINKING" else "SECURE CHANNEL · READY"
+        val count = chatHistory.count { it.role == "user" || it.role == "ai" }
+        status.text = if (isBusy) {
+            "SECURE CHANNEL · THINKING"
+        } else {
+            "SECURE CHANNEL · READY · $count MSG"
+        }
         status.setTextColor(
             ContextCompat.getColor(
                 this,
-                if (busy) R.color.sentinal_amber else R.color.sentinal_cyan,
+                if (isBusy) R.color.sentinal_amber else R.color.sentinal_cyan,
             ),
         )
     }
@@ -3812,6 +3849,7 @@ User request: $prompt"""
             stickToBottom = true
             updateJumpLatestButton()
         }
+        if (role == "ai") pulseChatSignal()
         addChatMessage(ChatMessage(role, clean, colorRes), animate = true)
     }
 
@@ -3825,11 +3863,13 @@ User request: $prompt"""
             scrollChatToBottom()
         }
         persistChatState()
+        updateChatStatus()
+        updateQuickPrompts()
     }
 
     private fun createChatBubble(message: ChatMessage): View {
         val formatted = formattedChatText(message.text, message.colorRes)
-        return when (message.role) {
+        val bubble = when (message.role) {
             "system" -> TextView(this).apply {
                 text = formatted
                 setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
@@ -3882,6 +3922,16 @@ User request: $prompt"""
                 }
             }
         }
+        bubble.isLongClickable = true
+        bubble.setOnLongClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(
+                ClipData.newPlainText("Sentinal Security message", message.text),
+            )
+            Toast.makeText(this, "Message copied.", Toast.LENGTH_SHORT).show()
+            true
+        }
+        return bubble
     }
 
     private fun formattedChatText(text: String, colorRes: Int?): SpannableString {
@@ -3932,18 +3982,36 @@ User request: $prompt"""
         if (!animationsEnabled()) return
         view.animate().cancel()
         view.alpha = 0f
-        view.translationY = dp(10).toFloat()
+        view.scaleX = 0.97f
+        view.scaleY = 0.97f
+        view.translationY = dp(14).toFloat()
         view.translationX = when (role) {
-            "user" -> dp(14).toFloat()
-            "welcome", "ai", "report" -> -dp(10).toFloat()
+            "user" -> dp(16).toFloat()
+            "welcome", "ai", "report" -> -dp(12).toFloat()
             else -> 0f
         }
         view.animate()
             .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
             .translationY(0f)
             .translationX(0f)
-            .setDuration(240L)
-            .setInterpolator(DecelerateInterpolator())
+            .setStartDelay(if (role == "ai") 60L else 0L)
+            .setDuration(300L)
+            .setInterpolator(
+                if (role == "user" || role == "ai") {
+                    OvershootInterpolator(0.9f)
+                } else {
+                    DecelerateInterpolator()
+                },
+            )
+            .withEndAction {
+                view.alpha = 1f
+                view.scaleX = 1f
+                view.scaleY = 1f
+                view.translationX = 0f
+                view.translationY = 0f
+            }
             .start()
     }
 
@@ -4039,10 +4107,9 @@ User request: $prompt"""
     private fun showTypingIndicator() {
         if (!::chatMessages.isInitialized) return
         hideTypingIndicator()
-        val bubble = TextView(this).apply {
-            text = "SENTINAL is thinking"
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
-            textSize = 11f
+        val bubble = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(13), dp(9), dp(13), dp(9))
             setBackgroundResource(R.drawable.chat_bubble_ai)
             layoutParams = LinearLayout.LayoutParams(
@@ -4055,19 +4122,41 @@ User request: $prompt"""
             }
             alpha = 0f
         }
+        bubble.addView(
+            TextView(this).apply {
+                text = "SENTINAL"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+                textSize = 11f
+                setPadding(0, 0, dp(8), 0)
+            },
+        )
+        typingDots.clear()
+        repeat(3) { index ->
+            TextView(this).apply {
+                text = "●"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+                textSize = 11f
+                contentDescription = "Thinking"
+                setPadding(dp(2), 0, dp(2), 0)
+                bubble.addView(this)
+                typingDots += this
+                if (!animationsEnabled()) alpha = 0.4f + index * 0.2f
+            }
+        }
         chatMessages.addView(bubble)
         typingView = bubble
         bubble.animate().alpha(1f).setDuration(180L).start()
-        if (!animationsEnabled()) {
-            bubble.text = "SENTINAL is thinking…"
-        } else {
-            typingAnimator = ValueAnimator.ofInt(0, 4).apply {
-                duration = 1400
+        if (animationsEnabled()) {
+            typingAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 900L
                 repeatCount = ValueAnimator.INFINITE
-                interpolator = AccelerateDecelerateInterpolator()
                 addUpdateListener { animator ->
-                    val dots = (animator.animatedValue as Int).coerceIn(0, 3)
-                    bubble.text = "SENTINAL is thinking" + ".".repeat(dots)
+                    val progress = animator.animatedValue as Float
+                    typingDots.forEachIndexed { index, dot ->
+                        val wave = (Math.sin(progress * 2 * Math.PI - index * 0.8) + 1.0) / 2.0
+                        dot.translationY = -(wave.toFloat() * dp(5))
+                        dot.alpha = 0.35f + wave.toFloat() * 0.65f
+                    }
                 }
                 start()
             }
@@ -4078,6 +4167,8 @@ User request: $prompt"""
     private fun hideTypingIndicator() {
         typingAnimator?.cancel()
         typingAnimator = null
+        typingDots.forEach { it.animate().cancel() }
+        typingDots.clear()
         val view = typingView ?: return
         typingView = null
         view.animate().cancel()
@@ -4094,6 +4185,80 @@ User request: $prompt"""
                 if (stickToBottom) chatScroll.fullScroll(ScrollView.FOCUS_DOWN)
             }, 80)
         }
+    }
+
+    private fun updateQuickPrompts() {
+        if (!::quickPrompts.isInitialized) return
+        val show = chatHistory.none { it.role == "user" }
+        if (show) {
+            if (quickPrompts.visibility == View.VISIBLE) return
+            quickPrompts.alpha = if (animationsEnabled()) 0f else 1f
+            quickPrompts.visibility = View.VISIBLE
+            if (animationsEnabled()) {
+                quickPrompts.animate().alpha(1f).setDuration(220L).start()
+            }
+        } else {
+            if (quickPrompts.visibility == View.GONE) return
+            if (!animationsEnabled()) {
+                quickPrompts.visibility = View.GONE
+                quickPrompts.alpha = 0f
+                return
+            }
+            quickPrompts.animate().alpha(0f).setDuration(140L).withEndAction {
+                quickPrompts.visibility = View.GONE
+                quickPrompts.alpha = 0f
+            }.start()
+        }
+    }
+
+    private fun useQuickPrompt(text: String, focusForTyping: Boolean) {
+        if (!::promptInput.isInitialized) return
+        promptInput.setText(text)
+        promptInput.setSelection(text.length)
+        updateSendButtonState()
+        if (focusForTyping) {
+            focusPrompt()
+        } else {
+            stickToBottom = true
+            updateJumpLatestButton()
+            sendPrompt()
+        }
+    }
+
+    private fun pulseChatSignal() {
+        if (!::chatSignalLine.isInitialized || !animationsEnabled()) return
+        chatSignalLine.animate().cancel()
+        chatSignalLine.alpha = 0f
+        chatSignalLine.scaleX = 0f
+        chatSignalLine.animate()
+            .scaleX(1f)
+            .alpha(1f)
+            .setDuration(260L)
+            .withEndAction {
+                chatSignalLine.animate().alpha(0f).setDuration(520L).start()
+            }
+            .start()
+    }
+
+    private fun pulseSendButton() {
+        if (!animationsEnabled()) return
+        val button = findViewById<Button>(R.id.sendButton)
+        button.animate().cancel()
+        button.scaleX = 1f
+        button.scaleY = 1f
+        button.animate()
+            .scaleX(1.1f)
+            .scaleY(1.1f)
+            .setDuration(90L)
+            .withEndAction {
+                button.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(190L)
+                    .setInterpolator(OvershootInterpolator(1.4f))
+                    .start()
+            }
+            .start()
     }
 
     private fun updateJumpLatestButton() {
