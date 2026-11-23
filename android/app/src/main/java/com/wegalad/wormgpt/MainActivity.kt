@@ -213,6 +213,10 @@ Rules:
     private var currentPage: String? = null
     private var dashboardEntrancePlayed = false
     private lateinit var guardStatus: TextView
+    private lateinit var securityGauge: SecurityGaugeView
+    private lateinit var securityScoreText: TextView
+    private lateinit var navIndicator: View
+    private var scoreCountAnimator: ValueAnimator? = null
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
     private lateinit var operatorSpamSwitch: Switch
@@ -434,6 +438,9 @@ Rules:
         virusTotalKeyInput.setText(prefs.getString(KEY_VIRUSTOTAL, "").orEmpty())
 
         guardStatus = findViewById(R.id.guardStatus)
+        securityGauge = findViewById(R.id.securityGaugeView)
+        securityScoreText = findViewById(R.id.securityScoreText)
+        navIndicator = findViewById(R.id.navIndicator)
         keywordSwitch = findViewById(R.id.keywordSwitch)
         unknownSwitch = findViewById(R.id.unknownSwitch)
         operatorSpamSwitch = findViewById(R.id.operatorSpamSwitch)
@@ -710,6 +717,8 @@ Rules:
         hideTypingIndicator()
         typingAnimator?.cancel()
         typingAnimator = null
+        scoreCountAnimator?.cancel()
+        scoreCountAnimator = null
         backgroundPulseAnimator?.cancel()
         backgroundPulseAnimator = null
         netJob?.cancel()
@@ -1277,6 +1286,8 @@ Rules:
             ),
         )
 
+        updateSecurityScore(callOn, smsOn, hideOn, otpOn, notifOn)
+
         if (::callGuardSwitch.isInitialized) {
             syncingGuardSwitches = true
             callGuardSwitch.isChecked = callOn
@@ -1336,6 +1347,7 @@ Rules:
         }
 
         val nav = findViewById<Button>(selected)
+        moveNavIndicator(nav)
         if (animationsEnabled()) {
             nav.animate().cancel()
             nav.animate()
@@ -1351,6 +1363,30 @@ Rules:
                         .setInterpolator(OvershootInterpolator(1.2f))
                         .start()
                 }
+                .start()
+        }
+    }
+
+    private fun moveNavIndicator(nav: View) {
+        if (!::navIndicator.isInitialized) return
+        nav.post {
+            val width = nav.width
+            if (width <= 0) return@post
+            val params = navIndicator.layoutParams
+            if (params.width != width) {
+                params.width = width
+                navIndicator.layoutParams = params
+            }
+            val targetX = nav.left.toFloat()
+            if (!animationsEnabled()) {
+                navIndicator.translationX = targetX
+                return@post
+            }
+            navIndicator.animate().cancel()
+            navIndicator.animate()
+                .translationX(targetX)
+                .setDuration(220L)
+                .setInterpolator(DecelerateInterpolator())
                 .start()
         }
     }
@@ -1399,6 +1435,53 @@ Rules:
                 .setDuration(330L)
                 .setInterpolator(DecelerateInterpolator())
                 .start()
+        }
+    }
+
+    private fun updateSecurityScore(
+        callOn: Boolean,
+        smsOn: Boolean,
+        hideOn: Boolean,
+        otpOn: Boolean,
+        notifOn: Boolean,
+    ) {
+        if (!::securityGauge.isInitialized) return
+        var score = 0
+        if (callOn) score += 30
+        if (smsOn) score += 25
+        if (hideOn) score += 15
+        if (otpOn) score += 10
+        if (notifOn) score += 10
+        if (readApiProfiles().isNotEmpty()) score += 10
+        securityGauge.setScore(score)
+        scoreCountAnimator?.cancel()
+        if (animationsEnabled()) {
+            val current = securityScoreText.text.toString().toIntOrNull() ?: 0
+            scoreCountAnimator = ValueAnimator.ofInt(current, score).apply {
+                duration = 900L
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { animator ->
+                    securityScoreText.text = (animator.animatedValue as Int).toString()
+                }
+                start()
+            }
+        } else {
+            securityScoreText.text = score.toString()
+        }
+        securityScoreText.setTextColor(
+            ContextCompat.getColor(
+                this,
+                when {
+                    score >= 80 -> R.color.sentinal_emerald
+                    score >= 50 -> R.color.sentinal_amber
+                    else -> R.color.sentinal_red_bright
+                },
+            ),
+        )
+        findViewById<TextView>(R.id.securityScoreHint)?.text = when {
+            score >= 80 -> "Strong local protection posture"
+            score >= 50 -> "Partial protection — finish setup to raise the score"
+            else -> "Action needed — enable guards and grant permissions"
         }
     }
 

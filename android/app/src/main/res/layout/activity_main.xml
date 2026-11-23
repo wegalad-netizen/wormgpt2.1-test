@@ -180,39 +180,42 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <FrameLayout
-                            android:layout_width="132dp"
-                            android:layout_height="132dp">
-                            <View
+                            android:layout_width="148dp"
+                            android:layout_height="148dp">
+                            <com.wegalad.wormgpt.SecurityGaugeView
+                                android:id="@+id/securityGaugeView"
                                 android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:background="@drawable/security_gauge_bg" />
+                                android:layout_height="match_parent" />
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:gravity="center"
                                 android:orientation="vertical">
                                 <TextView
+                                    android:id="@+id/securityScoreText"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="⌁"
-                                    android:textColor="@color/sentinal_cyan"
-                                    android:textSize="38sp"
+                                    android:text="0"
+                                    android:textColor="@color/sentinal_text"
+                                    android:textSize="34sp"
                                     android:textStyle="bold" />
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="LOCAL GUARD"
-                                    android:textColor="@color/sentinal_text"
-                                    android:textSize="10sp"
+                                    android:letterSpacing="0.1"
+                                    android:text="PROTECTION"
+                                    android:textColor="@color/sentinal_cyan"
+                                    android:textSize="9sp"
                                     android:textStyle="bold" />
                             </LinearLayout>
                         </FrameLayout>
                         <TextView
+                            android:id="@+id/securityScoreHint"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:paddingTop="10dp"
-                            android:text="Call and message protection status"
+                            android:text="Score from local guards, permissions, and setup"
                             android:textColor="@color/sentinal_muted"
                             android:textSize="12sp" />
                         <Button
@@ -599,20 +602,30 @@
             </ScrollView>
         </FrameLayout>
 
-        <LinearLayout
-            android:id="@+id/bottomNavigation"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="58dp"
             android:layout_marginTop="6dp"
-            android:background="@drawable/card_bg"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingHorizontal="4dp">
-            <Button android:id="@+id/navDashboard" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="HOME" android:textColor="@color/sentinal_cyan" />
-            <Button android:id="@+id/navChat" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="CHAT" />
-            <Button android:id="@+id/navTools" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="TOOLS" />
-            <Button android:id="@+id/navSettings" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="SETTINGS" />
-        </LinearLayout>
+            android:background="@drawable/card_bg">
+            <LinearLayout
+                android:id="@+id/bottomNavigation"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="4dp">
+                <Button android:id="@+id/navDashboard" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="HOME" android:textColor="@color/sentinal_cyan" />
+                <Button android:id="@+id/navChat" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="CHAT" />
+                <Button android:id="@+id/navTools" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="TOOLS" />
+                <Button android:id="@+id/navSettings" style="@style/SentinalButton.Ghost" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="SETTINGS" />
+            </LinearLayout>
+            <View
+                android:id="@+id/navIndicator"
+                android:layout_width="0dp"
+                android:layout_height="3dp"
+                android:layout_gravity="bottom"
+                android:background="@color/sentinal_cyan" />
+        </FrameLayout>
     </LinearLayout>
 
     <!-- SETTINGS DRAWER (sidebar style) -->

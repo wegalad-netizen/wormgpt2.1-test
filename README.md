@@ -73,6 +73,13 @@ Both the Android app and the terminal UI can run an auto-improvement research pa
 
 Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable the Settings switch to run automatically at most once per day. Terminal: run `improve`.
 
+### Dashboard and navigation polish
+
+- Animated protection-score gauge with tick marks, breathing glow, and scanner sweep
+- Score counts up and changes colour as guards/permissions/setup improve
+- Sliding bottom-navigation indicator between Home / Chat / Tools
+- Staggered dashboard card entrance and reduced-motion support
+
 ## Commands
 
 - `exit`, `quit`, `q` — leave the app
