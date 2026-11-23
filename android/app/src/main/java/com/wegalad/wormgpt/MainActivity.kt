@@ -45,6 +45,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.AdapterView
@@ -52,7 +53,6 @@ import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
@@ -180,6 +180,9 @@ Scope:
     private lateinit var virusTotalKeyInput: EditText
     private lateinit var pulseBackground: GradientDrawable
     private var backgroundPulseAnimator: ValueAnimator? = null
+    private var busyPulseAnimator: ValueAnimator? = null
+    private var currentPage: String? = null
+    private var dashboardEntrancePlayed = false
     private lateinit var guardStatus: TextView
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
@@ -533,6 +536,28 @@ Scope:
         findViewById<View>(R.id.fileToolCard).setOnClickListener { chooseReputationFile.launch("*/*") }
         findViewById<View>(R.id.messageToolCard).setOnClickListener { showPhishingReview() }
 
+        listOf(
+            R.id.navDashboard,
+            R.id.navChat,
+            R.id.navTools,
+            R.id.navSettings,
+            R.id.sendButton,
+            R.id.quickCheckButton,
+            R.id.updateButton,
+            R.id.securityToolsButton,
+            R.id.toolsQuarantineButton,
+            R.id.toolsBlocklistButton,
+            R.id.toolsReportButton,
+            R.id.ownerButton,
+            R.id.brandRow,
+            R.id.linkToolCard,
+            R.id.passwordToolCard,
+            R.id.fileToolCard,
+            R.id.messageToolCard,
+            R.id.homeCryptoButton,
+            R.id.refreshCryptoButton,
+        ).forEach { id -> applyPressFeedback(findViewById(id)) }
+
         val waInput = findViewById<EditText>(R.id.waNumberInput)
         waInput.setText(prefs.getString(KEY_WA_NUMBER, "").orEmpty())
         findViewById<Button>(R.id.waStatusButton).setOnClickListener { openWhatsAppStatus() }
@@ -560,12 +585,14 @@ Scope:
 
     override fun onResume() {
         super.onResume()
+        busyPulseAnimator?.resume()
         updateGuardStatus()
         startNetMonitor()
         if (::cryptoSymbolSpinner.isInitialized) startCryptoAutoRefresh()
     }
 
     override fun onPause() {
+        busyPulseAnimator?.pause()
         cryptoAutoRefreshJob?.cancel()
         cryptoRefreshJob?.cancel()
         stopNetMonitor()
@@ -585,6 +612,12 @@ Scope:
 
     override fun onDestroy() {
         stopJarvisVoice()
+        stopBusyPulse()
+        backgroundPulseAnimator?.cancel()
+        backgroundPulseAnimator = null
+        netJob?.cancel()
+        cryptoAutoRefreshJob?.cancel()
+        cryptoRefreshJob?.cancel()
         uiSoundPool?.release()
         uiSoundPool = null
         uiClickSoundReady = false
@@ -654,6 +687,7 @@ Scope:
     }
 
     private fun playLaunchAnimation() {
+        if (!animationsEnabled()) return
         val root = window.decorView as? ViewGroup ?: return
         val overlay = FrameLayout(this).apply {
             setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_bg))
@@ -661,10 +695,8 @@ Scope:
             isFocusable = true
             elevation = dp(24).toFloat()
         }
-        val logo = ImageView(this).apply {
-            setImageResource(R.drawable.security_shield_icon)
-            contentDescription = "Sentinal Security logo"
-            scaleType = ImageView.ScaleType.FIT_CENTER
+        val logo = OwnerBadgeView(this).apply {
+            contentDescription = "Sentinal Security seal"
             alpha = 0f
             scaleX = 0.55f
             scaleY = 0.55f
@@ -895,7 +927,6 @@ Scope:
             "WhatsApp" to Pair(OWNER_WHATSAPP, "+94 70 534 5029"),
             "Telegram" to Pair(OWNER_TELEGRAM, "+94 72 408 5416"),
         )
-        val socialRows = mutableListOf<TextView>()
         profiles.forEach { (platform, link) ->
             val url = link.first
             val row = TextView(this).apply {
@@ -936,7 +967,6 @@ Scope:
                 row,
                 LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) },
             )
-            socialRows += row
         }
 
         // ---- Security tools: quarantine, blocklist, alerts log, report ----
@@ -1019,20 +1049,27 @@ Scope:
             .setPositiveButton("DONE", null)
             .create()
         dialog.setOnShowListener {
-            socialRows.forEachIndexed { i, row ->
-                ValueAnimator.ofFloat(0f, 1f).apply {
-                    duration = 300
-                    startDelay = (i * 130).toLong()
-                    interpolator = AccelerateDecelerateInterpolator()
-                    addUpdateListener { a ->
-                        val value = a.animatedValue as Float
-                        row.alpha = value
-                        row.translationY = (1f - value) * dp(8).toFloat()
-                    }
-                    start()
+            val animate = animationsEnabled()
+            for (index in 0 until content.childCount) {
+                val child = content.getChildAt(index)
+                if (!animate) {
+                    child.alpha = 1f
+                    child.translationY = 0f
+                } else {
+                    child.animate().cancel()
+                    child.alpha = 0f
+                    child.translationY = dp(10).toFloat()
+                    child.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setStartDelay((index * 45).toLong())
+                        .setDuration(320L)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
                 }
             }
         }
+        dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
         dialog.show()
     }
 
@@ -1171,9 +1208,14 @@ Scope:
     }
 
     private fun showMainPage(page: String) {
-        findViewById<View>(R.id.dashboardScreen).visibility = if (page == "dashboard") View.VISIBLE else View.GONE
-        findViewById<View>(R.id.chatScreen).visibility = if (page == "chat") View.VISIBLE else View.GONE
-        findViewById<View>(R.id.toolsScreen).visibility = if (page == "tools") View.VISIBLE else View.GONE
+        val targetId = when (page) {
+            "chat" -> R.id.chatScreen
+            "tools" -> R.id.toolsScreen
+            else -> R.id.dashboardScreen
+        }
+        listOf(R.id.dashboardScreen, R.id.chatScreen, R.id.toolsScreen).forEach { id ->
+            findViewById<View>(id).visibility = if (id == targetId) View.VISIBLE else View.GONE
+        }
         val selected = when (page) {
             "chat" -> R.id.navChat
             "tools" -> R.id.navTools
@@ -1185,6 +1227,82 @@ Scope:
             )
         }
         if (page == "chat") promptInput.clearFocus()
+
+        val target = findViewById<View>(targetId)
+        if (currentPage != page) {
+            if (currentPage != null) {
+                target.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+            }
+            fadeInPage(target)
+            if (page == "dashboard") playDashboardEntrance()
+            currentPage = page
+        }
+
+        val nav = findViewById<Button>(selected)
+        if (animationsEnabled()) {
+            nav.animate().cancel()
+            nav.animate()
+                .scaleX(1.10f)
+                .scaleY(1.10f)
+                .setDuration(110L)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    nav.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(200L)
+                        .setInterpolator(OvershootInterpolator(1.2f))
+                        .start()
+                }
+                .start()
+        }
+    }
+
+    /** Respect the system animation scale (accessibility / battery saver). */
+    private fun animationsEnabled(): Boolean =
+        Settings.Global.getFloat(
+            contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) > 0f
+
+    private fun fadeInPage(view: View) {
+        view.animate().cancel()
+        if (!animationsEnabled()) {
+            view.alpha = 1f
+            view.translationY = 0f
+            return
+        }
+        view.alpha = 0f
+        view.translationY = dp(12).toFloat()
+        view.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(280L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+    }
+
+    /** One-time staggered reveal of the dashboard cards. */
+    private fun playDashboardEntrance() {
+        if (dashboardEntrancePlayed) return
+        dashboardEntrancePlayed = true
+        if (!animationsEnabled()) return
+        val dashboard = findViewById<ScrollView>(R.id.dashboardScreen)
+        val container = dashboard.getChildAt(0) as? ViewGroup ?: return
+        for (index in 0 until container.childCount) {
+            val child = container.getChildAt(index)
+            child.animate().cancel()
+            child.alpha = 0f
+            child.translationY = dp(14).toFloat()
+            child.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(70L + index * 45L)
+                .setDuration(330L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
     }
 
     private fun showDashboardQuickCheck() {
@@ -1947,6 +2065,58 @@ Scope:
                     .start()
             }
             .start()
+    }
+
+    /** Subtle press-scale feedback that never consumes the touch event. */
+    private fun applyPressFeedback(view: View) {
+        view.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    if (animationsEnabled()) {
+                        v.animate().cancel()
+                        v.animate()
+                            .scaleX(0.96f)
+                            .scaleY(0.96f)
+                            .setDuration(70L)
+                            .setInterpolator(DecelerateInterpolator())
+                            .start()
+                    }
+                }
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    v.animate().cancel()
+                    v.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(170L)
+                        .setInterpolator(OvershootInterpolator(1.2f))
+                        .start()
+                }
+            }
+            false
+        }
+    }
+
+    private fun startBusyPulse() {
+        stopBusyPulse()
+        if (!animationsEnabled() || !::promptInput.isInitialized) return
+        val send = findViewById<Button>(R.id.sendButton)
+        busyPulseAnimator = ValueAnimator.ofFloat(1f, 0.55f).apply {
+            duration = 620
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { animator -> send.alpha = animator.animatedValue as Float }
+            start()
+        }
+    }
+
+    private fun stopBusyPulse() {
+        busyPulseAnimator?.cancel()
+        busyPulseAnimator = null
+        if (::promptInput.isInitialized) {
+            findViewById<Button>(R.id.sendButton).alpha = 1f
+        }
     }
 
     private fun readApiProfiles(): List<ApiProfile> {
@@ -3238,14 +3408,25 @@ User request: $prompt"""
         ).forEach { id ->
             findViewById<Button>(id).isEnabled = !busy
         }
+        if (busy) startBusyPulse() else stopBusyPulse()
     }
 
     private fun checkForUpdate(manual: Boolean) {
+        if (manual) {
+            Toast.makeText(this, "Checking for updates…", Toast.LENGTH_SHORT).show()
+        }
         lifecycleScope.launch(Dispatchers.IO) {
             val info = fetchLatestRelease()
             withContext(Dispatchers.Main) {
                 if (info == null) {
-                    if (manual) appendChat("\n\n[*] Could not check for updates.")
+                    if (manual) {
+                        appendChat("\n\n[*] Could not check for updates.")
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Could not check for updates. Check your connection.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
                     return@withContext
                 }
 
@@ -3260,7 +3441,14 @@ User request: $prompt"""
                 }
 
                 if (!updateAvailable) {
-                    if (manual) appendChat("\n\n[*] You are on the latest build.")
+                    if (manual) {
+                        appendChat("\n\n[*] You are on the latest build.")
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Sentinal Security is up to date.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
                     return@withContext
                 }
 
@@ -3277,13 +3465,14 @@ User request: $prompt"""
                     return@withContext
                 }
 
-                AlertDialog.Builder(this@MainActivity)
+                val dialog = AlertDialog.Builder(this@MainActivity)
                     .setTitle("Sentinal Security update")
                     .setMessage(
                         buildString {
-                            append("A new build (")
+                            append("Installed build: ").append(installedCode).append("\n")
+                            append("New build: ")
                                 .append(if (info.versionCode > 0) info.versionCode else "unknown")
-                                .append(") is available.\n")
+                                .append("\n")
                             if (info.notes.isNotBlank()) {
                                 append("\nWhat's new:\n").append(info.notes.take(500)).append("\n")
                             }
@@ -3296,7 +3485,9 @@ User request: $prompt"""
                     .setNegativeButton("Later") { _, _ ->
                         prefs.edit().putString(KEY_SKIPPED_RELEASE, info.id).apply()
                     }
-                    .show()
+                    .create()
+                dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+                dialog.show()
             }
         }
     }
@@ -3311,7 +3502,7 @@ User request: $prompt"""
         }
     }
 
-    private fun fetchLatestRelease(): UpdateInfo? {
+    private fun fetchLatestRelease(attempt: Int = 1): UpdateInfo? {
         return try {
             val request = Request.Builder()
                 .url(RELEASE_API)
@@ -3344,7 +3535,16 @@ User request: $prompt"""
                 if (downloadUrl.isEmpty()) null else UpdateInfo(id, downloadUrl, versionCode, notes)
             }
         } catch (_: Exception) {
-            null
+            if (attempt < 3) {
+                try {
+                    Thread.sleep(900L * attempt)
+                } catch (_: InterruptedException) {
+                    return null
+                }
+                fetchLatestRelease(attempt + 1)
+            } else {
+                null
+            }
         }
     }
 
@@ -3352,15 +3552,28 @@ User request: $prompt"""
         lifecycleScope.launch(Dispatchers.IO) {
             val progress = withContext(Dispatchers.Main) {
                 ProgressDialog(this@MainActivity).apply {
-                    isIndeterminate = true
                     setTitle("SENTINAL SECURITY UPDATE")
                     setMessage("Downloading build ${info.versionCode}…")
+                    setIndeterminate(false)
+                    setMax(100)
+                    setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
+                    setProgress(0)
                     setCancelable(false)
-                }.also { it.show() }
+                }.also {
+                    it.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+                    it.show()
+                }
             }
             try {
                 val file = File(getExternalFilesDir(null) ?: filesDir, "sentinal-update.apk")
-                downloadUpdateApk(info.downloadUrl, file)
+                downloadUpdateApk(info.downloadUrl, file) { percent ->
+                    runOnUiThread {
+                        if (!isFinishing && !isDestroyed && progress.isShowing) {
+                            progress.progress = percent
+                            progress.setMessage("Downloading build ${info.versionCode}… $percent%")
+                        }
+                    }
+                }
 
                 withContext(Dispatchers.Main) {
                     progress.dismiss()
@@ -3382,12 +3595,21 @@ User request: $prompt"""
                 withContext(Dispatchers.Main) {
                     progress.dismiss()
                     appendChat("\n\n[x] Update failed: ${e.message}")
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Update failed: ${e.message ?: "unknown error"}",
+                        Toast.LENGTH_LONG,
+                    ).show()
                 }
             }
         }
     }
 
-    private fun downloadUpdateApk(url: String, destination: File) {
+    private fun downloadUpdateApk(
+        url: String,
+        destination: File,
+        onProgress: (Int) -> Unit = {},
+    ) {
         val partial = File(destination.parentFile, "${destination.name}.part")
         var lastError: Exception? = null
 
@@ -3403,9 +3625,26 @@ User request: $prompt"""
                     if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
                     val body = response.body ?: throw IOException("Empty response")
                     val expectedLength = body.contentLength()
-                    val copied = body.byteStream().use { source ->
+                    var copied = 0L
+                    var lastPercent = -1
+                    body.byteStream().use { source ->
                         partial.outputStream().buffered().use { target ->
-                            source.copyTo(target)
+                            val buffer = ByteArray(16 * 1024)
+                            while (true) {
+                                val read = source.read(buffer)
+                                if (read < 0) break
+                                target.write(buffer, 0, read)
+                                copied += read
+                                if (expectedLength > 0) {
+                                    val percent = ((copied * 100L) / expectedLength)
+                                        .toInt()
+                                        .coerceIn(0, 100)
+                                    if (percent != lastPercent) {
+                                        lastPercent = percent
+                                        onProgress(percent)
+                                    }
+                                }
+                            }
                         }
                     }
                     if (copied == 0L || (expectedLength >= 0 && copied != expectedLength)) {

@@ -13,6 +13,11 @@
         <item name="android:navigationBarColor">@color/sentinal_bg</item>
     </style>
 
+    <style name="SentinalDialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/dialog_enter</item>
+        <item name="android:windowExitAnimation">@anim/dialog_exit</item>
+    </style>
+
     <style name="SentinalButton" parent="Widget.AppCompat.Button">
         <item name="android:background">@drawable/pill_cyan</item>
         <item name="android:textColor">#FFFFFF</item>
