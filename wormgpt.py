@@ -93,6 +93,7 @@ HOME_DIR = os.path.expanduser("~")
 COPY_FILE = os.path.join(HOME_DIR, "wormgpt_last_response.txt")
 HISTORY_FILE = os.path.join(HOME_DIR, "wormgpt_history.txt")
 SESSION_FILE = os.path.join(HOME_DIR, "wormgpt_sessions.json")
+MODEL_STATS_FILE = os.path.join(HOME_DIR, ".wormgpt_model_stats.json")
 CODE_BLOCK_DIR = os.path.join(HOME_DIR, "wormgpt_code_blocks")
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=60)
 WELCOME_TEXT = "Welcome, Master."
@@ -783,6 +784,52 @@ async def fetch_gemini_models(api_key: str, force: bool = False) -> list[str]:
     return ranked
 
 
+def load_model_stats() -> dict:
+    try:
+        with open(MODEL_STATS_FILE, encoding="utf-8") as handle:
+            data = json.load(handle)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_model_stats(stats: dict) -> None:
+    temporary = MODEL_STATS_FILE + ".tmp"
+    try:
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump(stats, handle)
+        os.replace(temporary, MODEL_STATS_FILE)
+        os.chmod(MODEL_STATS_FILE, 0o600)
+    except OSError:
+        pass
+
+
+def model_priority(provider: str, model: str) -> int:
+    stat = load_model_stats().get(f"{provider}|{model}", {})
+    if not stat:
+        return 20000
+    failures = min(int(stat.get("fail", 0)), 10) * 120000
+    latency = max(100, min(int(stat.get("latency", 0)), 120000))
+    unknown = 30000 if int(stat.get("ok", 0)) == 0 else 0
+    return failures + latency + unknown
+
+
+def record_model_result(provider: str, model: str, latency_ms: int, success: bool) -> None:
+    stats = load_model_stats()
+    key = f"{provider}|{model}"
+    previous = stats.get(key, {})
+    latency = latency_ms if success else int(previous.get("latency", 0))
+    if success and previous.get("latency"):
+        latency = (int(previous["latency"]) * 3 + latency_ms) // 4
+    stats[key] = {
+        "latency": latency,
+        "ok": int(previous.get("ok", 0)) + (1 if success else 0),
+        "fail": int(previous.get("fail", 0)) + (0 if success else 1),
+        "used": int(time.time()),
+    }
+    save_model_stats(stats)
+
+
 async def runquery(
     user_input: str,
     on_status: Callable[[str], None],
@@ -817,17 +864,26 @@ async def runquery(
     failures: list[str] = []
     try:
         async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
-            for index, (provider, api_key, model) in enumerate(profiles, 1):
-                models_to_try = [model]
-                refreshed = False
+            attempts: list[tuple[str, str, str]] = []
+            for provider, api_key, model in profiles:
                 if provider == "gemini":
                     dynamic = await fetch_gemini_models(api_key)
-                    models_to_try += [alt for alt in dynamic if alt != model][:3]
-                    models_to_try += [alt for alt in FALLBACK_MODELS if alt not in models_to_try]
+                    models = [model]
+                    models += [alt for alt in dynamic if alt not in models][:5]
+                    models += [alt for alt in FALLBACK_MODELS if alt not in models]
+                    attempts += [(provider, api_key, alt) for alt in models[:6]]
+                else:
+                    attempts.append((provider, api_key, model))
+            ranked = sorted(attempts, key=lambda item: model_priority(item[0], item[2]))[:8]
+
+            for index, (provider, api_key, model) in enumerate(ranked, 1):
+                models_to_try = [model]
+                refreshed = False
                 for attempt_model in models_to_try:
                     label = f"{provider}/{attempt_model}"
                     on_status(f"Trying {label} ({index}/{len(profiles)})")
                     try:
+                        started = time.perf_counter()
                         if provider == "gemini":
                             url = f"{API_URL}/{attempt_model}:generateContent?{urlencode({'key': api_key})}"
                             post_headers = headers
@@ -869,6 +925,12 @@ async def runquery(
 
                         async with session.post(url, json=post_payload, headers=post_headers) as response:
                             if response.status != 200:
+                                record_model_result(
+                                    provider,
+                                    attempt_model,
+                                    int((time.perf_counter() - started) * 1000),
+                                    False,
+                                )
                                 if provider == "opencode" and response.status == 401:
                                     failures.append("opencode: credential rejected (401); rotate your Console key")
                                     break
@@ -897,16 +959,34 @@ async def runquery(
                             try:
                                 data = await response.json()
                             except (json.JSONDecodeError, aiohttp.ContentTypeError) as exc:
+                                record_model_result(
+                                    provider,
+                                    attempt_model,
+                                    int((time.perf_counter() - started) * 1000),
+                                    False,
+                                )
                                 failures.append(f"{label}: invalid JSON response ({exc})")
                                 break
 
                             if provider == "gemini":
                                 blocked = safety_block_reason(data)
                                 if blocked:
+                                    record_model_result(
+                                        provider,
+                                        attempt_model,
+                                        int((time.perf_counter() - started) * 1000),
+                                        True,
+                                    )
                                     return "", f"Blocked by API safety filter ({blocked}).", attempt_model
                                 try:
                                     text = extract_response_text(data)
                                 except (KeyError, IndexError, TypeError) as exc:
+                                    record_model_result(
+                                        provider,
+                                        attempt_model,
+                                        int((time.perf_counter() - started) * 1000),
+                                        False,
+                                    )
                                     failures.append(f"{label}: unexpected response format ({exc})")
                                     break
                             elif provider == "anthropic":
@@ -918,13 +998,37 @@ async def runquery(
                                 text = str(message.get("content", ""))
 
                             if text:
+                                record_model_result(
+                                    provider,
+                                    attempt_model,
+                                    int((time.perf_counter() - started) * 1000),
+                                    True,
+                                )
                                 return text, "", attempt_model
+                            record_model_result(
+                                provider,
+                                attempt_model,
+                                int((time.perf_counter() - started) * 1000),
+                                False,
+                            )
                             failures.append(f"{label}: empty response")
                             break
                     except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                        record_model_result(
+                            provider,
+                            attempt_model,
+                            int((time.perf_counter() - started) * 1000),
+                            False,
+                        )
                         failures.append(f"{label}: connection error ({exc})")
                         break
                     except Exception as exc:
+                        record_model_result(
+                            provider,
+                            attempt_model,
+                            int((time.perf_counter() - started) * 1000),
+                            False,
+                        )
                         failures.append(f"{label}: {type(exc).__name__}: {exc}")
                         break
 

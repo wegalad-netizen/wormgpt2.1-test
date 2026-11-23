@@ -122,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         const val KEY_API = "api_key"
         const val KEY_API_FALLBACKS = "api_fallback_profiles"
         const val KEY_API_PROFILES = "api_profiles_v1"
+        const val KEY_MODEL_STATS = "model_stats_v1"
         const val KEY_SAFE_BROWSING = "safe_browsing_api_key"
         const val KEY_VIRUSTOTAL = "virustotal_api_key"
         const val KEY_TEST_SCOPE_HOSTS = "test_scope_hosts"
@@ -228,6 +229,12 @@ Rules:
     )
     private data class CodeBlock(val lang: String, val code: String)
     private data class ChatMessage(val role: String, val text: String, val colorRes: Int? = null)
+    private data class ModelStat(
+        val latencyMs: Long,
+        val successes: Int,
+        val failures: Int,
+        val lastUsed: Long,
+    )
 
     /** Draws a thin accent bar beside code blocks and quoted lines. */
     private class AccentLineSpan(
@@ -3543,6 +3550,82 @@ User request: $prompt"""
         Toast.makeText(this, "Code added to the chat draft.", Toast.LENGTH_SHORT).show()
     }
 
+    private fun modelStatKey(provider: String, model: String): String = "$provider|$model"
+
+    private fun loadModelStats(): MutableMap<String, ModelStat> {
+        val raw = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_MODEL_STATS, null).orEmpty()
+        if (raw.isBlank()) return mutableMapOf()
+        return try {
+            val json = JSONObject(raw)
+            val result = mutableMapOf<String, ModelStat>()
+            json.keys().forEach { key ->
+                val item = json.optJSONObject(key) ?: return@forEach
+                result[key] = ModelStat(
+                    latencyMs = item.optLong("latency", 0L),
+                    successes = item.optInt("ok", 0),
+                    failures = item.optInt("fail", 0),
+                    lastUsed = item.optLong("used", 0L),
+                )
+            }
+            result
+        } catch (_: Exception) {
+            mutableMapOf()
+        }
+    }
+
+    private fun saveModelStats(stats: Map<String, ModelStat>) {
+        val json = JSONObject()
+        stats.forEach { (key, stat) ->
+            json.put(
+                key,
+                JSONObject()
+                    .put("latency", stat.latencyMs)
+                    .put("ok", stat.successes)
+                    .put("fail", stat.failures)
+                    .put("used", stat.lastUsed),
+            )
+        }
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_MODEL_STATS, json.toString())
+            .apply()
+    }
+
+    private fun modelPriority(provider: String, model: String): Long {
+        val stat = loadModelStats()[modelStatKey(provider, model)] ?: return 20_000L
+        val failurePenalty = minOf(stat.failures, 10) * 120_000L
+        val latency = stat.latencyMs.coerceIn(100L, 120_000L)
+        val unknownPenalty = if (stat.successes == 0) 30_000L else 0L
+        return failurePenalty + latency + unknownPenalty
+    }
+
+    private fun recordModelResult(
+        provider: String,
+        model: String,
+        latencyMs: Long,
+        success: Boolean,
+    ) {
+        val stats = loadModelStats()
+        val key = modelStatKey(provider, model)
+        val previous = stats[key]
+        val latency = if (success) {
+            if (previous == null || previous.latencyMs == 0L) {
+                latencyMs
+            } else {
+                (previous.latencyMs * 3 + latencyMs) / 4
+            }
+        } else {
+            previous?.latencyMs ?: 0L
+        }
+        stats[key] = ModelStat(
+            latencyMs = latency,
+            successes = (previous?.successes ?: 0) + if (success) 1 else 0,
+            failures = (previous?.failures ?: 0) + if (success) 0 else 1,
+            lastUsed = System.currentTimeMillis(),
+        )
+        saveModelStats(stats)
+    }
+
     private fun runQuery(
         prompt: String,
         profiles: List<ApiProfile>,
@@ -3550,46 +3633,63 @@ User request: $prompt"""
         minimal: Boolean = false,
         instructionOverride: String? = null,
     ): ApiResult {
-        if (profiles.isEmpty()) return ApiResult(null, "No valid Gemini API profiles are configured.")
+        if (profiles.isEmpty()) return ApiResult(null, "No valid API profiles are configured.")
         val failures = mutableListOf<String>()
-        profiles.forEachIndexed { index, profile ->
-            var usedModel = profile.model
-            var result = runProfileQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
-            var error = result.error
-            if (profile.provider == "gemini" && error != null && isRetryableError(error)) {
-                failures += "$usedModel: $error"
-                val dynamic = availableGeminiModels(profile.apiKey, force = true)
-                val candidates = (dynamic + FALLBACK_MODELS).distinct()
-                    .filter { it != profile.model }
-                    .take(8)
-                for (candidate in candidates) {
-                    usedModel = candidate
-                    result = runProfileQuery(
-                        prompt,
-                        profile.copy(model = candidate),
-                        chartImageBase64,
-                        minimal,
-                        instructionOverride,
-                    )
-                    error = result.error
-                    if (error == null || error.startsWith("Blocked by API safety filter")) {
-                        return result.copy(model = usedModel, attempts = index + 1)
-                    }
-                    failures += "$usedModel: $error"
-                    if (!isRetryableError(error)) break
+        val attempts = mutableListOf<ApiProfile>()
+        profiles.forEach { profile ->
+            if (profile.provider == "gemini") {
+                val dynamic = availableGeminiModels(profile.apiKey)
+                val models = (listOf(profile.model) + dynamic + FALLBACK_MODELS).distinct()
+                models.take(6).forEach { model ->
+                    attempts += profile.copy(model = model)
                 }
             } else {
-                if (error == null || error.startsWith("Blocked by API safety filter")) {
-                    return result.copy(model = usedModel, attempts = index + 1)
+                attempts += profile
+            }
+        }
+        val ordered = attempts
+            .distinctBy { modelStatKey(it.provider, it.model) }
+            .sortedBy { modelPriority(it.provider, it.model) }
+            .toMutableList()
+
+        var attemptCount = 0
+        var cursor = 0
+        while (cursor < ordered.size && attemptCount < 8) {
+            val profile = ordered[cursor]
+            cursor++
+            attemptCount++
+            val started = System.currentTimeMillis()
+            val result = runProfileQuery(
+                prompt,
+                profile,
+                chartImageBase64,
+                minimal,
+                instructionOverride,
+            )
+            val latency = System.currentTimeMillis() - started
+            val error = result.error
+            if (error == null || error.startsWith("Blocked by API safety filter")) {
+                recordModelResult(profile.provider, profile.model, latency, success = true)
+                return result.copy(model = profile.model, attempts = attemptCount)
+            }
+            recordModelResult(profile.provider, profile.model, latency, success = false)
+            failures += "${profile.provider}/${profile.model}: $error"
+            if (profile.provider == "gemini" && isRetryableError(error)) {
+                val refreshed = availableGeminiModels(profile.apiKey, force = true)
+                refreshed.forEach { model ->
+                    if (model != profile.model &&
+                        ordered.none { it.provider == profile.provider && it.model == model }
+                    ) {
+                        ordered += profile.copy(model = model)
+                    }
                 }
-                failures += "$usedModel: $error"
             }
         }
         return ApiResult(
             null,
-            "No configured API profile succeeded after ${profiles.size} attempt${if (profiles.size == 1) "" else "s"}:\n" +
+            "No configured API profile succeeded after $attemptCount attempt${if (attemptCount == 1) "" else "s"}:\n" +
                 failures.joinToString("\n\n"),
-            attempts = profiles.size,
+            attempts = attemptCount,
         )
     }
 
