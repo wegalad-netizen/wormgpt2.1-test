@@ -4,6 +4,7 @@ import android.Manifest
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.app.AlertDialog
+import android.app.ProgressDialog
 import android.app.role.RoleManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -152,7 +153,7 @@ Scope:
         val attempts: Int = 1,
     )
     private data class CodeBlock(val lang: String, val code: String)
-    private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int)
+    private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int, val notes: String = "")
     private data class CryptoSnapshot(
         val symbol: String,
         val price: Double,
@@ -489,6 +490,7 @@ Scope:
         findViewById<ImageButton>(R.id.settingsButton).setOnClickListener {
             drawerLayout.openDrawer(Gravity.END)
         }
+        findViewById<LinearLayout>(R.id.brandRow).setOnClickListener { showOwnerPage() }
         findViewById<Button>(R.id.ownerButton).setOnClickListener { showOwnerPage() }
         findViewById<Button>(R.id.closeSettingsButton).setOnClickListener {
             drawerLayout.closeDrawers()
@@ -3268,13 +3270,26 @@ User request: $prompt"""
 
                 if (!manual) {
                     appendChat("\n\n[*] Version ${info.versionCode} found. Downloading update…")
+                    if (info.notes.isNotBlank()) {
+                        appendChat("[*] What's new: ${info.notes.take(300)}")
+                    }
                     downloadAndInstall(info, prefs)
                     return@withContext
                 }
 
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Sentinal Security update")
-                    .setMessage("A new APK is available. Download and install it now?")
+                    .setMessage(
+                        buildString {
+                            append("A new build (")
+                                .append(if (info.versionCode > 0) info.versionCode else "unknown")
+                                .append(") is available.\n")
+                            if (info.notes.isNotBlank()) {
+                                append("\nWhat's new:\n").append(info.notes.take(500)).append("\n")
+                            }
+                            append("\nDownload and install it now?")
+                        }
+                    )
                     .setPositiveButton("Update") { _, _ ->
                         downloadAndInstall(info, prefs)
                     }
@@ -3308,11 +3323,15 @@ User request: $prompt"""
                 if (!response.isSuccessful) return null
                 val json = JSONObject(response.body?.string().orEmpty())
                 val id = json.getString("published_at")
+                val body = json.optString("body", "")
                 val versionCode = Regex("Build number:\\s*(\\d+)")
-                    .find(json.optString("body"))
+                    .find(body)
                     ?.groupValues
                     ?.getOrNull(1)
                     ?.toIntOrNull() ?: 0
+                val notes = Regex("\\s*Build number:\\s*\\d+\\.?")
+                    .replace(body, " ")
+                    .trim()
                 val assets = json.getJSONArray("assets")
                 var downloadUrl = ""
                 for (index in 0 until assets.length()) {
@@ -3322,7 +3341,7 @@ User request: $prompt"""
                         break
                     }
                 }
-                if (downloadUrl.isEmpty()) null else UpdateInfo(id, downloadUrl, versionCode)
+                if (downloadUrl.isEmpty()) null else UpdateInfo(id, downloadUrl, versionCode, notes)
             }
         } catch (_: Exception) {
             null
@@ -3331,13 +3350,22 @@ User request: $prompt"""
 
     private fun downloadAndInstall(info: UpdateInfo, prefs: SharedPreferences) {
         lifecycleScope.launch(Dispatchers.IO) {
+            val progress = withContext(Dispatchers.Main) {
+                ProgressDialog(this@MainActivity).apply {
+                    isIndeterminate = true
+                    setTitle("SENTINAL SECURITY UPDATE")
+                    setMessage("Downloading build ${info.versionCode}…")
+                    setCancelable(false)
+                }.also { it.show() }
+            }
             try {
                 val file = File(getExternalFilesDir(null) ?: filesDir, "sentinal-update.apk")
                 downloadUpdateApk(info.downloadUrl, file)
 
                 withContext(Dispatchers.Main) {
+                    progress.dismiss()
                     prefs.edit().putString(KEY_LAST_RELEASE, info.id).apply()
-                    appendChat("\n\n[*] Update downloaded. Opening installer…")
+                    appendChat("\n\n[*] Update downloaded (${file.length() / 1024} KB). Opening installer…")
                     val uri = FileProvider.getUriForFile(
                         this@MainActivity,
                         "${packageName}.fileprovider",
@@ -3352,6 +3380,7 @@ User request: $prompt"""
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    progress.dismiss()
                     appendChat("\n\n[x] Update failed: ${e.message}")
                 }
             }
