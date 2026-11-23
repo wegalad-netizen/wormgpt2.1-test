@@ -101,6 +101,12 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - Depth-settle animation on new bubbles and staggered reveal on restored conversations
 - Typing dots now bounce and scale together
 
+### Tool and profile dialogs
+
+- Security tool results now open in a rich, animated card with a scanning line
+- Security tools menu uses staggered sliding rows instead of a plain list
+- Owner profile tool buttons have press feedback and the dialog keeps its staggered reveal
+
 ## Commands
 
 - `exit`, `quit`, `q` — leave the app

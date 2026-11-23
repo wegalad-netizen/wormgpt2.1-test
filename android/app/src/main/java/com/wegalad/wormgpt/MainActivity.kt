@@ -1203,6 +1203,7 @@ Rules:
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
             setBackgroundResource(R.drawable.pill_outline)
             setOnClickListener { onClick() }
+            applyPressFeedback(this)
         }
 
         fun ownerToolRow(vararg items: Pair<String, () -> Unit>): LinearLayout =
@@ -3173,21 +3174,85 @@ User request: $prompt"""
             "PHISHING MESSAGE REVIEW",
             "AUTO IMPROVEMENT RESEARCH",
         )
-        AlertDialog.Builder(this)
-            .setTitle("SECURITY TOOLS")
-            .setItems(tools) { _, index ->
-                when (index) {
-                    0 -> showAuthorizedScopeManager()
-                    1 -> showWebConfigurationChecker()
-                    2 -> runMockCallFlowSimulation()
-                    3 -> showLinkSafetyChecker()
-                    4 -> showPasswordTool()
-                    5 -> chooseReputationFile.launch("*/*")
-                    6 -> showPhishingReview()
-                    7 -> runAutoImprovement(manual = true)
+        val actions = listOf(
+            { showAuthorizedScopeManager() },
+            { showWebConfigurationChecker() },
+            { runMockCallFlowSimulation() },
+            { showLinkSafetyChecker() },
+            { showPasswordTool() },
+            { chooseReputationFile.launch("*/*") },
+            { showPhishingReview() },
+            { runAutoImprovement(manual = true) },
+        )
+        var dialogRef: AlertDialog? = null
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(18), dp(18), dp(10))
+            setBackgroundResource(R.drawable.owner_card_bg)
+        }
+        content.addView(TextView(this).apply {
+            text = "SECURITY TOOLS"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+            textSize = 15f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            letterSpacing = 0.1f
+            setPadding(0, 0, 0, dp(12))
+        })
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        tools.forEachIndexed { index, label ->
+            val row = TextView(this).apply {
+                text = "${index + 1}.  $label"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                textSize = 12f
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                setBackgroundResource(R.drawable.card_bg)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    actions.getOrNull(index)?.invoke()
+                    dialogRef?.dismiss()
+                }
+                if (animationsEnabled()) {
+                    alpha = 0f
+                    translationX = dp(14).toFloat()
                 }
             }
-            .show()
+            list.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = dp(7) },
+            )
+        }
+        content.addView(
+            ScrollView(this).apply { addView(list) },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(320),
+            ),
+        )
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(content)
+            .setNegativeButton("CLOSE", null)
+            .create()
+        dialogRef = dialog
+        dialog.setOnShowListener {
+            if (!animationsEnabled()) return@setOnShowListener
+            for (index in 0 until list.childCount) {
+                val row = list.getChildAt(index)
+                row.animate()
+                    .alpha(1f)
+                    .translationX(0f)
+                    .setStartDelay(index * 55L)
+                    .setDuration(280L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+        }
+        dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+        dialog.show()
     }
 
     /** Demonstrates a call-flow result using fictional data only; it never accesses contacts or networks. */
@@ -3735,11 +3800,100 @@ User request: $prompt"""
     }
 
     private fun showToolResult(title: String, message: String) {
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(18), dp(18), dp(8))
+            setBackgroundResource(R.drawable.owner_card_bg)
+        }
+        content.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(View(this).apply {
+                setBackgroundResource(R.drawable.status_dot)
+                layoutParams = LinearLayout.LayoutParams(dp(9), dp(9)).apply {
+                    marginEnd = dp(9)
+                }
+            })
+            addView(TextView(this).apply {
+                text = title
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+                textSize = 14f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                letterSpacing = 0.08f
+            })
+        })
+
+        val scanLine = View(this).apply {
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+            alpha = 0.16f
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(2),
+            )
+        }
+        val resultCard = FrameLayout(this).apply {
+            setBackgroundResource(R.drawable.card_bg)
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            addView(ScrollView(this).apply {
+                overScrollMode = View.OVER_SCROLL_NEVER
+                isFillViewport = true
+                addView(TextView(this).apply {
+                    text = message
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                    textSize = 12f
+                    setLineSpacing(dp(2).toFloat(), 1f)
+                })
+            })
+            addView(scanLine)
+        }
+        content.addView(
+            resultCard,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(260),
+            ).apply { topMargin = dp(14) },
+        )
+
+        var scanAnimator: ValueAnimator? = null
+        val dialog = AlertDialog.Builder(this)
+            .setView(content)
+            .setPositiveButton("DONE", null)
+            .create()
+        dialog.setOnShowListener {
+            if (animationsEnabled()) {
+                content.getChildAt(0).alpha = 0f
+                content.getChildAt(0).translationY = dp(8).toFloat()
+                content.getChildAt(0).animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(260L)
+                    .start()
+                resultCard.alpha = 0f
+                resultCard.translationY = dp(10).toFloat()
+                resultCard.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setStartDelay(80L)
+                    .setDuration(300L)
+                    .start()
+                resultCard.post {
+                    val travel = (resultCard.height - dp(4)).coerceAtLeast(0)
+                    if (travel <= 0) return@post
+                    scanAnimator = ValueAnimator.ofFloat(0f, travel.toFloat()).apply {
+                        duration = 2200L
+                        repeatCount = ValueAnimator.INFINITE
+                        repeatMode = ValueAnimator.REVERSE
+                        addUpdateListener { animator ->
+                            scanLine.translationY = animator.animatedValue as Float
+                        }
+                        start()
+                    }
+                }
+            }
+        }
+        dialog.setOnDismissListener { scanAnimator?.cancel() }
+        dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+        dialog.show()
     }
 
     /** Collects non-sensitive local signals used by the auto-improvement research pass. */
