@@ -20,7 +20,7 @@
         <!-- Compact Sentinal Security header with version and settings -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="44dp"
             android:background="@drawable/header_bg"
             android:gravity="center_vertical"
             android:orientation="horizontal"
