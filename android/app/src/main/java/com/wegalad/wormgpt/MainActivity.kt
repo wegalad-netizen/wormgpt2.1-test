@@ -195,19 +195,6 @@ Rules:
             text: CharSequence,
             start: Int,
             end: Int,
-        ) = drawAccent(canvas, paint, left, top, bottom)
-
-        override fun drawBackground(
-            canvas: Canvas,
-            paint: Paint,
-            left: Int,
-            right: Int,
-            top: Int,
-            baseline: Int,
-            bottom: Int,
-            text: CharSequence,
-            start: Int,
-            end: Int,
             lineNumber: Int,
         ) = drawAccent(canvas, paint, left, top, bottom)
 
