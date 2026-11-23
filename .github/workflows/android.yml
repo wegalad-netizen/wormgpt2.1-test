@@ -52,8 +52,17 @@ jobs:
       - name: Publish APK to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
+          cat > /tmp/sentinal_notes.md <<EOF
+          Build number: ${GITHUB_RUN_NUMBER}
+
+          What's new:
+          ${COMMIT_MSG}
+
+          Install the APK; Android will ask you to confirm installation.
+          EOF
           gh release delete latest --yes || true
           gh release create latest android/app/build/outputs/apk/debug/app-debug.apk \
             --title "Sentinal Security" \
-            --notes "Build number: ${GITHUB_RUN_NUMBER}. Latest Sentinal Security auto-build from master. Install the APK; Android will ask you to confirm installation."
+            --notes-file /tmp/sentinal_notes.md

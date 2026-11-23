@@ -121,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         const val PREFS_NAME = "sentinal_prefs"
         const val KEY_API = "api_key"
         const val KEY_API_FALLBACKS = "api_fallback_profiles"
+        const val KEY_API_PROFILES = "api_profiles_v1"
         const val KEY_SAFE_BROWSING = "safe_browsing_api_key"
         const val KEY_VIRUSTOTAL = "virustotal_api_key"
         const val KEY_TEST_SCOPE_HOSTS = "test_scope_hosts"
@@ -293,6 +294,8 @@ Rules:
     private var cryptoRequestId = 0
     private lateinit var apiKeyInput: EditText
     private lateinit var apiFallbacksInput: EditText
+    private lateinit var apiProfilesList: LinearLayout
+    private lateinit var apiProfilesCount: TextView
     private lateinit var safeBrowsingKeyInput: EditText
     private lateinit var virusTotalKeyInput: EditText
     private lateinit var pulseBackground: GradientDrawable
@@ -526,6 +529,13 @@ Rules:
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         apiKeyInput.setText(prefs.getString(KEY_API, "").orEmpty())
         apiFallbacksInput.setText(prefs.getString(KEY_API_FALLBACKS, "").orEmpty())
+        apiProfilesList = findViewById(R.id.apiProfilesList)
+        apiProfilesCount = findViewById(R.id.apiProfilesCount)
+        findViewById<Button>(R.id.addApiKeyButton).setOnClickListener {
+            showAddApiKeyDialog(null)
+        }
+        migrateLegacyApiProfiles()
+        renderApiProfiles()
         safeBrowsingKeyInput = findViewById(R.id.safeBrowsingKeyInput)
         virusTotalKeyInput = findViewById(R.id.virusTotalKeyInput)
         safeBrowsingKeyInput.setText(prefs.getString(KEY_SAFE_BROWSING, "").orEmpty())
@@ -2770,8 +2780,68 @@ Rules:
     }
 
     private fun readApiProfiles(): List<ApiProfile> {
+        val stored = loadStoredProfiles()
+        if (stored.isNotEmpty()) return stored
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return parseProfilesFromText(
+            prefs.getString(KEY_API, "").orEmpty().trim(),
+            prefs.getString(KEY_API_FALLBACKS, "").orEmpty(),
+        )
+    }
+
+    private fun loadStoredProfiles(): List<ApiProfile> {
+        val raw = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_API_PROFILES, null).orEmpty()
+        if (raw.isBlank()) return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            val result = mutableListOf<ApiProfile>()
+            for (index in 0 until array.length()) {
+                val item = array.optJSONObject(index) ?: continue
+                val key = item.optString("key", "").trim()
+                if (key.isEmpty()) continue
+                val provider = normalizeProvider(item.optString("provider", "gemini"))
+                val model = item.optString("model", "").trim()
+                    .takeIf { it.isNotEmpty() }
+                    ?: PROVIDER_DEFAULT_MODELS[provider] ?: MODEL
+                result += ApiProfile(provider, key, model)
+            }
+            result.take(MAX_API_PROFILES)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun saveStoredProfiles(profiles: List<ApiProfile>) {
+        val array = JSONArray()
+        profiles.take(MAX_API_PROFILES).forEach { profile ->
+            array.put(
+                JSONObject()
+                    .put("provider", profile.provider)
+                    .put("key", profile.apiKey)
+                    .put("model", profile.model),
+            )
+        }
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_API_PROFILES, array.toString())
+            .apply()
+    }
+
+    private fun migrateLegacyApiProfiles() {
+        if (loadStoredProfiles().isNotEmpty()) return
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val legacy = parseProfilesFromText(
+            prefs.getString(KEY_API, "").orEmpty().trim(),
+            prefs.getString(KEY_API_FALLBACKS, "").orEmpty(),
+        )
+        if (legacy.isNotEmpty()) saveStoredProfiles(legacy)
+    }
+
+    private fun parseProfilesFromText(
+        primaryKey: String,
+        fallbacks: String,
+    ): List<ApiProfile> {
         val profiles = mutableListOf<ApiProfile>()
-        val primaryKey = apiKeyInput.text.toString().trim()
         if (primaryKey.isNotEmpty()) {
             val provider = detectProviderFromKey(primaryKey)
             profiles += ApiProfile(
@@ -2781,7 +2851,7 @@ Rules:
             )
         }
 
-        apiFallbacksInput.text.toString().lineSequence()
+        fallbacks.lineSequence()
             .map(String::trim)
             .filter { it.isNotEmpty() && !it.startsWith("#") }
             .forEach { line ->
@@ -2826,6 +2896,188 @@ Rules:
 
         return profiles.distinctBy { "${it.provider}\u0000${it.apiKey}\u0000${it.model}" }
             .take(MAX_API_PROFILES)
+    }
+
+    private fun maskApiKey(key: String): String =
+        if (key.length <= 10) {
+            "••••"
+        } else {
+            "${key.take(6)}••••${key.takeLast(4)}"
+        }
+
+    private fun renderApiProfiles() {
+        if (!::apiProfilesList.isInitialized) return
+        apiProfilesList.removeAllViews()
+        val profiles = loadStoredProfiles()
+        apiProfilesCount.text = "${profiles.size} of $MAX_API_PROFILES saved"
+        if (profiles.isEmpty()) {
+            apiProfilesList.addView(TextView(this).apply {
+                text = "No keys saved yet. Tap ADD API KEY to store one."
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                textSize = 11f
+                setPadding(dp(10), dp(8), dp(10), dp(8))
+            })
+            return
+        }
+        profiles.forEachIndexed { index, profile ->
+            val info = TextView(this).apply {
+                text = "${index + 1}. ${profile.provider.uppercase()} · " +
+                    "${maskApiKey(profile.apiKey)} · ${profile.model}"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                textSize = 11f
+                setPadding(dp(10), dp(10), dp(6), dp(10))
+                layoutParams = LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f,
+                )
+                setOnClickListener { showAddApiKeyDialog(index) }
+            }
+            val delete = Button(this).apply {
+                text = "DEL"
+                textSize = 9f
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_red_bright))
+                setBackgroundResource(R.drawable.pill_outline)
+                layoutParams = LinearLayout.LayoutParams(dp(54), dp(34)).apply {
+                    marginStart = dp(4)
+                }
+                setOnClickListener {
+                    val updated = loadStoredProfiles().toMutableList()
+                    if (index in updated.indices) updated.removeAt(index)
+                    saveStoredProfiles(updated)
+                    renderApiProfiles()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "API key removed.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+            apiProfilesList.addView(
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setBackgroundResource(R.drawable.card_bg)
+                    addView(info)
+                    addView(delete)
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = dp(6) },
+            )
+        }
+    }
+
+    private fun showAddApiKeyDialog(index: Int?) {
+        val profiles = loadStoredProfiles().toMutableList()
+        val existing = index?.let { profiles.getOrNull(it) }
+        val providerOptions = listOf(
+            "AUTO", "gemini", "openai", "chatgpt", "openrouter",
+            "groq", "together", "anthropic", "opencode",
+        )
+        val providerSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_spinner_item,
+                providerOptions,
+            ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+            val selected = existing?.provider?.let {
+                providerOptions.indexOf(it).takeIf { pos -> pos >= 0 }
+            } ?: 0
+            setSelection(selected)
+        }
+        val keyInput = EditText(this).apply {
+            hint = "Paste API key"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText(existing?.apiKey.orEmpty())
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+            setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+            setBackgroundResource(R.drawable.input_bg)
+        }
+        val modelInput = EditText(this).apply {
+            hint = "Model (optional — auto by provider)"
+            setText(existing?.model.orEmpty())
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+            setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+            setBackgroundResource(R.drawable.input_bg)
+        }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(14), dp(20), dp(8))
+            addView(TextView(this@MainActivity).apply {
+                text = "PROVIDER"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                textSize = 10f
+            })
+            addView(providerSpinner)
+            addView(TextView(this@MainActivity).apply {
+                text = "API KEY"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                textSize = 10f
+                setPadding(0, dp(10), 0, 0)
+            })
+            addView(keyInput)
+            addView(TextView(this@MainActivity).apply {
+                text = "MODEL"
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                textSize = 10f
+                setPadding(0, dp(10), 0, 0)
+            })
+            addView(modelInput)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(if (existing == null) "ADD API KEY" else "EDIT API KEY")
+            .setView(layout)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("SAVE", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val key = keyInput.text.toString().trim()
+                if (key.isBlank()) {
+                    keyInput.error = "Enter an API key"
+                    return@setOnClickListener
+                }
+                if (existing == null && profiles.size >= MAX_API_PROFILES) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Maximum of $MAX_API_PROFILES API keys reached.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    return@setOnClickListener
+                }
+                val selectedProvider = providerSpinner.selectedItem.toString()
+                val provider = if (selectedProvider == "AUTO") {
+                    detectProviderFromKey(key)
+                } else {
+                    normalizeProvider(selectedProvider)
+                }
+                val typedModel = modelInput.text.toString().trim()
+                val model = typedModel.takeIf { it.isNotEmpty() }?.let {
+                    normalizeModel(it, provider) ?: it
+                } ?: PROVIDER_DEFAULT_MODELS[provider] ?: MODEL
+                val profile = ApiProfile(provider, key, model)
+                if (existing == null) {
+                    profiles += profile
+                } else if (index != null && index in profiles.indices) {
+                    profiles[index] = profile
+                }
+                saveStoredProfiles(profiles)
+                renderApiProfiles()
+                dialog.dismiss()
+                Toast.makeText(
+                    this@MainActivity,
+                    "API key saved for ${provider.uppercase()}.",
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+        dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+        dialog.show()
     }
 
     private fun saveKey() {
@@ -4773,7 +5025,7 @@ User request: $prompt"""
                                 .append(if (info.versionCode > 0) info.versionCode else "unknown")
                                 .append("\n")
                             if (info.notes.isNotBlank()) {
-                                append("\nWhat's new:\n").append(info.notes.take(500)).append("\n")
+                                append("\nWhat's new:\n").append(info.notes.take(1500)).append("\n")
                             }
                             append("\nDownload and install it now?")
                         }
