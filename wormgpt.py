@@ -58,7 +58,7 @@ PROVIDER_DEFAULT_MODELS = {
     "groq": "llama-3.3-70b-versatile",
     "together": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     "anthropic": "claude-3-5-haiku-latest",
-    "opencode": "hy4-flash-free",
+    "opencode": "gpt-6-luna",
 }
 # No key is stored in source. Set WORMGPT_API_KEY before running.
 API_KEY = os.environ.get("WORMGPT_API_KEY", "")
@@ -282,12 +282,29 @@ def looks_like_api_key(value: str) -> bool:
     )
 
 
+def detect_provider_from_key(key: str) -> str:
+    if key.lower().startswith(("oc_sk_", "oc_")):
+        return "opencode"
+    if key.lower().startswith("sk-or-"):
+        return "openrouter"
+    if key.lower().startswith("sk-ant-"):
+        return "anthropic"
+    if key.lower().startswith("gsk_"):
+        return "groq"
+    if key.lower().startswith("sk-"):
+        return "openai"
+    if key.startswith("AIza"):
+        return "gemini"
+    return "gemini"
+
+
 def load_api_profiles() -> list[tuple[str, str, str]]:
     """Load (provider, key, model) profiles from the private file."""
     profiles: list[tuple[str, str, str]] = []
     primary_key = API_KEY.strip()
     if primary_key:
-        profiles.append(("gemini", primary_key, MODEL))
+        provider = detect_provider_from_key(primary_key)
+        profiles.append((provider, primary_key, PROVIDER_DEFAULT_MODELS.get(provider, MODEL)))
 
     try:
         with open(PROFILE_FILE, encoding="utf-8") as handle:
@@ -316,6 +333,7 @@ def load_api_profiles() -> list[tuple[str, str, str]]:
                     model = normalize_model(token)
                     if model is None and looks_like_api_key(token):
                         key, model = token, None
+                        provider = detect_provider_from_key(token)
 
                 if not key or key.lower().startswith("gemini"):
                     continue

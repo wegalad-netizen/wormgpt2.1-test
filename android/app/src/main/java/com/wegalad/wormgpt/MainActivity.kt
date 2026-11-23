@@ -171,7 +171,7 @@ class MainActivity : AppCompatActivity() {
             "groq" to "llama-3.3-70b-versatile",
             "together" to "meta-llama/Llama-3.3-70B-Instruct-Turbo",
             "anthropic" to "claude-3-5-haiku-latest",
-            "opencode" to "hy4-flash-free",
+            "opencode" to "gpt-6-luna",
         )
         val PROVIDER_ENDPOINTS = mapOf(
             "openai" to "https://api.openai.com/v1/chat/completions",
@@ -2755,10 +2755,27 @@ Rules:
             )
     }
 
+    private fun detectProviderFromKey(key: String): String = when {
+        key.startsWith("oc_sk_", ignoreCase = true) || key.startsWith("oc_", ignoreCase = true) -> "opencode"
+        key.startsWith("sk-or-", ignoreCase = true) -> "openrouter"
+        key.startsWith("sk-ant-", ignoreCase = true) -> "anthropic"
+        key.startsWith("gsk_", ignoreCase = true) -> "groq"
+        key.startsWith("sk-", ignoreCase = true) -> "openai"
+        key.startsWith("AIza", ignoreCase = true) -> "gemini"
+        else -> "gemini"
+    }
+
     private fun readApiProfiles(): List<ApiProfile> {
         val profiles = mutableListOf<ApiProfile>()
         val primaryKey = apiKeyInput.text.toString().trim()
-        if (primaryKey.isNotEmpty()) profiles += ApiProfile("gemini", primaryKey, MODEL)
+        if (primaryKey.isNotEmpty()) {
+            val provider = detectProviderFromKey(primaryKey)
+            profiles += ApiProfile(
+                provider,
+                primaryKey,
+                PROVIDER_DEFAULT_MODELS[provider] ?: MODEL,
+            )
+        }
 
         apiFallbacksInput.text.toString().lineSequence()
             .map(String::trim)
@@ -2790,6 +2807,7 @@ Rules:
                         model = normalizeModel(token)
                         if (model == null && looksLikeApiKey(token)) {
                             key = token
+                            provider = detectProviderFromKey(token)
                             model = null
                         }
                     }
