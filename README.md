@@ -35,7 +35,7 @@ another-api-key | gemini-2.5-flash
 gemini-2.0-flash
 ```
 
-The first line supplies its own key and model. A model-only line reuses the primary `WORMGPT_API_KEY`. Keep this file private with `chmod 600 ~/.wormgpt_profiles`. The app tries profiles in order after connection or API errors, and `/model` lists the configured model order without showing keys.
+The first line supplies its own key and model. A model-only line reuses the primary `WORMGPT_API_KEY`; a key-only line reuses the default model. Models must start with `gemini-`, so a pasted key is never mistaken for a model name. Keep this file private with `chmod 600 ~/.wormgpt_profiles`. The app tries profiles in order after connection or API errors, and `/model` lists the configured model order without showing keys. If a model returns HTTP 503 / high demand, the app automatically retries with `gemini-2.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-flash` using the same key.
 
 For a home-screen shortcut, copy `termux-widget/wormgpt` into `~/.shortcuts/` and add a Termux:Widget widget.
 

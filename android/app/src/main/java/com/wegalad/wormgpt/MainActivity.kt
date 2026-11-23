@@ -141,6 +141,7 @@ class MainActivity : AppCompatActivity() {
         const val OWNER_TELEGRAM = "https://t.me/+94724085416"
         const val REPO_URL = "https://github.com/wegalad-netizen/wormgpt2.1-test"
         const val API_HOST = "generativelanguage.googleapis.com"
+        val FALLBACK_MODELS = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
         const val MODEL = "gemini-3.1-flash-lite"
         const val MAX_API_PROFILES = 5
         const val RELEASE_API =
@@ -2687,6 +2688,16 @@ Rules:
         }
     }
 
+    private fun normalizeModel(raw: String): String? {
+        val candidate = raw.trim().removePrefix("models/")
+        return candidate.takeIf { Regex("^gemini[-A-Za-z0-9._]*$").matches(it) }
+    }
+
+    private fun looksLikeApiKey(raw: String): Boolean {
+        val value = raw.trim()
+        return value.length >= 30 && !value.startsWith("gemini", ignoreCase = true)
+    }
+
     private fun readApiProfiles(): List<ApiProfile> {
         val profiles = mutableListOf<ApiProfile>()
         val primaryKey = apiKeyInput.text.toString().trim()
@@ -2700,13 +2711,22 @@ Rules:
                 val key: String
                 val model: String
                 if (pair.size == 1) {
-                    key = primaryKey
-                    model = pair[0].trim()
+                    val token = pair[0].trim()
+                    val parsed = normalizeModel(token)
+                    if (parsed != null) {
+                        key = primaryKey
+                        model = parsed
+                    } else if (looksLikeApiKey(token)) {
+                        key = token
+                        model = MODEL
+                    } else {
+                        return@forEach
+                    }
                 } else {
                     key = pair[0].trim()
-                    model = pair[1].trim()
+                    model = normalizeModel(pair[1]) ?: MODEL
                 }
-                if (key.isNotEmpty() && model.matches(Regex("[A-Za-z0-9._-]{1,120}"))) {
+                if (key.isNotEmpty() && !looksLikeApiKey(model)) {
                     profiles += ApiProfile(key, model)
                 }
             }
@@ -3187,21 +3207,49 @@ User request: $prompt"""
         if (profiles.isEmpty()) return ApiResult(null, "No valid Gemini API profiles are configured.")
         val failures = mutableListOf<String>()
         profiles.forEachIndexed { index, profile ->
-            val result = runProfileQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
-            if (result.error == null) {
-                return result.copy(model = profile.model, attempts = index + 1)
+            var usedModel = profile.model
+            var result = runProfileQuery(prompt, profile, chartImageBase64, minimal, instructionOverride)
+            if (result.error != null && isUnavailableError(result.error)) {
+                failures += "$usedModel: ${result.error}"
+                for (fallback in FALLBACK_MODELS) {
+                    if (fallback == profile.model) continue
+                    usedModel = fallback
+                    result = runProfileQuery(
+                        prompt,
+                        profile.copy(model = fallback),
+                        chartImageBase64,
+                        minimal,
+                        instructionOverride,
+                    )
+                    if (result.error == null ||
+                        result.error.startsWith("Blocked by API safety filter")
+                    ) {
+                        return result.copy(model = usedModel, attempts = index + 1)
+                    }
+                    failures += "$usedModel: ${result.error}"
+                    if (!isUnavailableError(result.error)) break
+                }
+            } else {
+                if (result.error == null ||
+                    result.error.startsWith("Blocked by API safety filter")
+                ) {
+                    return result.copy(model = usedModel, attempts = index + 1)
+                }
+                failures += "$usedModel: ${result.error}"
             }
-            if (result.error.startsWith("Blocked by API safety filter")) {
-                return result.copy(model = profile.model, attempts = index + 1)
-            }
-            failures += "${profile.model}: ${result.error}"
         }
         return ApiResult(
             null,
-            "No configured Gemini model succeeded after ${profiles.size} attempt${if (profiles.size == 1) "" else "s"}:\n" +
+            "No configured Gemini model succeeded after ${profiles.size} profile${if (profiles.size == 1) "" else "s"}:\n" +
                 failures.joinToString("\n\n"),
             attempts = profiles.size,
         )
+    }
+
+    private fun isUnavailableError(error: String): Boolean {
+        val lower = error.lowercase()
+        return "503" in lower || "unavailable" in lower ||
+            "high demand" in lower || "overloaded" in lower
     }
 
     private fun runProfileQuery(
@@ -4089,16 +4137,16 @@ User request: $prompt"""
             setPadding(dp(18), dp(18), dp(18), dp(8))
             setBackgroundResource(R.drawable.owner_card_bg)
         }
-        content.addView(LinearLayout(this).apply {
+        content.addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(View(this).apply {
+            addView(View(this@MainActivity).apply {
                 setBackgroundResource(R.drawable.status_dot)
                 layoutParams = LinearLayout.LayoutParams(dp(9), dp(9)).apply {
                     marginEnd = dp(9)
                 }
             })
-            addView(TextView(this).apply {
+            addView(TextView(this@MainActivity).apply {
                 text = title
                 setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
                 textSize = 14f
@@ -4118,10 +4166,10 @@ User request: $prompt"""
         val resultCard = FrameLayout(this).apply {
             setBackgroundResource(R.drawable.card_bg)
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            addView(ScrollView(this).apply {
+            addView(ScrollView(this@MainActivity).apply {
                 overScrollMode = View.OVER_SCROLL_NEVER
                 isFillViewport = true
-                addView(TextView(this).apply {
+                addView(TextView(this@MainActivity).apply {
                     text = message
                     setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
                     textSize = 12f

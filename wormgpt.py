@@ -24,6 +24,7 @@ import aiohttp
 # --- CONFIGURATION ---
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 MODEL = "gemini-3.1-flash-lite"
+FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 # No key is stored in source. Set WORMGPT_API_KEY before running.
 API_KEY = os.environ.get("WORMGPT_API_KEY", "")
 PROFILE_FILE = os.path.join(os.path.expanduser("~"), ".wormgpt_profiles")
@@ -219,6 +220,20 @@ def copy_to_clipboard(text: str, path: str = COPY_FILE) -> str:
     return path
 
 
+def normalize_model(value: str) -> str | None:
+    """Accept only real Gemini model names, never a pasted API key."""
+    candidate = value.strip().removeprefix("models/")
+    if re.fullmatch(r"gemini[-A-Za-z0-9._]*", candidate):
+        return candidate
+    return None
+
+
+def looks_like_api_key(value: str) -> bool:
+    """API keys are long opaque tokens; model names always start with gemini-."""
+    candidate = value.strip()
+    return len(candidate) >= 30 and not candidate.lower().startswith("gemini")
+
+
 def load_api_profiles() -> list[tuple[str, str]]:
     """Load the primary key and ordered Gemini fallbacks from a private file."""
     profiles: list[tuple[str, str]] = []
@@ -233,10 +248,17 @@ def load_api_profiles() -> list[tuple[str, str]]:
                 if not line or line.startswith("#"):
                     continue
                 if "|" in line:
-                    key, model = (part.strip() for part in line.split("|", 1))
+                    key, raw_model = (part.strip() for part in line.split("|", 1))
+                    model = normalize_model(raw_model) or MODEL
                 else:
-                    key, model = primary_key, line
-                if key and re.fullmatch(r"[A-Za-z0-9._-]{1,120}", model):
+                    model = normalize_model(line)
+                    if model is not None:
+                        key = primary_key
+                    elif looks_like_api_key(line):
+                        key, model = line, MODEL
+                    else:
+                        continue
+                if key and not looks_like_api_key(model):
                     profiles.append((key, model))
     except FileNotFoundError:
         pass
@@ -677,31 +699,40 @@ async def runquery(
     try:
         async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
             for index, (api_key, model) in enumerate(profiles, 1):
-                on_status(f"Trying {model} ({index}/{len(profiles)})")
-                url = f"{API_URL}/{model}:generateContent?{urlencode({'key': api_key})}"
-                try:
-                    async with session.post(url, json=payload, headers=headers) as response:
-                        if response.status != 200:
-                            failures.append(f"{model}: HTTP {response.status}: {await response.text()}")
-                            continue
+                models_to_try = [model] + [alt for alt in FALLBACK_MODELS if alt != model]
+                for attempt_model in models_to_try:
+                    on_status(f"Trying {attempt_model} ({index}/{len(profiles)})")
+                    url = f"{API_URL}/{attempt_model}:generateContent?{urlencode({'key': api_key})}"
+                    try:
+                        async with session.post(url, json=payload, headers=headers) as response:
+                            if response.status != 200:
+                                failures.append(
+                                    f"{attempt_model}: HTTP {response.status}: {await response.text()}"
+                                )
+                                if response.status == 503:
+                                    continue
+                                break
 
-                        try:
-                            data = await response.json()
-                        except (json.JSONDecodeError, aiohttp.ContentTypeError) as exc:
-                            failures.append(f"{model}: invalid JSON response ({exc})")
-                            continue
+                            try:
+                                data = await response.json()
+                            except (json.JSONDecodeError, aiohttp.ContentTypeError) as exc:
+                                failures.append(f"{attempt_model}: invalid JSON response ({exc})")
+                                break
 
-                        blocked = safety_block_reason(data)
-                        if blocked:
-                            return "", f"Blocked by API safety filter ({blocked}).", model
-                        try:
-                            return extract_response_text(data), "", model
-                        except (KeyError, IndexError, TypeError) as exc:
-                            failures.append(f"{model}: unexpected response format ({exc})")
-                except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
-                    failures.append(f"{model}: connection error ({exc})")
-                except Exception as exc:
-                    failures.append(f"{model}: {type(exc).__name__}: {exc}")
+                            blocked = safety_block_reason(data)
+                            if blocked:
+                                return "", f"Blocked by API safety filter ({blocked}).", attempt_model
+                            try:
+                                return extract_response_text(data), "", attempt_model
+                            except (KeyError, IndexError, TypeError) as exc:
+                                failures.append(f"{attempt_model}: unexpected response format ({exc})")
+                                break
+                    except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                        failures.append(f"{attempt_model}: connection error ({exc})")
+                        break
+                    except Exception as exc:
+                        failures.append(f"{attempt_model}: {type(exc).__name__}: {exc}")
+                        break
 
         return "", "All configured Gemini profiles failed:\n" + "\n".join(failures), ""
     except Exception as e:
