@@ -31,10 +31,14 @@ import android.os.Bundle
 import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
+import android.text.Editable
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.InputType
+import android.text.TextWatcher
+import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.TypefaceSpan
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.text.TextUtils
@@ -115,7 +119,7 @@ class MainActivity : AppCompatActivity() {
         const val KEY_WA_NUMBER = "wa_number"
         const val KEY_LAST_RELEASE = "last_release"
         const val KEY_SKIPPED_RELEASE = "skipped_release"
-        const val KEY_CHAT_TEXT = "chat_text"
+        const val KEY_CHAT_STATE = "chat_state"
         const val KEY_LAST_RESPONSE = "last_response"
         const val KEY_SHOW_NET = "show_net_speed"
         const val KEY_JARVIS_VOICE = "jarvis_voice_feedback"
@@ -153,6 +157,7 @@ Scope:
         val attempts: Int = 1,
     )
     private data class CodeBlock(val lang: String, val code: String)
+    private data class ChatMessage(val role: String, val text: String, val colorRes: Int? = null)
     private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int, val notes: String = "")
     private data class CryptoSnapshot(
         val symbol: String,
@@ -167,7 +172,13 @@ Scope:
     private lateinit var showNetSwitch: Switch
     private var netJob: Job? = null
     private lateinit var chatScroll: ScrollView
-    private lateinit var chatText: TextView
+    private lateinit var chatMessages: LinearLayout
+    private lateinit var jumpLatestButton: Button
+    private val chatHistory = mutableListOf<ChatMessage>()
+    private var typingView: TextView? = null
+    private var typingAnimator: ValueAnimator? = null
+    private var isBusy = false
+    private var restoringChat = false
     private var stickToBottom = true
     private lateinit var promptInput: EditText
     private lateinit var cryptoSymbolSpinner: Spinner
@@ -326,11 +337,46 @@ Scope:
         )
         drawerLayout.background = pulseBackground
         chatScroll = findViewById(R.id.chatScroll)
-        chatText = findViewById(R.id.chatText)
-        savedInstanceState?.getCharSequence(KEY_CHAT_TEXT)?.let { chatText.text = it }
-        highlightMasterText()
-        lastResponse = savedInstanceState?.getString(KEY_LAST_RESPONSE).orEmpty()
+        chatMessages = findViewById(R.id.chatMessages)
+        jumpLatestButton = findViewById(R.id.jumpLatestButton)
+        jumpLatestButton.setOnClickListener {
+            stickToBottom = true
+            updateJumpLatestButton()
+            scrollChatToBottom()
+        }
+        chatScroll.setOnScrollChangeListener { _, _, _, _, _ ->
+            val content = chatScroll.getChildAt(0)
+            if (content != null) {
+                val distanceFromBottom =
+                    content.bottom - (chatScroll.height + chatScroll.scrollY)
+                stickToBottom = distanceFromBottom <= dp(72)
+                updateJumpLatestButton()
+            }
+        }
+        savedInstanceState?.getString(KEY_CHAT_STATE)?.let { restoreChatState(it) }
+        if (chatHistory.isEmpty()) {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_CHAT_STATE, null)
+                ?.let { restoreChatState(it) }
+        }
+        if (chatHistory.isEmpty()) {
+            addChatMessage(
+                ChatMessage("welcome", getString(R.string.welcome_chat).trim()),
+                animate = false,
+            )
+        }
+        lastResponse = savedInstanceState?.getString(KEY_LAST_RESPONSE)
+            ?: chatHistory.lastOrNull { it.role == "ai" }?.let { responseBody(it.text) }
+            ?: ""
         promptInput = findViewById(R.id.promptInput)
+        promptInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                updateSendButtonState()
+            }
+        })
+        updateSendButtonState()
         cryptoSymbolSpinner = findViewById(R.id.cryptoSymbolSpinner)
         cryptoSymbolSpinner.adapter = ArrayAdapter(
             this,
@@ -514,6 +560,7 @@ Scope:
         findViewById<Button>(R.id.copyButton).setOnClickListener { copyLastResponse() }
         findViewById<Button>(R.id.saveButton).setOnClickListener { saveTranscript() }
         findViewById<Button>(R.id.clearButton).setOnClickListener { clearChat() }
+        findViewById<Button>(R.id.retryButton).setOnClickListener { retryLastPrompt() }
         findViewById<Button>(R.id.securityToolsButton).setOnClickListener { showSecurityTools() }
         findViewById<Button>(R.id.blocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.spamLogButton).setOnClickListener { showSpamLogDialog() }
@@ -613,6 +660,9 @@ Scope:
     override fun onDestroy() {
         stopJarvisVoice()
         stopBusyPulse()
+        hideTypingIndicator()
+        typingAnimator?.cancel()
+        typingAnimator = null
         backgroundPulseAnimator?.cancel()
         backgroundPulseAnimator = null
         netJob?.cancel()
@@ -758,8 +808,8 @@ Scope:
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        if (::chatText.isInitialized) {
-            outState.putCharSequence(KEY_CHAT_TEXT, chatText.text)
+        if (::chatMessages.isInitialized) {
+            outState.putString(KEY_CHAT_STATE, chatStateJson())
             outState.putString(KEY_LAST_RESPONSE, lastResponse)
         }
     }
@@ -2216,6 +2266,7 @@ Scope:
         }
 
         promptInput.text?.clear()
+        val context = conversationContext()
         appendChat("\n\nMaster ❯ $prompt${if (chartUri != null) " [chart screenshot attached]" else ""}")
         setBusy(true)
 
@@ -2227,7 +2278,11 @@ Scope:
 Report: visible asset/ticker and timeframe (or unknown), observed trend, visible support/resistance levels only when readable, any visible indicators, a short-term directional scenario (bullish/neutral/bearish), confidence (low/medium/high) with evidence, and what would invalidate that scenario. Do not invent prices, indicators, market data, or certainty. This is an uncertain chart interpretation, not a guaranteed prediction or personalized financial recommendation.
 
 User request: $prompt"""
-                } else prompt
+                } else if (context.isNotBlank()) {
+                    "Recent conversation:\n$context\n\nUser Input: $prompt"
+                } else {
+                    prompt
+                }
                 runQuery(effectivePrompt, profiles, chartImage)
             } catch (e: Exception) {
                 ApiResult(null, "Could not read the selected chart image: ${e.message ?: e.javaClass.simpleName}")
@@ -2235,7 +2290,7 @@ User request: $prompt"""
             withContext(Dispatchers.Main) {
                 setBusy(false)
                 if (result.error != null) {
-                    appendChat("\n\n── ERROR\n${result.error}")
+                    appendChat("\n\n── ERROR\n${result.error}", R.color.sentinal_red_bright)
                 } else {
                     lastResponse = result.text.orEmpty()
                     appendChat("\n\n── RESPONSE (${result.model ?: MODEL})\n$lastResponse", R.color.sentinal_green)
@@ -2798,15 +2853,65 @@ User request: $prompt"""
     private fun saveTranscript() {
         val dir = getExternalFilesDir(null) ?: filesDir
         val file = File(dir, "sentinal_history.txt")
-        file.writeText(chatText.text.toString())
+        file.writeText(
+            chatHistory.joinToString("\n\n") { message ->
+                val role = when (message.role) {
+                    "user" -> "USER"
+                    "ai" -> "ASSISTANT"
+                    "welcome" -> "WELCOME"
+                    "report" -> "REPORT"
+                    else -> "SYSTEM"
+                }
+                "[$role]\n${message.text}"
+            },
+        )
         appendChat("\n\n[*] History saved -> ${file.absolutePath}")
     }
 
     private fun clearChat() {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Clear this chat?")
+            .setMessage(
+                "The visible conversation and its context will be removed. " +
+                    "Saved transcripts are not affected.",
+            )
+            .setPositiveButton("CLEAR") { _, _ -> performClearChat() }
+            .setNegativeButton("CANCEL", null)
+            .create()
+        dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+        dialog.show()
+    }
+
+    private fun performClearChat() {
+        hideTypingIndicator()
         stickToBottom = false
-        chatText.text = getString(R.string.welcome_chat)
+        chatMessages.removeAllViews()
+        chatHistory.clear()
         lastResponse = ""
+        addChatMessage(
+            ChatMessage("welcome", getString(R.string.welcome_chat).trim()),
+            animate = false,
+        )
+        persistChatState()
         chatScroll.post { chatScroll.fullScroll(ScrollView.FOCUS_UP) }
+        updateJumpLatestButton()
+    }
+
+    private fun retryLastPrompt() {
+        val prompt = chatHistory
+            .lastOrNull { it.role == "user" }
+            ?.text
+            ?.removePrefix("Master ❯ ")
+            ?.trim()
+        if (prompt.isNullOrBlank()) {
+            appendChat("\n\n[*] Nothing to retry yet, Master.")
+            return
+        }
+        promptInput.setText(prompt)
+        promptInput.setSelection(prompt.length)
+        stickToBottom = true
+        updateJumpLatestButton()
+        sendPrompt()
     }
 
     private fun saveSecurityKeys() {
@@ -3396,6 +3501,7 @@ User request: $prompt"""
     }
 
     private fun setBusy(busy: Boolean) {
+        isBusy = busy
         promptInput.isEnabled = true
         listOf(
             R.id.sendButton,
@@ -3405,10 +3511,34 @@ User request: $prompt"""
             R.id.copyButton,
             R.id.saveButton,
             R.id.clearButton,
+            R.id.retryButton,
         ).forEach { id ->
             findViewById<Button>(id).isEnabled = !busy
         }
-        if (busy) startBusyPulse() else stopBusyPulse()
+        if (busy) {
+            startBusyPulse()
+            showTypingIndicator()
+        } else {
+            stopBusyPulse()
+            hideTypingIndicator()
+            updateSendButtonState()
+        }
+        val status = findViewById<TextView>(R.id.chatStatus)
+        status.text = if (busy) "SECURE CHANNEL · THINKING" else "SECURE CHANNEL · READY"
+        status.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (busy) R.color.sentinal_amber else R.color.sentinal_cyan,
+            ),
+        )
+    }
+
+    private fun updateSendButtonState() {
+        if (!::promptInput.isInitialized) return
+        val send = findViewById<Button>(R.id.sendButton)
+        val enabled = !isBusy && promptInput.text.isNotBlank()
+        send.isEnabled = enabled
+        if (!isBusy) send.alpha = if (enabled) 1f else 0.55f
     }
 
     private fun checkForUpdate(manual: Boolean) {
@@ -3670,9 +3800,93 @@ User request: $prompt"""
     }
 
     private fun appendChat(text: String, colorRes: Int? = null) {
-        stickToBottom = true
+        val clean = text.trim('\n')
+        if (clean.isBlank()) return
+        val role = when {
+            clean.startsWith("Master ❯") -> "user"
+            clean.startsWith("── RESPONSE") || colorRes == R.color.sentinal_green -> "ai"
+            clean.startsWith("── ") -> "report"
+            else -> "system"
+        }
+        if (role == "user") {
+            stickToBottom = true
+            updateJumpLatestButton()
+        }
+        addChatMessage(ChatMessage(role, clean, colorRes), animate = true)
+    }
+
+    private fun addChatMessage(message: ChatMessage, animate: Boolean) {
+        if (!::chatMessages.isInitialized) return
+        chatHistory += message
+        val bubble = createChatBubble(message)
+        chatMessages.addView(bubble)
+        if (animate) {
+            animateChatBubble(bubble, message.role)
+            scrollChatToBottom()
+        }
+        persistChatState()
+    }
+
+    private fun createChatBubble(message: ChatMessage): View {
+        val formatted = formattedChatText(message.text, message.colorRes)
+        return when (message.role) {
+            "system" -> TextView(this).apply {
+                text = formatted
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
+                textSize = 11f
+                gravity = Gravity.START
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(4) }
+            }
+            "welcome" -> TextView(this).apply {
+                text = formatted
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+                typeface = android.graphics.Typeface.MONOSPACE
+                textSize = 10f
+                setLineSpacing(dp(1).toFloat(), 1f)
+                setPadding(dp(13), dp(10), dp(13), dp(10))
+                setBackgroundResource(R.drawable.chat_bubble_ai)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    gravity = Gravity.START
+                    topMargin = dp(6)
+                    marginEnd = dp(12)
+                }
+            }
+            else -> TextView(this).apply {
+                text = formatted
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                textSize = 13f
+                setLineSpacing(dp(3).toFloat(), 1f)
+                setPadding(dp(13), dp(10), dp(13), dp(10))
+                setBackgroundResource(
+                    if (message.role == "user") {
+                        R.drawable.chat_bubble_user
+                    } else {
+                        R.drawable.chat_bubble_ai
+                    },
+                )
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    gravity = if (message.role == "user") Gravity.END else Gravity.START
+                    topMargin = dp(6)
+                    marginStart = if (message.role == "user") dp(36) else 0
+                    marginEnd = if (message.role == "user") 0 else dp(36)
+                }
+            }
+        }
+    }
+
+    private fun formattedChatText(text: String, colorRes: Int?): SpannableString {
         val formatted = SpannableString(text)
-        if (colorRes != null) {
+        if (colorRes != null && text.isNotEmpty()) {
             formatted.setSpan(
                 ForegroundColorSpan(ContextCompat.getColor(this, colorRes)),
                 0,
@@ -3688,29 +3902,225 @@ User request: $prompt"""
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
         }
-        chatText.append(formatted)
-        scrollChatToBottom()
-    }
-
-    private fun highlightMasterText() {
-        val content = chatText.text.toString()
-        val formatted = SpannableString(content)
-        Regex("(?i)\\bmaster\\b").findAll(content).forEach { match ->
+        val codeBackground = BackgroundColorSpan(Color.rgb(8, 14, 22))
+        Regex("```[A-Za-z0-9_+#-]*[ \\t]*\\n[\\s\\S]*?```").findAll(text).forEach { match ->
             formatted.setSpan(
-                ForegroundColorSpan(ContextCompat.getColor(this, R.color.sentinal_red_bright)),
+                TypefaceSpan("monospace"),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            formatted.setSpan(
+                codeBackground,
                 match.range.first,
                 match.range.last + 1,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
         }
-        chatText.text = formatted
+        Regex("`([^`\\n]+)`").findAll(text).forEach { match ->
+            formatted.setSpan(
+                TypefaceSpan("monospace"),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        return formatted
+    }
+
+    private fun animateChatBubble(view: View, role: String) {
+        if (!animationsEnabled()) return
+        view.animate().cancel()
+        view.alpha = 0f
+        view.translationY = dp(10).toFloat()
+        view.translationX = when (role) {
+            "user" -> dp(14).toFloat()
+            "welcome", "ai", "report" -> -dp(10).toFloat()
+            else -> 0f
+        }
+        view.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .translationX(0f)
+            .setDuration(240L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+    }
+
+    /** Recent exchanges, used to give the model conversational memory. */
+    private fun conversationContext(): String {
+        val recent = chatHistory
+            .filter { it.role == "user" || it.role == "ai" }
+            .takeLast(6)
+            .filter { it.text.isNotBlank() }
+        if (recent.isEmpty()) return ""
+        return recent.joinToString("\n\n") { message ->
+            val label = if (message.role == "user") "User" else "Assistant"
+            "$label: ${contextText(message)}"
+        }
+    }
+
+    private fun contextText(message: ChatMessage): String {
+        var text = message.text.trim()
+        if (message.role == "user") {
+            text = text.removePrefix("Master ❯ ").trim()
+        } else {
+            text = responseBody(text)
+        }
+        return text.take(1200)
+    }
+
+    private fun responseBody(text: String): String =
+        text.replaceFirst(Regex("^── RESPONSE[^\\n]*\\n"), "").trim()
+
+    private fun chatStateJson(): String {
+        val array = JSONArray()
+        chatHistory.takeLast(60).forEach { message ->
+            val item = JSONObject()
+                .put("role", message.role)
+                .put("text", message.text)
+            val colorKey = colorKey(message.colorRes)
+            if (colorKey != null) {
+                item.put("color", colorKey)
+            } else {
+                item.put("color", JSONObject.NULL)
+            }
+            array.put(item)
+        }
+        return array.toString()
+    }
+
+    private fun colorKey(colorRes: Int?): String? = when (colorRes) {
+        R.color.sentinal_green -> "green"
+        R.color.sentinal_red_bright -> "red"
+        else -> null
+    }
+
+    private fun colorFromKey(key: String?): Int? = when (key) {
+        "green" -> R.color.sentinal_green
+        "red" -> R.color.sentinal_red_bright
+        else -> null
+    }
+
+    private fun restoreChatState(json: String) {
+        if (json.isBlank()) return
+        restoringChat = true
+        try {
+            val array = JSONArray(json)
+            for (index in 0 until array.length()) {
+                val item = array.getJSONObject(index)
+                val color = if (item.isNull("color")) {
+                    null
+                } else {
+                    colorFromKey(item.optString("color"))
+                }
+                val role = item.optString("role", "system")
+                val text = item.optString("text", "")
+                if (text.isNotBlank()) {
+                    addChatMessage(ChatMessage(role, text, color), animate = false)
+                }
+            }
+        } catch (_: Exception) {
+            chatHistory.clear()
+            chatMessages.removeAllViews()
+        } finally {
+            restoringChat = false
+        }
+        scrollChatToBottom()
+    }
+
+    private fun persistChatState() {
+        if (!::chatMessages.isInitialized || restoringChat) return
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_CHAT_STATE, chatStateJson())
+            .apply()
+    }
+
+    private fun showTypingIndicator() {
+        if (!::chatMessages.isInitialized) return
+        hideTypingIndicator()
+        val bubble = TextView(this).apply {
+            text = "SENTINAL is thinking"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+            textSize = 11f
+            setPadding(dp(13), dp(9), dp(13), dp(9))
+            setBackgroundResource(R.drawable.chat_bubble_ai)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                gravity = Gravity.START
+                topMargin = dp(6)
+                marginEnd = dp(36)
+            }
+            alpha = 0f
+        }
+        chatMessages.addView(bubble)
+        typingView = bubble
+        bubble.animate().alpha(1f).setDuration(180L).start()
+        if (!animationsEnabled()) {
+            bubble.text = "SENTINAL is thinking…"
+        } else {
+            typingAnimator = ValueAnimator.ofInt(0, 4).apply {
+                duration = 1400
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animator ->
+                    val dots = (animator.animatedValue as Int).coerceIn(0, 3)
+                    bubble.text = "SENTINAL is thinking" + ".".repeat(dots)
+                }
+                start()
+            }
+        }
+        scrollChatToBottom()
+    }
+
+    private fun hideTypingIndicator() {
+        typingAnimator?.cancel()
+        typingAnimator = null
+        val view = typingView ?: return
+        typingView = null
+        view.animate().cancel()
+        if (view.parent === chatMessages) chatMessages.removeView(view)
     }
 
     private fun scrollChatToBottom() {
+        if (!::chatScroll.isInitialized || !stickToBottom) return
         chatScroll.post {
+            if (!stickToBottom) return@post
             chatScroll.fullScroll(ScrollView.FOCUS_DOWN)
-            // Second pass after the text layout settles.
-            chatScroll.postDelayed({ chatScroll.fullScroll(ScrollView.FOCUS_DOWN) }, 80)
+            // Second pass after the layout settles.
+            chatScroll.postDelayed({
+                if (stickToBottom) chatScroll.fullScroll(ScrollView.FOCUS_DOWN)
+            }, 80)
+        }
+    }
+
+    private fun updateJumpLatestButton() {
+        if (!::jumpLatestButton.isInitialized) return
+        jumpLatestButton.animate().cancel()
+        if (stickToBottom) {
+            if (jumpLatestButton.visibility == View.GONE) return
+            if (!animationsEnabled()) {
+                jumpLatestButton.visibility = View.GONE
+                jumpLatestButton.alpha = 0f
+                return
+            }
+            jumpLatestButton.animate()
+                .alpha(0f)
+                .setDuration(130L)
+                .withEndAction {
+                    jumpLatestButton.visibility = View.GONE
+                    jumpLatestButton.alpha = 0f
+                }
+                .start()
+        } else {
+            if (jumpLatestButton.visibility == View.VISIBLE) return
+            jumpLatestButton.alpha = if (animationsEnabled()) 0f else 1f
+            jumpLatestButton.visibility = View.VISIBLE
+            if (animationsEnabled()) {
+                jumpLatestButton.animate().alpha(1f).setDuration(170L).start()
+            }
         }
     }
 }

@@ -55,5 +55,5 @@ jobs:
         run: |
           gh release delete latest --yes || true
           gh release create latest android/app/build/outputs/apk/debug/app-debug.apk \
-            --title "WormGPT Android APK" \
-            --notes "Latest auto-built APK from master. Build number: ${GITHUB_RUN_NUMBER}. Android will ask you to confirm installation."
+            --title "Sentinal Security" \
+            --notes "Build number: ${GITHUB_RUN_NUMBER}. Latest Sentinal Security auto-build from master. Install the APK; Android will ask you to confirm installation."
