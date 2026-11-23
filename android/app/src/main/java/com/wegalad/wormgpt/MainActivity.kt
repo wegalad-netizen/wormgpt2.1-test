@@ -18,6 +18,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Paint
+import android.graphics.Shader
 import android.graphics.Path
 import android.media.AudioAttributes
 import android.media.MediaPlayer
@@ -848,19 +849,33 @@ Rules:
         ))
 
         logo.alpha = 0f
+        logo.rotation = -35f
         logo.animate()
             .alpha(1f)
+            .rotation(0f)
             .scaleX(1f)
             .scaleY(1f)
-            .setDuration(650L)
-            .setInterpolator(OvershootInterpolator(1.3f))
+            .setDuration(720L)
+            .setInterpolator(OvershootInterpolator(1.2f))
             .start()
         title.animate().alpha(1f).translationY(0f).setStartDelay(180L).setDuration(480L).start()
         subtitle.animate().alpha(1f).setStartDelay(330L).setDuration(420L).start()
         overlay.postDelayed({
-            overlay.animate().alpha(0f).setDuration(450L).withEndAction {
-                if (overlay.parent === root) root.removeView(overlay)
-            }.start()
+            content.animate()
+                .alpha(0f)
+                .scaleX(0.94f)
+                .scaleY(0.94f)
+                .setDuration(320L)
+                .setInterpolator(AccelerateDecelerateInterpolator())
+                .start()
+            overlay.animate()
+                .alpha(0f)
+                .setStartDelay(140L)
+                .setDuration(420L)
+                .withEndAction {
+                    if (overlay.parent === root) root.removeView(overlay)
+                }
+                .start()
         }, 1450L)
     }
 
@@ -4589,6 +4604,8 @@ class CryptoChartPreview(context: Context, attrs: android.util.AttributeSet? = n
         style = Paint.Style.FILL
     }
     private var prices: List<Double> = emptyList()
+    private var reveal = 1f
+    private var revealAnimator: ValueAnimator? = null
 
     fun setPrices(values: List<Double>) {
         prices = values
@@ -4596,7 +4613,27 @@ class CryptoChartPreview(context: Context, attrs: android.util.AttributeSet? = n
         val color = if (rising) Color.rgb(16, 185, 129) else Color.rgb(239, 68, 68)
         linePaint.color = color
         fillPaint.color = Color.argb(30, Color.red(color), Color.green(color), Color.blue(color))
-        invalidate()
+        val motionEnabled = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) > 0f
+        revealAnimator?.cancel()
+        if (!motionEnabled || values.size < 2) {
+            reveal = 1f
+            invalidate()
+            return
+        }
+        reveal = 0f
+        revealAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 750L
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { animator ->
+                reveal = animator.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -4630,7 +4667,26 @@ class CryptoChartPreview(context: Context, attrs: android.util.AttributeSet? = n
             lineTo(left, bottom)
             close()
         }
+        if (reveal < 1f) {
+            val revealX = left + (right - left) * reveal
+            val colors = intArrayOf(Color.WHITE, Color.WHITE, Color.TRANSPARENT)
+            val stops = floatArrayOf(0f, revealX / width.coerceAtLeast(1), 1f)
+            val shader = android.graphics.LinearGradient(
+                0f, 0f, width.toFloat(), 0f, colors, stops, Shader.TileMode.CLAMP,
+            )
+            fillPaint.shader = shader
+            linePaint.shader = shader
+        } else {
+            fillPaint.shader = null
+            linePaint.shader = null
+        }
         canvas.drawPath(areaPath, fillPaint)
         canvas.drawPath(pricePath, linePaint)
+    }
+
+    override fun onDetachedFromWindow() {
+        revealAnimator?.cancel()
+        revealAnimator = null
+        super.onDetachedFromWindow()
     }
 }

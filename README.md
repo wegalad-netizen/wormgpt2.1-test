@@ -88,6 +88,9 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - Activity open/close transition animations
 - Keyboard composer lifts with a smooth animated inset instead of jumping
 - Page transitions use a soft scale/slide entrance with reduced-motion fallbacks
+- Launch seal rotates into view and the launch overlay exits with a scale/fade
+- All dialogs inherit the Sentinal scale/fade window animation
+- Crypto chart line draws itself with a progressive reveal when new data arrives
 
 ## Commands
 

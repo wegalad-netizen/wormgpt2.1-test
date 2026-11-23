@@ -18,6 +18,16 @@
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/security_shield_icon</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/sentinal_bg</item>
         <item name="android:windowAnimationStyle">@style/SentinalActivityAnimation</item>
+        <item name="android:dialogTheme">@style/SentinalDialogTheme</item>
+        <item name="alertDialogTheme">@style/SentinalDialogTheme</item>
+    </style>
+
+    <style name="SentinalDialogTheme" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+        <item name="android:windowAnimationStyle">@style/SentinalDialogAnimation</item>
+        <item name="android:windowBackground">@color/sentinal_card</item>
+        <item name="android:textColorPrimary">@color/sentinal_text</item>
+        <item name="android:textColorSecondary">@color/sentinal_muted</item>
+        <item name="colorAccent">@color/sentinal_cyan</item>
     </style>
 
     <style name="SentinalActivityAnimation" parent="@android:style/Animation.Activity">
