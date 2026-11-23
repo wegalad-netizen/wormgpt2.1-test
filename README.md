@@ -80,6 +80,15 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - Sliding bottom-navigation indicator between Home / Chat / Tools
 - Staggered dashboard card entrance and reduced-motion support
 
+### System UI upgrades
+
+- Edge-to-edge layout with transparent status and navigation bars
+- Light system-bar icons matched to the dark Sentinal theme
+- Branded Android 12+ splash screen with a smooth scale/fade exit
+- Activity open/close transition animations
+- Keyboard composer lifts with a smooth animated inset instead of jumping
+- Page transitions use a soft scale/slide entrance with reduced-motion fallbacks
+
 ## Commands
 
 - `exit`, `quit`, `q` — leave the app

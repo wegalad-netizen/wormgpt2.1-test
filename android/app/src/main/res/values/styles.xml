@@ -9,8 +9,22 @@
         <item name="android:textColorPrimary">@color/sentinal_text</item>
         <item name="android:textColorSecondary">@color/sentinal_muted</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">@color/sentinal_bg</item>
-        <item name="android:navigationBarColor">@color/sentinal_bg</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:windowSplashScreenBackground">@color/sentinal_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/security_shield_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/sentinal_bg</item>
+        <item name="android:windowAnimationStyle">@style/SentinalActivityAnimation</item>
+    </style>
+
+    <style name="SentinalActivityAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/activity_open_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/activity_open_exit</item>
+        <item name="android:activityCloseEnterAnimation">@anim/activity_close_enter</item>
+        <item name="android:activityCloseExitAnimation">@anim/activity_close_exit</item>
     </style>
 
     <style name="SentinalDialogAnimation">

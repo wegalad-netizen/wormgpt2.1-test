@@ -73,6 +73,7 @@ import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -334,6 +335,7 @@ Rules:
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setupSystemUi()
         setContentView(R.layout.activity_main)
         val sonification = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
@@ -870,6 +872,33 @@ Rules:
         }
     }
 
+    /** Edge-to-edge system bars, dark icon appearance, and a branded splash exit. */
+    private fun setupSystemUi() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { view ->
+                view.animate()
+                    .alpha(0f)
+                    .scaleX(1.06f)
+                    .scaleY(1.06f)
+                    .setDuration(280L)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .withEndAction { view.remove() }
+                    .start()
+            }
+        }
+    }
+
     /** Keep system bars insets on the root and lift only the composer above the IME. */
     private fun setupKeyboardInsets() {
         val root = findViewById<View>(R.id.drawerLayout)
@@ -886,8 +915,8 @@ Rules:
             val keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
             val composer = findViewById<View>(R.id.composerBar)
             view.post {
-                if (!keyboardVisible || ime.bottom == 0) {
-                    composer.translationY = 0f
+                val targetY = if (!keyboardVisible || ime.bottom == 0) {
+                    0f
                 } else {
                     val decor = window.decorView
                     val decorPosition = IntArray(2)
@@ -898,7 +927,17 @@ Rules:
                     val composerBottom = composerPosition[1] + composer.height -
                         composer.translationY.toInt()
                     val overlap = composerBottom - keyboardTop
-                    composer.translationY = -overlap.coerceAtLeast(0).toFloat()
+                    -overlap.coerceAtLeast(0).toFloat()
+                }
+                composer.animate().cancel()
+                if (!animationsEnabled()) {
+                    composer.translationY = targetY
+                } else {
+                    composer.animate()
+                        .translationY(targetY)
+                        .setDuration(190L)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
                 }
             }
             WindowInsetsCompat.CONSUMED
@@ -1404,15 +1443,27 @@ Rules:
         if (!animationsEnabled()) {
             view.alpha = 1f
             view.translationY = 0f
+            view.scaleX = 1f
+            view.scaleY = 1f
             return
         }
         view.alpha = 0f
-        view.translationY = dp(12).toFloat()
+        view.translationY = dp(16).toFloat()
+        view.scaleX = 0.985f
+        view.scaleY = 0.985f
         view.animate()
             .alpha(1f)
             .translationY(0f)
-            .setDuration(280L)
-            .setInterpolator(DecelerateInterpolator())
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(320L)
+            .setInterpolator(OvershootInterpolator(0.7f))
+            .withEndAction {
+                view.alpha = 1f
+                view.translationY = 0f
+                view.scaleX = 1f
+                view.scaleY = 1f
+            }
             .start()
     }
 
