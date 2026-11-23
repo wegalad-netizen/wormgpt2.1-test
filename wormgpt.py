@@ -24,7 +24,11 @@ import aiohttp
 # --- CONFIGURATION ---
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 MODEL = "gemini-3.8-flash"
-FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.1-flash", "gemini-3.1-flash-lite"]
+FALLBACK_MODELS = [
+    "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite",
+    "gemini-3.6-flash", "gemini-3.7-flash", "gemini-4-hydrogen",
+    "gemini-3.1-flash-lite",
+]
 DEPRECATED_GEMINI_MODELS = {
     "gemini-2.5-flash": "gemini-3.8-flash",
     "gemini-2.5-flash-lite": "gemini-3.8-flash",
@@ -865,10 +869,15 @@ async def runquery(
 
                         async with session.post(url, json=post_payload, headers=post_headers) as response:
                             if response.status != 200:
+                                if provider == "opencode" and response.status == 401:
+                                    failures.append("opencode: credential rejected (401); rotate your Console key")
+                                    break
+                                if provider == "opencode" and response.status == 402:
+                                    failures.append("opencode: no credits (402); top up or use another provider")
+                                    break
                                 if response.status == 429 and provider == "opencode":
                                     failures.append(
-                                        "opencode: free models only work inside OpenCode; "
-                                        "add an OpenCode Console API key or use another provider"
+                                        "opencode: free models only work inside OpenCode; use a paid model or another provider"
                                     )
                                     break
                                 failures.append(

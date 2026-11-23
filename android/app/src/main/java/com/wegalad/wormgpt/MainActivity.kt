@@ -144,7 +144,11 @@ class MainActivity : AppCompatActivity() {
         const val MODEL = "gemini-3.8-flash"
         val FALLBACK_MODELS = listOf(
             "gemini-3.8-flash",
-            "gemini-3.1-flash",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.6-flash",
+            "gemini-3.7-flash",
+            "gemini-4-hydrogen",
             "gemini-3.1-flash-lite",
         )
         val DEPRECATED_GEMINI_MODELS = mapOf(
@@ -3305,7 +3309,7 @@ User request: $prompt"""
                 val dynamic = availableGeminiModels(profile.apiKey, force = true)
                 val candidates = (dynamic + FALLBACK_MODELS).distinct()
                     .filter { it != profile.model }
-                    .take(4)
+                    .take(8)
                 for (candidate in candidates) {
                     usedModel = candidate
                     result = runProfileQuery(
@@ -3331,7 +3335,7 @@ User request: $prompt"""
         }
         return ApiResult(
             null,
-            "No configured Gemini model succeeded after ${profiles.size} profile${if (profiles.size == 1) "" else "s"}:\n" +
+            "No configured API profile succeeded after ${profiles.size} attempt${if (profiles.size == 1) "" else "s"}:\n" +
                 failures.joinToString("\n\n"),
             attempts = profiles.size,
         )
@@ -3566,10 +3570,22 @@ User request: $prompt"""
             client.newCall(request).execute().use { response ->
                 val raw = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
+                    if (profile.provider == "opencode" && response.code == 401) {
+                        return ApiResult(
+                            null,
+                            "OpenCode credential rejected (401). The key is invalid or was rotated. Generate a fresh key in your OpenCode Console and save it in Settings.",
+                        )
+                    }
+                    if (profile.provider == "opencode" && response.code == 402) {
+                        return ApiResult(
+                            null,
+                            "OpenCode credits are empty (402). Add credits in OpenCode Console or use another provider.",
+                        )
+                    }
                     if (response.code == 429 && profile.provider == "opencode") {
                         return ApiResult(
                             null,
-                            "OpenCode free models only work inside OpenCode. Add an OpenCode Console API key in Settings to use it here, or choose another provider.",
+                            "OpenCode free models only work inside OpenCode. Use a paid model with Console credits, or choose another provider.",
                         )
                     }
                     return ApiResult(null, "HTTP ${response.code} ${response.message}: ${raw.take(1500)}")
