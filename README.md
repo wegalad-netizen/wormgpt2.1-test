@@ -92,6 +92,15 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - All dialogs inherit the Sentinal scale/fade window animation
 - Crypto chart line draws itself with a progressive reveal when new data arrives
 
+### Chat graphics refresh
+
+- Redesigned message bubbles with gradient fills, accent borders, and directional "tails"
+- Role headers with coloured status dot for Master / Sentinal / system reports
+- Animated aurora backdrop behind chat messages
+- Richer reply formatting: accent bars on code blocks, bold headings, coloured bullets, and underlined links
+- Depth-settle animation on new bubbles and staggered reveal on restored conversations
+- Typing dots now bounce and scale together
+
 ## Commands
 
 - `exit`, `quit`, `q` — leave the app

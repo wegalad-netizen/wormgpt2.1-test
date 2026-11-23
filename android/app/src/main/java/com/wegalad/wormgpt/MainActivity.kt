@@ -39,7 +39,11 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.LeadingMarginSpan
+import android.text.style.LineBackgroundSpan
+import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
+import android.text.style.UnderlineSpan
 import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.text.TextUtils
@@ -174,6 +178,52 @@ Rules:
     )
     private data class CodeBlock(val lang: String, val code: String)
     private data class ChatMessage(val role: String, val text: String, val colorRes: Int? = null)
+
+    /** Draws a thin accent bar beside code blocks and quoted lines. */
+    private class AccentLineSpan(
+        private val color: Int,
+        private val barWidth: Int,
+    ) : LineBackgroundSpan {
+        override fun drawBackground(
+            canvas: Canvas,
+            paint: Paint,
+            left: Int,
+            right: Int,
+            top: Int,
+            baseline: Int,
+            bottom: Int,
+            text: CharSequence,
+            start: Int,
+            end: Int,
+        ) = drawAccent(canvas, paint, left, top, bottom)
+
+        override fun drawBackground(
+            canvas: Canvas,
+            paint: Paint,
+            left: Int,
+            right: Int,
+            top: Int,
+            baseline: Int,
+            bottom: Int,
+            text: CharSequence,
+            start: Int,
+            end: Int,
+            lineNumber: Int,
+        ) = drawAccent(canvas, paint, left, top, bottom)
+
+        private fun drawAccent(canvas: Canvas, paint: Paint, left: Int, top: Int, bottom: Int) {
+            val previous = paint.color
+            paint.color = color
+            canvas.drawRect(
+                left.toFloat(),
+                (top + 2).toFloat(),
+                (left + barWidth).toFloat(),
+                (bottom - 2).toFloat(),
+                paint,
+            )
+            paint.color = previous
+        }
+    }
     private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int, val notes: String = "")
     private data class CryptoSnapshot(
         val symbol: String,
@@ -219,6 +269,8 @@ Rules:
     private lateinit var securityScoreText: TextView
     private lateinit var navIndicator: View
     private var scoreCountAnimator: ValueAnimator? = null
+    private var chatBackdrop: GradientDrawable? = null
+    private var chatBackdropAnimator: ValueAnimator? = null
     private lateinit var keywordSwitch: Switch
     private lateinit var unknownSwitch: Switch
     private lateinit var operatorSpamSwitch: Switch
@@ -364,6 +416,7 @@ Rules:
         drawerLayout.background = pulseBackground
         chatScroll = findViewById(R.id.chatScroll)
         chatMessages = findViewById(R.id.chatMessages)
+        startChatBackdropAnimation()
         jumpLatestButton = findViewById(R.id.jumpLatestButton)
         chatBusyBar = findViewById(R.id.chatBusyBar)
         chatSignalLine = findViewById(R.id.chatSignalLine)
@@ -722,6 +775,7 @@ Rules:
         typingAnimator = null
         scoreCountAnimator?.cancel()
         scoreCountAnimator = null
+        stopChatBackdropAnimation()
         backgroundPulseAnimator?.cancel()
         backgroundPulseAnimator = null
         netJob?.cancel()
@@ -4166,56 +4220,73 @@ User request: $prompt"""
 
     private fun createChatBubble(message: ChatMessage): View {
         val formatted = formattedChatText(message.text, message.colorRes)
-        val bubble = when (message.role) {
-            "system" -> TextView(this).apply {
-                text = formatted
-                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
-                textSize = 11f
-                gravity = Gravity.START
-                setPadding(dp(4), dp(4), dp(4), dp(4))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = dp(4) }
+        val isUser = message.role == "user"
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = if (isUser) Gravity.END else Gravity.START
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) }
+        }
+
+        if (message.role != "system") {
+            val (label, labelColor) = when (message.role) {
+                "user" -> "MASTER" to R.color.sentinal_cyan
+                "welcome" -> "SENTINAL SECURITY" to R.color.sentinal_cyan
+                "report" -> "SYSTEM REPORT" to R.color.sentinal_amber
+                else -> "SENTINAL" to R.color.sentinal_emerald
             }
-            "welcome" -> TextView(this).apply {
-                text = formatted
-                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
-                typeface = android.graphics.Typeface.MONOSPACE
-                textSize = 10f
-                setLineSpacing(dp(1).toFloat(), 1f)
-                setPadding(dp(13), dp(10), dp(13), dp(10))
-                setBackgroundResource(R.drawable.chat_bubble_ai)
-                layoutParams = LinearLayout.LayoutParams(
+            container.addView(
+                TextView(this).apply {
+                    text = "●  $label"
+                    setTextColor(ContextCompat.getColor(this@MainActivity, labelColor))
+                    textSize = 9f
+                    letterSpacing = 0.16f
+                    setPadding(dp(3), 0, dp(3), dp(3))
+                },
+                LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                 ).apply {
+                    gravity = if (isUser) Gravity.END else Gravity.START
+                    marginStart = if (isUser) 0 else dp(40)
+                    marginEnd = if (isUser) dp(40) else 0
+                },
+            )
+        }
+
+        val bubble = TextView(this).apply {
+            text = formatted
+            when (message.role) {
+                "system" -> {
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
+                    textSize = 11f
                     gravity = Gravity.START
-                    topMargin = dp(6)
-                    marginEnd = dp(12)
+                    setPadding(dp(4), dp(2), dp(4), dp(2))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    )
                 }
-            }
-            else -> TextView(this).apply {
-                text = formatted
-                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
-                textSize = 13f
-                setLineSpacing(dp(3).toFloat(), 1f)
-                setPadding(dp(13), dp(10), dp(13), dp(10))
-                setBackgroundResource(
-                    if (message.role == "user") {
-                        R.drawable.chat_bubble_user
-                    } else {
-                        R.drawable.chat_bubble_ai
-                    },
-                )
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply {
-                    gravity = if (message.role == "user") Gravity.END else Gravity.START
-                    topMargin = dp(6)
-                    marginStart = if (message.role == "user") dp(36) else 0
-                    marginEnd = if (message.role == "user") 0 else dp(36)
+                "welcome" -> {
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    textSize = 10f
+                    setLineSpacing(dp(1).toFloat(), 1f)
+                    setPadding(dp(13), dp(10), dp(13), dp(10))
+                    setBackgroundResource(R.drawable.chat_bubble_ai)
+                    layoutParams = bubbleParams(isUser = false)
+                }
+                else -> {
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                    textSize = 13f
+                    setLineSpacing(dp(3).toFloat(), 1f)
+                    setPadding(dp(13), dp(10), dp(13), dp(10))
+                    setBackgroundResource(
+                        if (isUser) R.drawable.chat_bubble_user else R.drawable.chat_bubble_ai,
+                    )
+                    layoutParams = bubbleParams(isUser = isUser)
                 }
             }
         }
@@ -4228,8 +4299,19 @@ User request: $prompt"""
             Toast.makeText(this, "Message copied.", Toast.LENGTH_SHORT).show()
             true
         }
-        return bubble
+        container.addView(bubble)
+        return container
     }
+
+    private fun bubbleParams(isUser: Boolean): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply {
+            gravity = if (isUser) Gravity.END else Gravity.START
+            marginStart = if (isUser) dp(40) else 0
+            marginEnd = if (isUser) 0 else dp(40)
+        }
 
     private fun formattedChatText(text: String, colorRes: Int?): SpannableString {
         val formatted = SpannableString(text)
@@ -4249,24 +4331,89 @@ User request: $prompt"""
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
         }
+        val faint = ContextCompat.getColor(this, R.color.sentinal_faint)
+        val cyan = ContextCompat.getColor(this, R.color.sentinal_cyan)
+        val emerald = ContextCompat.getColor(this, R.color.sentinal_emerald)
         val codeBackground = BackgroundColorSpan(Color.rgb(8, 14, 22))
         Regex("```[A-Za-z0-9_+#-]*[ \\t]*\\n[\\s\\S]*?```").findAll(text).forEach { match ->
+            val start = match.range.first
+            val end = match.range.last + 1
             formatted.setSpan(
                 TypefaceSpan("monospace"),
-                match.range.first,
-                match.range.last + 1,
+                start,
+                end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            formatted.setSpan(codeBackground, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            formatted.setSpan(
+                AccentLineSpan(cyan, dp(3)),
+                start,
+                end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
             formatted.setSpan(
-                codeBackground,
+                LeadingMarginSpan.Standard(dp(10), dp(10)),
+                start,
+                end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            val firstBreak = text.indexOf('\n', start)
+            val markerEnd = if (firstBreak in start until end) firstBreak + 1 else end
+            formatted.setSpan(
+                ForegroundColorSpan(faint),
+                start,
+                markerEnd,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            val closingStart = end - 3
+            if (closingStart >= markerEnd) {
+                formatted.setSpan(
+                    ForegroundColorSpan(faint),
+                    closingStart,
+                    end,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
+        }
+        Regex("`([^`\\n]+)`").findAll(text).forEach { match ->
+            formatted.setSpan(
+                TypefaceSpan("monospace"),
                 match.range.first,
                 match.range.last + 1,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
         }
-        Regex("`([^`\\n]+)`").findAll(text).forEach { match ->
+        Regex("(?m)^#{1,4}[ \\t]+.*$").findAll(text).forEach { match ->
             formatted.setSpan(
-                TypefaceSpan("monospace"),
+                StyleSpan(android.graphics.Typeface.BOLD),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            formatted.setSpan(
+                ForegroundColorSpan(cyan),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        Regex("(?m)^[ \\t]*[-*][ \\t]+.*$").findAll(text).forEach { match ->
+            formatted.setSpan(
+                ForegroundColorSpan(emerald),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        Regex("https?://[^\\s\\)\\]>]+").findAll(text).forEach { match ->
+            formatted.setSpan(
+                ForegroundColorSpan(cyan),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            formatted.setSpan(
+                UnderlineSpan(),
                 match.range.first,
                 match.range.last + 1,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
@@ -4281,6 +4428,7 @@ User request: $prompt"""
         view.alpha = 0f
         view.scaleX = 0.97f
         view.scaleY = 0.97f
+        view.translationZ = dp(6).toFloat()
         view.translationY = dp(14).toFloat()
         view.translationX = when (role) {
             "user" -> dp(16).toFloat()
@@ -4308,6 +4456,11 @@ User request: $prompt"""
                 view.scaleY = 1f
                 view.translationX = 0f
                 view.translationY = 0f
+                view.animate()
+                    .translationZ(0f)
+                    .setDuration(280L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
             }
             .start()
     }
@@ -4392,6 +4545,29 @@ User request: $prompt"""
             restoringChat = false
         }
         scrollChatToBottom()
+        playChatRestoreStagger()
+    }
+
+    private fun playChatRestoreStagger() {
+        if (!animationsEnabled()) return
+        val total = chatMessages.childCount
+        val startAt = maxOf(0, total - 12)
+        for (index in startAt until total) {
+            val view = chatMessages.getChildAt(index) ?: continue
+            view.alpha = 0f
+            view.translationY = dp(10).toFloat()
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay((index - startAt) * 45L)
+                .setDuration(280L)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    view.alpha = 1f
+                    view.translationY = 0f
+                }
+                .start()
+        }
     }
 
     private fun persistChatState() {
@@ -4451,8 +4627,11 @@ User request: $prompt"""
                     val progress = animator.animatedValue as Float
                     typingDots.forEachIndexed { index, dot ->
                         val wave = (Math.sin(progress * 2 * Math.PI - index * 0.8) + 1.0) / 2.0
-                        dot.translationY = -(wave.toFloat() * dp(5))
-                        dot.alpha = 0.35f + wave.toFloat() * 0.65f
+                        val bump = wave.toFloat()
+                        dot.translationY = -(bump * dp(5))
+                        dot.scaleX = 0.82f + bump * 0.3f
+                        dot.scaleY = 0.82f + bump * 0.3f
+                        dot.alpha = 0.35f + bump * 0.65f
                     }
                 }
                 start()
@@ -4520,6 +4699,47 @@ User request: $prompt"""
             updateJumpLatestButton()
             sendPrompt()
         }
+    }
+
+    /** Slowly shifting aurora behind chat messages, replacing the static card fill. */
+    private fun startChatBackdropAnimation() {
+        chatBackdropAnimator?.cancel()
+        val paletteA = intArrayOf(
+            Color.rgb(9, 13, 22),
+            Color.rgb(13, 18, 29),
+            Color.rgb(9, 13, 22),
+        )
+        val paletteB = intArrayOf(
+            Color.rgb(10, 16, 25),
+            Color.rgb(16, 27, 42),
+            Color.rgb(10, 16, 25),
+        )
+        val drawable = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            paletteA.copyOf(),
+        ).apply { cornerRadius = dp(14).toFloat() }
+        chatScroll.background = drawable
+        chatBackdrop = drawable
+        if (!animationsEnabled()) return
+        val evaluator = ArgbEvaluator()
+        chatBackdropAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 9000L
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            addUpdateListener { animator ->
+                val t = animator.animatedValue as Float
+                drawable.colors = IntArray(3) { index ->
+                    evaluator.evaluate(t, paletteA[index], paletteB[index]) as Int
+                }
+            }
+            start()
+        }
+    }
+
+    private fun stopChatBackdropAnimation() {
+        chatBackdropAnimator?.cancel()
+        chatBackdropAnimator = null
+        chatBackdrop = null
     }
 
     private fun pulseChatSignal() {
