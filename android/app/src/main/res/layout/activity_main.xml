@@ -493,10 +493,11 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal">
-                        <Button android:id="@+id/quickPromptLink" style="@style/SentinalButton.Outline" android:layout_width="wrap_content" android:layout_height="30dp" android:minWidth="0dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:text="CHECK LINK" android:textSize="9sp" />
+                        <Button android:id="@+id/sinhalaToggleButton" style="@style/SentinalButton.Outline" android:layout_width="wrap_content" android:layout_height="30dp" android:minWidth="0dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:text="SI OFF" android:textSize="9sp" />
+                        <Button android:id="@+id/quickPromptLink" style="@style/SentinalButton.Outline" android:layout_width="wrap_content" android:layout_height="30dp" android:layout_marginStart="6dp" android:minWidth="0dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:text="CHECK LINK" android:textSize="9sp" />
                         <Button android:id="@+id/quickPromptCode" style="@style/SentinalButton.Outline" android:layout_width="wrap_content" android:layout_height="30dp" android:layout_marginStart="6dp" android:minWidth="0dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:text="REVIEW CODE" android:textSize="9sp" />
                         <Button android:id="@+id/quickPromptThreat" style="@style/SentinalButton.Outline" android:layout_width="wrap_content" android:layout_height="30dp" android:layout_marginStart="6dp" android:minWidth="0dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:text="THREAT BRIEF" android:textSize="9sp" />
-                        <Button android:id="@+id/quickPromptSinhala" style="@style/SentinalButton.Outline" android:layout_width="wrap_content" android:layout_height="30dp" android:layout_marginStart="6dp" android:minWidth="0dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:text="SINHALA" android:textSize="9sp" />
+                        <Button android:id="@+id/quickPromptSinhala" style="@style/SentinalButton.Outline" android:layout_width="wrap_content" android:layout_height="30dp" android:layout_marginStart="6dp" android:minWidth="0dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:text="SINHALA" android:textSize="9sp" android:visibility="gone" />
                     </LinearLayout>
                 </HorizontalScrollView>
                 <LinearLayout

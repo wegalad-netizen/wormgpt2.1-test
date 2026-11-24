@@ -87,6 +87,8 @@ STATUS_COMMANDS = {"status", "/status"}
 QUICK_COMMANDS = {"quick", "/quick"}
 COPYMSG_COMMANDS = {"copymsg", "/copymsg"}
 IMPROVE_COMMANDS = {"improve", "/improve"}
+SINHALA_COMMANDS = {"sinhala", "/sinhala", "si"}
+SINHALA_MODE = False
 TEST_TIMEOUT = 10
 MAX_TEST_OUTPUT = 2000
 HOME_DIR = os.path.expanduser("~")
@@ -452,6 +454,7 @@ def help_text() -> str:
   status                Show session id and message count
   quick [link|code|threat]  List or send a quick prompt
   copymsg <N>           Copy a message by turn number
+  sinhala               Toggle Sinhala chat replies
   improve               Research public guidance and suggest improvements
   latest                Jump to the newest reply
   exit                  Quit"""
@@ -861,7 +864,7 @@ async def runquery(
             answer = re.sub(r"^\[[^\]]+\]\n", "", answer)
             gemini_contents.append({"role": "model", "parts": [{"text": sanitize_for_ai(answer)}]})
     effective_input = user_input
-    if contains_sinhala(user_input):
+    if SINHALA_MODE and contains_sinhala(user_input):
         effective_input = (
             "Respond in Sinhala (සිංහල) using clear native script. "
             "Keep technical terms understandable.\n\n" + user_input
@@ -1128,6 +1131,7 @@ async def auto_improve(
 
 def main() -> None:
     """Run the full-screen interactive session."""
+    global SINHALA_MODE
     profiles = load_api_profiles()
     if not profiles:
         print(f"{RED}[x]{RESET} Configure WORMGPT_API_KEY or add profiles to {PROFILE_FILE}.")
@@ -1289,6 +1293,14 @@ def main() -> None:
                     status(f"Code test -> {'PASS' if ok else 'FAIL'}")
                 else:
                     status("Nothing to test yet")
+                continue
+
+            if command in SINHALA_COMMANDS:
+                SINHALA_MODE = not SINHALA_MODE
+                add_local_entry(
+                    "SETTINGS",
+                    f"Sinhala chat {'enabled' if SINHALA_MODE else 'disabled'}.",
+                )
                 continue
 
             if command in IMPROVE_COMMANDS:

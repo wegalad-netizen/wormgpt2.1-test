@@ -138,6 +138,7 @@ class MainActivity : AppCompatActivity() {
         const val KEY_SHOW_NET = "show_net_speed"
         const val KEY_JARVIS_VOICE = "jarvis_voice_feedback"
         const val KEY_AUTO_IMPROVE = "auto_improve"
+        const val KEY_SINHALA_MODE = "sinhala_mode"
         const val KEY_LAST_AUTO_IMPROVE = "last_auto_improve"
         const val OWNER_TIKTOK =
             "https://www.tiktok.com/@sad.developer0?_r=1&_t=ZS-9Bac24QcWwM"
@@ -294,6 +295,7 @@ Rules:
     private lateinit var chatSignalLine: View
     private lateinit var quickPrompts: HorizontalScrollView
     private var isBusy = false
+    private var sinhalaMode = false
     private var restoringChat = false
     private var stickToBottom = true
     private lateinit var promptInput: EditText
@@ -502,6 +504,21 @@ Rules:
         chatBusyBar = findViewById(R.id.chatBusyBar)
         chatSignalLine = findViewById(R.id.chatSignalLine)
         quickPrompts = findViewById(R.id.quickPrompts)
+        sinhalaMode = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_SINHALA_MODE, false)
+        updateSinhalaControls()
+        findViewById<Button>(R.id.sinhalaToggleButton).setOnClickListener {
+            sinhalaMode = !sinhalaMode
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_SINHALA_MODE, sinhalaMode)
+                .apply()
+            updateSinhalaControls()
+            Toast.makeText(
+                this,
+                if (sinhalaMode) "Sinhala chat enabled." else "Sinhala chat disabled.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
         jumpLatestButton.setOnClickListener {
             stickToBottom = true
             updateJumpLatestButton()
@@ -518,9 +535,12 @@ Rules:
         }
         savedInstanceState?.getString(KEY_CHAT_STATE)?.let { restoreChatState(it) }
         if (chatHistory.isEmpty()) {
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(KEY_CHAT_STATE, null)
-                ?.let { restoreChatState(it) }
+            val secureChat = securePrefs?.getString(KEY_CHAT_STATE, null).orEmpty()
+            val legacyChat = secureChat.ifBlank {
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .getString(KEY_CHAT_STATE, null).orEmpty()
+            }
+            legacyChat.takeIf { it.isNotBlank() }?.let { restoreChatState(it) }
         }
         if (chatHistory.isEmpty()) {
             addChatMessage(
@@ -3235,7 +3255,7 @@ Rules:
         lifecycleScope.launch(Dispatchers.IO) {
             val result = try {
                 val chartImage = chartUri?.let(::encodeChartScreenshot)
-                val languageInstruction = if (containsSinhala(prompt)) {
+                val languageInstruction = if (sinhalaMode && containsSinhala(prompt)) {
                     "Respond in Sinhala (සිංහල) using clear native script. " +
                         "Keep technical terms understandable.\n\n"
                 } else {
@@ -5694,13 +5714,13 @@ User request: $prompt"""
     private fun conversationContext(): String {
         val recent = chatHistory
             .filter { it.role == "user" || it.role == "ai" }
-            .takeLast(6)
+            .takeLast(12)
             .filter { it.text.isNotBlank() }
         if (recent.isEmpty()) return ""
         return recent.joinToString("\n\n") { message ->
             val label = if (message.role == "user") "User" else "Assistant"
             "$label: ${contextText(message)}"
-        }
+        }.take(6000)
     }
 
     private fun contextText(message: ChatMessage): String {
@@ -5710,7 +5730,7 @@ User request: $prompt"""
         } else {
             text = responseBody(text)
         }
-        return sanitizeForAi(text).take(1200)
+        return sanitizeForAi(text).take(600)
     }
 
     private fun responseBody(text: String): String =
@@ -5718,7 +5738,7 @@ User request: $prompt"""
 
     private fun chatStateJson(): String {
         val array = JSONArray()
-        chatHistory.takeLast(60).forEach { message ->
+        chatHistory.takeLast(40).forEach { message ->
             val item = JSONObject()
                 .put("role", message.role)
                 .put("text", message.text)
@@ -5797,9 +5817,18 @@ User request: $prompt"""
 
     private fun persistChatState() {
         if (!::chatMessages.isInitialized || restoringChat) return
-        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .putString(KEY_CHAT_STATE, chatStateJson())
-            .apply()
+        val encoded = chatStateJson()
+        val secure = securePrefs
+        if (secure != null) {
+            secure.edit().putString(KEY_CHAT_STATE, encoded).apply()
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .remove(KEY_CHAT_STATE)
+                .apply()
+        } else {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putString(KEY_CHAT_STATE, encoded)
+                .apply()
+        }
     }
 
     private fun showTypingIndicator() {
@@ -5885,6 +5914,20 @@ User request: $prompt"""
             chatScroll.postDelayed({
                 if (stickToBottom) chatScroll.fullScroll(ScrollView.FOCUS_DOWN)
             }, 80)
+        }
+    }
+
+    private fun updateSinhalaControls() {
+        if (!::quickPrompts.isInitialized) return
+        val toggle = findViewById<Button>(R.id.sinhalaToggleButton)
+        val chip = findViewById<Button>(R.id.quickPromptSinhala)
+        toggle.text = if (sinhalaMode) "SI ON" else "SI OFF"
+        if (sinhalaMode) {
+            toggle.setTextColor(ContextCompat.getColor(this, R.color.sentinal_cyan))
+            chip.visibility = View.VISIBLE
+        } else {
+            toggle.setTextColor(ContextCompat.getColor(this, R.color.sentinal_muted))
+            chip.visibility = View.GONE
         }
     }
 
