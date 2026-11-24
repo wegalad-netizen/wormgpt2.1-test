@@ -285,6 +285,7 @@ Rules:
     private lateinit var showNetSwitch: Switch
     private var netJob: Job? = null
     private lateinit var chatScroll: ScrollView
+    private lateinit var chatStage: FrameLayout
     private lateinit var chatMessages: LinearLayout
     private lateinit var jumpLatestButton: Button
     private val chatHistory = mutableListOf<ChatMessage>()
@@ -498,6 +499,7 @@ Rules:
         )
         drawerLayout.background = pulseBackground
         chatScroll = findViewById(R.id.chatScroll)
+        chatStage = findViewById(R.id.chatStage)
         chatMessages = findViewById(R.id.chatMessages)
         startChatBackdropAnimation()
         jumpLatestButton = findViewById(R.id.jumpLatestButton)
@@ -5463,13 +5465,14 @@ User request: $prompt"""
     private fun createChatBubble(message: ChatMessage): View {
         val formatted = formattedChatText(message.text, message.colorRes)
         val isUser = message.role == "user"
-        val container = LinearLayout(this).apply {
+        val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = if (isUser) Gravity.END else Gravity.START
             layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(8) }
+                1f,
+            )
         }
 
         if (message.role != "system") {
@@ -5479,7 +5482,7 @@ User request: $prompt"""
                 "report" -> "SYSTEM REPORT" to R.color.sentinal_amber
                 else -> "SENTINAL" to R.color.sentinal_emerald
             }
-            container.addView(
+            column.addView(
                 TextView(this).apply {
                     text = "●  $label"
                     setTextColor(ContextCompat.getColor(this@MainActivity, labelColor))
@@ -5492,8 +5495,8 @@ User request: $prompt"""
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                 ).apply {
                     gravity = if (isUser) Gravity.END else Gravity.START
-                    marginStart = if (isUser) 0 else dp(40)
-                    marginEnd = if (isUser) dp(40) else 0
+                    marginStart = if (isUser) 0 else dp(6)
+                    marginEnd = if (isUser) dp(6) else 0
                 },
             )
         }
@@ -5544,8 +5547,48 @@ User request: $prompt"""
             Toast.makeText(this, "Message copied.", Toast.LENGTH_SHORT).show()
             true
         }
-        container.addView(bubble)
-        return container
+        column.addView(bubble)
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(8) }
+        }
+        val avatar = if (message.role == "system") null else TextView(this).apply {
+            tag = "chat_avatar"
+            text = when (message.role) {
+                "user" -> "M"
+                "welcome" -> "◈"
+                "report" -> "!"
+                else -> "S"
+            }
+            gravity = Gravity.CENTER
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setBackgroundResource(
+                when (message.role) {
+                    "user" -> R.drawable.chat_avatar_user
+                    "report" -> R.drawable.chat_avatar_report
+                    else -> R.drawable.chat_avatar_ai
+                },
+            )
+            layoutParams = LinearLayout.LayoutParams(dp(30), dp(30)).apply {
+                marginStart = if (isUser) dp(8) else 0
+                marginEnd = if (isUser) 0 else dp(8)
+            }
+        }
+        if (isUser) {
+            row.addView(column)
+            avatar?.let { row.addView(it) }
+        } else {
+            avatar?.let { row.addView(it) }
+            row.addView(column)
+        }
+        return row
     }
 
     private fun bubbleParams(isUser: Boolean): LinearLayout.LayoutParams =
@@ -5554,8 +5597,8 @@ User request: $prompt"""
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply {
             gravity = if (isUser) Gravity.END else Gravity.START
-            marginStart = if (isUser) dp(40) else 0
-            marginEnd = if (isUser) 0 else dp(40)
+            marginStart = if (isUser) 0 else dp(6)
+            marginEnd = if (isUser) dp(6) else 0
         }
 
     private fun formattedChatText(text: String, colorRes: Int?): SpannableString {
@@ -5679,6 +5722,21 @@ User request: $prompt"""
             "user" -> dp(16).toFloat()
             "welcome", "ai", "report" -> -dp(12).toFloat()
             else -> 0f
+        }
+        view.findViewWithTag<View>("chat_avatar")?.let { avatar ->
+            avatar.scaleX = 0.45f
+            avatar.scaleY = 0.45f
+            avatar.animate()
+                .scaleX(1f)
+                .scaleY(1f)
+                .setStartDelay(90L)
+                .setDuration(460L)
+                .setInterpolator(OvershootInterpolator(1.8f))
+                .withEndAction {
+                    avatar.scaleX = 1f
+                    avatar.scaleY = 1f
+                }
+                .start()
         }
         view.animate()
             .alpha(1f)
@@ -5986,7 +6044,7 @@ User request: $prompt"""
             GradientDrawable.Orientation.TOP_BOTTOM,
             paletteA.copyOf(),
         ).apply { cornerRadius = dp(14).toFloat() }
-        chatScroll.background = drawable
+        chatStage.background = drawable
         chatBackdrop = drawable
         if (!animationsEnabled()) return
         val evaluator = ArgbEvaluator()

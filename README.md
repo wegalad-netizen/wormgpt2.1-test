@@ -108,6 +108,8 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 ### Chat graphics refresh
 
 - Redesigned message bubbles with gradient fills, accent borders, and directional "tails"
+- Animated role avatars (M / S / !) that pop in with each new message
+- Drifting ambient particle field behind the chat, layered under the animated aurora gradient
 - Role headers with coloured status dot for Master / Sentinal / system reports
 - Animated aurora backdrop behind chat messages
 - Richer reply formatting: accent bars on code blocks, bold headings, coloured bullets, and underlined links
