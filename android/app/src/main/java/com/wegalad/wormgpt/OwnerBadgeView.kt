@@ -12,6 +12,7 @@ import android.graphics.Shader
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.provider.Settings
 import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat
 
@@ -68,8 +69,15 @@ class OwnerBadgeView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
+    private fun animationsEnabled(): Boolean =
+        Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) > 0f
+
     private fun startAnimations() {
-        if (pulseAnimator != null) return
+        if (!animationsEnabled() || pulseAnimator != null) return
 
         pulseAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 2400

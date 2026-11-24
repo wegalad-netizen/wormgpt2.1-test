@@ -313,6 +313,7 @@ Rules:
     private lateinit var pulseBackground: GradientDrawable
     private var backgroundPulseAnimator: ValueAnimator? = null
     private var busyPulseAnimator: ValueAnimator? = null
+    private var ownerPulseAnimator: ValueAnimator? = null
     private var currentPage: String? = null
     private var dashboardEntrancePlayed = false
     private lateinit var guardStatus: TextView
@@ -829,6 +830,14 @@ Rules:
             R.id.messageToolCard,
             R.id.homeCryptoButton,
             R.id.refreshCryptoButton,
+            R.id.retryButton,
+            R.id.jumpLatestButton,
+            R.id.sinhalaToggleButton,
+            R.id.quickPromptLink,
+            R.id.quickPromptCode,
+            R.id.quickPromptThreat,
+            R.id.quickPromptSinhala,
+            R.id.addApiKeyButton,
         ).forEach { id -> applyPressFeedback(findViewById(id)) }
 
         val waInput = findViewById<EditText>(R.id.waNumberInput)
@@ -892,6 +901,8 @@ Rules:
         typingAnimator = null
         scoreCountAnimator?.cancel()
         scoreCountAnimator = null
+        ownerPulseAnimator?.cancel()
+        ownerPulseAnimator = null
         stopChatBackdropAnimation()
         backgroundPulseAnimator?.cancel()
         backgroundPulseAnimator = null
@@ -1407,14 +1418,19 @@ Rules:
 
     private fun pulseOwnerStatusDot() {
         val dot = findViewById<View>(R.id.ownerNetPulse) ?: return
-        val animator = ValueAnimator.ofFloat(0.45f, 1f).apply {
+        if (!animationsEnabled()) {
+            dot.alpha = 1f
+            return
+        }
+        ownerPulseAnimator?.cancel()
+        ownerPulseAnimator = ValueAnimator.ofFloat(0.45f, 1f).apply {
             duration = 1500
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
             interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener { a -> dot.alpha = a.animatedValue as Float }
+            start()
         }
-        animator.start()
     }
 
     private fun dp(value: Int): Int =
