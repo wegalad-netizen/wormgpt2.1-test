@@ -77,6 +77,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import androidx.core.view.WindowCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -389,6 +391,37 @@ Rules:
             }
             updateGuardStatus()
         }
+
+    private val researchClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(8, TimeUnit.SECONDS)
+            .callTimeout(10, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private val sinhalaTypeface: android.graphics.Typeface? by lazy {
+        runCatching {
+            android.graphics.Typeface.createFromAsset(assets, "fonts/NotoSansSinhala.ttf")
+        }.getOrNull()
+    }
+
+    private val securePrefs: SharedPreferences? by lazy {
+        try {
+            val masterKey = MasterKey.Builder(this)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                this,
+                "sentinal_secure_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -722,6 +755,9 @@ Rules:
                 "Give me a concise threat brief for a security researcher, with practical next steps.",
                 focusForTyping = false,
             )
+        }
+        findViewById<Button>(R.id.quickPromptSinhala).setOnClickListener {
+            useQuickPrompt("සිංහලෙන් උත්තර දෙන්න. ", focusForTyping = true)
         }
         findViewById<Button>(R.id.securityToolsButton).setOnClickListener { showSecurityTools() }
         findViewById<Button>(R.id.blocklistButton).setOnClickListener { showBlocklistDialog() }
@@ -1361,6 +1397,20 @@ Rules:
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density + 0.5f).toInt()
+
+    private fun containsSinhala(text: String): Boolean =
+        text.any { it.code in 0x0D80..0x0DFF }
+
+    /** Strip locally sensitive values before anything is sent to an AI endpoint. */
+    private fun sanitizeForAi(text: String): String {
+        var result = text
+        result = Regex("(?i)\\botp\\s*[:#\\-]?\\s*\\d{4,8}\\b").replace(result, "OTP [REDACTED]")
+        result = Regex("(?i)\\b(otp|one.?time|code|pin)\\s*[:=]\\s*\\S+")
+            .replace(result, "[SENSITIVE REDACTED]")
+        result = Regex("\\b(?:\\+?94|0)?7\\d{8}\\b").replace(result, "[PHONE REDACTED]")
+        result = Regex("\\b\\d{10}\\b").replace(result, "[NUMBER REDACTED]")
+        return result
+    }
 
     private fun updateGuardStatus() {
         if (!::guardStatus.isInitialized) return
@@ -2363,24 +2413,32 @@ Rules:
         scanJob = lifecycleScope.launch {
             val lines = mutableListOf<String>()
             var passed = 0
-            steps.forEachIndexed { index, step ->
-                status.text = "Checking ${step.first}…"
-                bar.progress = index
+            var failedStep: String? = null
+            try {
+                steps.forEachIndexed { index, step ->
+                    status.text = "Checking ${step.first}…"
+                    bar.progress = index
+                    if (animationsEnabled()) delay(180L)
+                    val (ok, detail) = step.second()
+                    if (ok) passed++
+                    lines += "${if (ok) "PASS" else "REVIEW"}  ${step.first}\n      $detail"
+                }
+                bar.progress = steps.size
+                status.text = "Scan complete"
                 if (animationsEnabled()) delay(220L)
-                val (ok, detail) = step.second()
-                if (ok) passed++
-                lines += "${if (ok) "PASS" else "REVIEW"}  ${step.first}\n      $detail"
+            } catch (e: Exception) {
+                failedStep = "Scan interrupted: ${e.javaClass.simpleName}: ${e.message}"
+            } finally {
+                if (dialog.isShowing) dialog.dismiss()
+                scanRunning = false
             }
-            bar.progress = steps.size
-            status.text = "Scan complete"
-            if (animationsEnabled()) delay(260L)
-            dialog.dismiss()
             val score = passed * 100 / steps.size
             val report = buildString {
                 append("LOCAL SMART SCAN\n")
                 append("Score: $score / 100\n")
                 append("Passed: $passed of ${steps.size}\n\n")
                 lines.forEach { append(it).append("\n\n") }
+                if (failedStep != null) append(failedStep).append("\n\n")
                 append("This is a local configuration review, not a malware scan. It cannot detect infections or guarantee safety.")
             }
             showToolResult("SMART SCAN RESULT", report)
@@ -2797,8 +2855,11 @@ Rules:
     }
 
     private fun loadStoredProfiles(): List<ApiProfile> {
-        val raw = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_API_PROFILES, null).orEmpty()
+        val secureRaw = securePrefs?.getString(KEY_API_PROFILES, null).orEmpty()
+        val raw = secureRaw.ifBlank {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_API_PROFILES, null).orEmpty()
+        }
         if (raw.isBlank()) return emptyList()
         return try {
             val array = JSONArray(raw)
@@ -2829,9 +2890,18 @@ Rules:
                     .put("model", profile.model),
             )
         }
-        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .putString(KEY_API_PROFILES, array.toString())
-            .apply()
+        val encoded = array.toString()
+        val secure = securePrefs
+        if (secure != null) {
+            secure.edit().putString(KEY_API_PROFILES, encoded).apply()
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .remove(KEY_API_PROFILES)
+                .apply()
+        } else {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putString(KEY_API_PROFILES, encoded)
+                .apply()
+        }
     }
 
     private fun migrateLegacyApiProfiles() {
@@ -3165,7 +3235,13 @@ Rules:
         lifecycleScope.launch(Dispatchers.IO) {
             val result = try {
                 val chartImage = chartUri?.let(::encodeChartScreenshot)
-                val effectivePrompt = if (chartImage != null) {
+                val languageInstruction = if (containsSinhala(prompt)) {
+                    "Respond in Sinhala (සිංහල) using clear native script. " +
+                        "Keep technical terms understandable.\n\n"
+                } else {
+                    ""
+                }
+                val effectivePrompt = languageInstruction + if (chartImage != null) {
                     """Analyze the attached cryptocurrency chart screenshot as a technical-analysis snapshot.
 Report: visible asset/ticker and timeframe (or unknown), observed trend, visible support/resistance levels only when readable, any visible indicators, a short-term directional scenario (bullish/neutral/bearish), confidence (low/medium/high) with evidence, and what would invalidate that scenario. Do not invent prices, indicators, market data, or certainty. This is an uncertain chart interpretation, not a guaranteed prediction or personalized financial recommendation.
 
@@ -4907,7 +4983,7 @@ User request: $prompt"""
             appendLine("Configured Gemini profiles: $profiles")
             appendLine("Chat messages retained: $chatCount")
             appendLine("Auto improvement enabled: $autoEnabled")
-            appendLine("Guard status: $guard")
+            appendLine("Guard status: ${sanitizeForAi(guard)}")
         }
     }
 
@@ -4919,7 +4995,7 @@ User request: $prompt"""
                 .header("User-Agent", "SentinalSecurity/1.0 (quality research)")
                 .get()
                 .build()
-            client.newCall(request).execute().use { response ->
+            researchClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val raw = response.body?.string().orEmpty()
                 val text = raw
@@ -4952,46 +5028,59 @@ User request: $prompt"""
         appendChat("\n\n── AUTO IMPROVEMENT\nResearching public guidance and local app signals…")
         setBusy(true)
         lifecycleScope.launch(Dispatchers.IO) {
-            val local = collectLocalQualitySignals()
-            val sources = listOf(
-                "https://raw.githubusercontent.com/wegalad-netizen/wormgpt2.1-test/master/README.md",
-                "https://developer.android.com/topic/performance",
-                "https://developer.android.com/privacy-and-security/security-best-practices",
-                "https://owasp.org/www-project-mobile-app-security/",
-            )
-            val research = sources.mapNotNull { url ->
-                fetchResearchText(url)?.let { text -> "SOURCE: $url\n$text" }
-            }
-            val prompt = buildString {
-                appendLine("Local app signals:")
-                appendLine(local)
-                appendLine()
-                if (research.isEmpty()) {
-                    appendLine("No public research sources could be fetched. Use general Android best practices.")
-                } else {
-                    appendLine("Public research excerpts:")
-                    research.forEach { appendLine(it); appendLine() }
+            var result: ApiResult? = null
+            var unexpected: String? = null
+            try {
+                val local = collectLocalQualitySignals()
+                val sources = listOf(
+                    "https://raw.githubusercontent.com/wegalad-netizen/wormgpt2.1-test/master/README.md",
+                    "https://developer.android.com/privacy-and-security/security-best-practices",
+                    "https://owasp.org/www-project-mobile-app-security/",
+                )
+                val research = sources.mapNotNull { url ->
+                    fetchResearchText(url)?.let { text -> "SOURCE: $url\n$text" }
                 }
-                appendLine("Produce the prioritized improvement plan now.")
-            }
-            val result = runQuery(prompt, profiles, instructionOverride = RESEARCH_INSTRUCTION)
-            withContext(Dispatchers.Main) {
-                setBusy(false)
-                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                    .putLong(KEY_LAST_AUTO_IMPROVE, System.currentTimeMillis())
-                    .apply()
-                if (result.error != null) {
-                    appendChat("\n\n── AUTO IMPROVEMENT ERROR\n${result.error}", R.color.sentinal_red_bright)
-                } else {
-                    val report = result.text.orEmpty()
-                    appendChat("\n\n── AUTO IMPROVEMENT (${result.model ?: MODEL})\n$report", R.color.sentinal_green)
-                    val dir = getExternalFilesDir(null) ?: filesDir
-                    val file = File(dir, "sentinal_auto_improvement.txt")
-                    runCatching { file.writeText(report) }
-                    showToolResult(
-                        "AUTO IMPROVEMENT RESEARCH",
-                        report + "\n\nSaved -> ${file.absolutePath}",
-                    )
+                val prompt = buildString {
+                    appendLine("Local app signals:")
+                    appendLine(local)
+                    appendLine()
+                    if (research.isEmpty()) {
+                        appendLine("No public research sources could be fetched. Use general Android best practices.")
+                    } else {
+                        appendLine("Public research excerpts:")
+                        research.forEach { appendLine(it); appendLine() }
+                    }
+                    appendLine("Produce the prioritized improvement plan now.")
+                }
+                result = runQuery(prompt, profiles, instructionOverride = RESEARCH_INSTRUCTION)
+            } catch (e: Exception) {
+                unexpected = "${e.javaClass.simpleName}: ${e.message}"
+            } finally {
+                withContext(Dispatchers.Main) {
+                    setBusy(false)
+                    getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                        .putLong(KEY_LAST_AUTO_IMPROVE, System.currentTimeMillis())
+                        .apply()
+                    val error = unexpected ?: result?.error
+                    if (error != null) {
+                        appendChat(
+                            "\n\n── AUTO IMPROVEMENT ERROR\n$error",
+                            R.color.sentinal_red_bright,
+                        )
+                    } else {
+                        val report = result?.text.orEmpty()
+                        appendChat(
+                            "\n\n── AUTO IMPROVEMENT (${result?.model ?: MODEL})\n$report",
+                            R.color.sentinal_green,
+                        )
+                        val dir = getExternalFilesDir(null) ?: filesDir
+                        val file = File(dir, "sentinal_auto_improvement.txt")
+                        runCatching { file.writeText(report) }
+                        showToolResult(
+                            "AUTO IMPROVEMENT RESEARCH",
+                            report + "\n\nSaved -> ${file.absolutePath}",
+                        )
+                    }
                 }
             }
         }
@@ -5423,6 +5512,9 @@ User request: $prompt"""
                 }
             }
         }
+        if (containsSinhala(message.text)) {
+            sinhalaTypeface?.let { bubble.typeface = it }
+        }
         bubble.isLongClickable = true
         bubble.setOnLongClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -5618,7 +5710,7 @@ User request: $prompt"""
         } else {
             text = responseBody(text)
         }
-        return text.take(1200)
+        return sanitizeForAi(text).take(1200)
     }
 
     private fun responseBody(text: String): String =

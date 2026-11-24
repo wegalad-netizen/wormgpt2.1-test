@@ -67,6 +67,10 @@ The chat screen includes:
 - Styled fenced/inline code inside replies
 - Conversation context sent to the model for follow-up questions
 - Reduced-motion settings respected throughout
+- Sinhala (සිංහල) chat support: bundled Noto Sans Sinhala font, Sinhala input detection, and automatic Sinhala replies when you type in Sinhala
+- **SINHALA** quick prompt chip
+- Client-side sanitization strips OTPs, phone numbers, and credential-like values from conversation context and local signals before sending to AI endpoints
+- Saved API keys are stored in Android Keystore-backed `EncryptedSharedPreferences`
 
 ### Auto improvement research
 

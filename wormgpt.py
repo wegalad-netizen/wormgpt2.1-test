@@ -718,6 +718,17 @@ def read_prompt(cols: int, rows: int) -> str:
 
 # --- API ---
 
+def contains_sinhala(text: str) -> bool:
+    return any(0x0D80 <= ord(char) <= 0x0DFF for char in text)
+
+
+def sanitize_for_ai(text: str) -> str:
+    result = re.sub(r"(?i)\botp\s*[:#\-]?\s*\d{4,8}\b", "OTP [REDACTED]", text)
+    result = re.sub(r"(?i)\b(otp|one.?time|code|pin)\s*[:=]\s*\S+", "[SENSITIVE REDACTED]", result)
+    result = re.sub(r"\b(?:\+?94|0)?7\d{8}\b", "[PHONE REDACTED]", result)
+    return re.sub(r"\b\d{10}\b", "[NUMBER REDACTED]", result)
+
+
 def extract_response_text(data: dict) -> str:
     """Return the first text part from a Gemini generateContent response."""
     return data["candidates"][0]["content"]["parts"][0]["text"]
@@ -843,12 +854,19 @@ async def runquery(
     for item in history[-30:]:
         label = item.get("label")
         if label == "YOU":
-            gemini_contents.append({"role": "user", "parts": [{"text": str(item.get("text", ""))}]})
+            safe = sanitize_for_ai(str(item.get("text", "")))
+            gemini_contents.append({"role": "user", "parts": [{"text": safe}]})
         elif label in {"RESPONSE", "ERROR"} and item.get("ok"):
             answer = str(item.get("text", ""))
             answer = re.sub(r"^\[[^\]]+\]\n", "", answer)
-            gemini_contents.append({"role": "model", "parts": [{"text": answer}]})
-    gemini_contents.append({"role": "user", "parts": [{"text": user_input}]})
+            gemini_contents.append({"role": "model", "parts": [{"text": sanitize_for_ai(answer)}]})
+    effective_input = user_input
+    if contains_sinhala(user_input):
+        effective_input = (
+            "Respond in Sinhala (සිංහල) using clear native script. "
+            "Keep technical terms understandable.\n\n" + user_input
+        )
+    gemini_contents.append({"role": "user", "parts": [{"text": effective_input}]})
     gemini_payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": gemini_contents,
@@ -899,7 +917,7 @@ async def runquery(
                                 "model": attempt_model,
                                 "max_tokens": 2048,
                                 "system": system_prompt,
-                                "messages": [{"role": "user", "content": user_input}],
+                                "messages": [{"role": "user", "content": effective_input}],
                             }
                         else:
                             url = PROVIDER_ENDPOINTS.get(provider)
@@ -917,7 +935,7 @@ async def runquery(
                                 "model": attempt_model,
                                 "messages": [
                                     {"role": "system", "content": system_prompt},
-                                    {"role": "user", "content": user_input},
+                                    {"role": "user", "content": effective_input},
                                 ],
                                 "temperature": 0.9,
                                 "max_tokens": 2048,
