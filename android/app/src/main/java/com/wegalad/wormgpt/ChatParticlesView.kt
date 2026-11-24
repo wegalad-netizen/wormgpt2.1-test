@@ -87,9 +87,10 @@ class ChatParticlesView @JvmOverloads constructor(
         dots.forEach { dot ->
             val t = if (animationsEnabled()) progress else 0f
             val y = ((dot.y - t * dot.speed) % 1f + 1f) % 1f * h
-            val sway = (Math.sin(t * 6.28f + dot.phase) * 10f).toFloat()
+            val sway = (Math.sin((t * 6.28f + dot.phase).toDouble()) * 10.0).toFloat()
             val x = dot.x * w + sway
-            val alpha = 0.10f + 0.16f * Math.abs(Math.sin(t * 3.14f + dot.phase)).toFloat()
+            val alpha =
+                0.10f + 0.16f * Math.abs(Math.sin((t * 3.14f + dot.phase).toDouble())).toFloat()
             paint.color = dot.color
             paint.alpha = (alpha * 255f).toInt().coerceIn(0, 255)
             canvas.drawCircle(x, y, dot.radius, paint)
