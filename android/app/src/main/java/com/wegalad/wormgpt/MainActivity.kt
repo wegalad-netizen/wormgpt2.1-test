@@ -34,6 +34,7 @@ import android.os.Bundle
 import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
+import android.security.keystore.KeyInfo
 import android.text.Editable
 import android.text.Spannable
 import android.text.SpannableString
@@ -107,9 +108,12 @@ import java.io.IOException
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.Proxy
+import java.security.KeyFactory
+import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import javax.crypto.SecretKey
 import java.text.SimpleDateFormat
 import java.net.IDN
 import java.util.Calendar
@@ -415,13 +419,25 @@ Rules:
             val masterKey = MasterKey.Builder(this)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
-            EncryptedSharedPreferences.create(
-                this,
-                "sentinal_secure_prefs",
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-            )
+            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            val secretKey = keyStore.getKey(MasterKey.DEFAULT_MASTER_KEY_ALIAS, null) as? SecretKey
+            if (secretKey == null) {
+                null
+            } else {
+                val keyInfo = KeyFactory.getInstance(secretKey.algorithm)
+                    .getKeySpec(secretKey, KeyInfo::class.java) as KeyInfo
+                if (!keyInfo.isInsideSecureHardware) {
+                    null
+                } else {
+                    EncryptedSharedPreferences.create(
+                        this,
+                        "sentinal_secure_prefs",
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                    )
+                }
+            }
         } catch (_: Exception) {
             null
         }
@@ -538,12 +554,9 @@ Rules:
         }
         savedInstanceState?.getString(KEY_CHAT_STATE)?.let { restoreChatState(it) }
         if (chatHistory.isEmpty()) {
-            val secureChat = securePrefs?.getString(KEY_CHAT_STATE, null).orEmpty()
-            val legacyChat = secureChat.ifBlank {
-                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    .getString(KEY_CHAT_STATE, null).orEmpty()
-            }
-            legacyChat.takeIf { it.isNotBlank() }?.let { restoreChatState(it) }
+            securePrefs?.getString(KEY_CHAT_STATE, null)
+                ?.takeIf { it.isNotBlank() }
+                ?.let { restoreChatState(it) }
         }
         if (chatHistory.isEmpty()) {
             addChatMessage(
@@ -1447,6 +1460,15 @@ Rules:
             .replace(result, "[SENSITIVE REDACTED]")
         result = Regex("\\b(?:\\+?94|0)?7\\d{8}\\b").replace(result, "[PHONE REDACTED]")
         result = Regex("\\b\\d{10}\\b").replace(result, "[NUMBER REDACTED]")
+        result = Regex("(?i)ignore (all )?(previous|prior|above) instructions")
+            .replace(result, "[INSTRUCTION REDACTED]")
+        result = Regex("(?i)\\b(system|developer) prompt\\b")
+            .replace(result, "[PROMPT REFERENCE REDACTED]")
+        result = Regex("(?i)\\b(jailbreak|DAN mode|developer mode)\\b")
+            .replace(result, "[INJECTION PATTERN REDACTED]")
+        result = Regex("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b")
+            .replace(result, "[EMAIL REDACTED]")
+        result = Regex("\\b[A-Za-z0-9+/=]{40,}\\b").replace(result, "[TOKEN REDACTED]")
         return result
     }
 
@@ -1474,7 +1496,7 @@ Rules:
                 Manifest.permission.POST_NOTIFICATIONS,
             ) == PackageManager.PERMISSION_GRANTED
 
-        guardStatus.text = buildString {
+        val guardText = buildString {
             append("CALL GUARD: ").append(
                 when {
                     Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && callPref -> "ON · VERIFY PHONE"
@@ -1524,6 +1546,16 @@ Rules:
                     append("\nTap HIDE OTP SMS ALERTS to grant notification access.")
             }
         }
+        val guardSpannable = SpannableString(guardText)
+        Regex("(BLOCKED|QUARANTINED|CAUGHT): 0\\b").findAll(guardText).forEach { match ->
+            guardSpannable.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.sentinal_faint)),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        guardStatus.text = guardSpannable
 
         findViewById<TextView>(R.id.dashboardStatus)?.let { status ->
             status.text = if (callOn && smsOn) "MONITORING" else if (callOn || smsOn) "PARTIAL PROTECTION" else "ACTION NEEDED"
@@ -2893,11 +2925,7 @@ Rules:
     }
 
     private fun loadStoredProfiles(): List<ApiProfile> {
-        val secureRaw = securePrefs?.getString(KEY_API_PROFILES, null).orEmpty()
-        val raw = secureRaw.ifBlank {
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(KEY_API_PROFILES, null).orEmpty()
-        }
+        val raw = securePrefs?.getString(KEY_API_PROFILES, null).orEmpty()
         if (raw.isBlank()) return emptyList()
         return try {
             val array = JSONArray(raw)
@@ -2928,28 +2956,35 @@ Rules:
                     .put("model", profile.model),
             )
         }
-        val encoded = array.toString()
         val secure = securePrefs
-        if (secure != null) {
-            secure.edit().putString(KEY_API_PROFILES, encoded).apply()
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                .remove(KEY_API_PROFILES)
-                .apply()
-        } else {
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                .putString(KEY_API_PROFILES, encoded)
-                .apply()
+        if (secure == null) {
+            Toast.makeText(
+                this,
+                "Secure hardware storage is unavailable. API keys were not saved.",
+                Toast.LENGTH_LONG,
+            ).show()
+            return
         }
+        secure.edit().putString(KEY_API_PROFILES, array.toString()).apply()
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_API_PROFILES)
+            .apply()
     }
 
     private fun migrateLegacyApiProfiles() {
-        if (loadStoredProfiles().isNotEmpty()) return
+        if (securePrefs == null || loadStoredProfiles().isNotEmpty()) return
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val legacy = parseProfilesFromText(
             prefs.getString(KEY_API, "").orEmpty().trim(),
             prefs.getString(KEY_API_FALLBACKS, "").orEmpty(),
         )
-        if (legacy.isNotEmpty()) saveStoredProfiles(legacy)
+        if (legacy.isEmpty()) return
+        saveStoredProfiles(legacy)
+        prefs.edit()
+            .remove(KEY_API)
+            .remove(KEY_API_FALLBACKS)
+            .remove(KEY_API_PROFILES)
+            .apply()
     }
 
     private fun parseProfilesFromText(
@@ -3832,7 +3867,7 @@ User request: $prompt"""
                 .addQueryParameter("key", apiKey)
                 .build()
             val request = Request.Builder().url(url).get().build()
-            client.newCall(request).execute().use { response ->
+            researchClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return cached?.second.orEmpty()
                 val models = JSONObject(response.body?.string().orEmpty())
                     .optJSONArray("models") ?: return cached?.second.orEmpty()
@@ -5891,18 +5926,11 @@ User request: $prompt"""
 
     private fun persistChatState() {
         if (!::chatMessages.isInitialized || restoringChat) return
-        val encoded = chatStateJson()
-        val secure = securePrefs
-        if (secure != null) {
-            secure.edit().putString(KEY_CHAT_STATE, encoded).apply()
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                .remove(KEY_CHAT_STATE)
-                .apply()
-        } else {
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                .putString(KEY_CHAT_STATE, encoded)
-                .apply()
-        }
+        val secure = securePrefs ?: return
+        secure.edit().putString(KEY_CHAT_STATE, chatStateJson()).apply()
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_CHAT_STATE)
+            .apply()
     }
 
     private fun showTypingIndicator() {

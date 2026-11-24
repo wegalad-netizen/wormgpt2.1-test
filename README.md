@@ -71,7 +71,8 @@ The chat screen includes:
 - Bundled Noto Sans Sinhala font, used only when Sinhala mode is on
 - Conversation context is a bounded sliding window (last 12 exchanges, 600 chars each, 6000 chars total) and persisted history is capped at 40 messages
 - Chat history is stored in EncryptedSharedPreferences when available
-- Client-side sanitization strips OTPs, phone numbers, and credential-like values from conversation context and local signals before sending to AI endpoints
+- Client-side sanitization strips OTPs, phone numbers, emails, long tokens, and prompt-injection phrases from conversation context and local signals before sending to AI endpoints
+- Encrypted storage requires a hardware-backed Android Keystore key; if unavailable, secrets are **not** written to plaintext storage at all
 - Saved API keys are stored in Android Keystore-backed `EncryptedSharedPreferences`
 
 ### Auto improvement research

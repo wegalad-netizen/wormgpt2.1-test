@@ -729,7 +729,12 @@ def sanitize_for_ai(text: str) -> str:
     result = re.sub(r"(?i)\botp\s*[:#\-]?\s*\d{4,8}\b", "OTP [REDACTED]", text)
     result = re.sub(r"(?i)\b(otp|one.?time|code|pin)\s*[:=]\s*\S+", "[SENSITIVE REDACTED]", result)
     result = re.sub(r"\b(?:\+?94|0)?7\d{8}\b", "[PHONE REDACTED]", result)
-    return re.sub(r"\b\d{10}\b", "[NUMBER REDACTED]", result)
+    result = re.sub(r"\b\d{10}\b", "[NUMBER REDACTED]", result)
+    result = re.sub(r"(?i)ignore (all )?(previous|prior|above) instructions", "[INSTRUCTION REDACTED]", result)
+    result = re.sub(r"(?i)\b(system|developer) prompt\b", "[PROMPT REFERENCE REDACTED]", result)
+    result = re.sub(r"(?i)\b(jailbreak|DAN mode|developer mode)\b", "[INJECTION PATTERN REDACTED]", result)
+    result = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[EMAIL REDACTED]", result)
+    return re.sub(r"\b[A-Za-z0-9+/=]{40,}\b", "[TOKEN REDACTED]", result)
 
 
 def extract_response_text(data: dict) -> str:
