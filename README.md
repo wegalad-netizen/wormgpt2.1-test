@@ -42,7 +42,7 @@ Supported providers: `gemini`, `openai` / `chatgpt`, `openrouter`, `groq`, `toge
 
 The Android app now stores each API key separately in Settings → **SAVED API KEYS**: tap **ADD API KEY**, choose a provider (or AUTO), paste one key, and optionally set a model. Up to 5 keys are saved individually; each row can be tapped to edit or removed with **DEL**. The provider can be left on AUTO and is detected from the key prefix.
 
-Update checks now show the new features from the release commit message in the update dialog, not just the build number.
+Update checks now show the new features from the release commit message in the update dialog, not just the build number. The updater auto-downloads on launch and every 6 hours, verifies the SHA-256 digest when GitHub provides one, installs silently when the device permits it (root/privileged installer), and otherwise opens the installer screen. The dialog offers Update / Skip this build / Later.
 
 For a home-screen shortcut, copy `termux-widget/wormgpt` into `~/.shortcuts/` and add a Termux:Widget widget.
 

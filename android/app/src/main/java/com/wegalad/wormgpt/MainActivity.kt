@@ -137,6 +137,8 @@ class MainActivity : AppCompatActivity() {
         const val KEY_WA_NUMBER = "wa_number"
         const val KEY_LAST_RELEASE = "last_release"
         const val KEY_SKIPPED_RELEASE = "skipped_release"
+        const val KEY_PENDING_UPDATE = "pending_update"
+        const val KEY_LAST_UPDATE_CHECK = "last_update_check"
         const val KEY_CHAT_STATE = "chat_state"
         const val KEY_LAST_RESPONSE = "last_response"
         const val KEY_SHOW_NET = "show_net_speed"
@@ -275,7 +277,13 @@ Rules:
             paint.color = previous
         }
     }
-    private data class UpdateInfo(val id: String, val downloadUrl: String, val versionCode: Int, val notes: String = "")
+    private data class UpdateInfo(
+        val id: String,
+        val downloadUrl: String,
+        val versionCode: Int,
+        val notes: String = "",
+        val sha256: String? = null,
+    )
     private data class CryptoSnapshot(
         val symbol: String,
         val price: Double,
@@ -888,6 +896,9 @@ Rules:
         showMainPage("chat")
         if (savedInstanceState == null) playLaunchAnimation()
         playWelcome()
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_LAST_UPDATE_CHECK, System.currentTimeMillis())
+            .apply()
         checkForUpdate(manual = false)
         updateGuardStatus()
         chatScroll.postDelayed({ maybeAutoImproveOnLaunch() }, 5000)
@@ -899,6 +910,18 @@ Rules:
         updateGuardStatus()
         startNetMonitor()
         if (::cryptoSymbolSpinner.isInitialized) startCryptoAutoRefresh()
+
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val pending = prefs.getInt(KEY_PENDING_UPDATE, 0)
+        if (pending > 0 && installedVersionCode() >= pending.toLong()) {
+            prefs.edit().remove(KEY_PENDING_UPDATE).apply()
+            Toast.makeText(this, "Update installed successfully.", Toast.LENGTH_LONG).show()
+        }
+        val lastCheck = prefs.getLong(KEY_LAST_UPDATE_CHECK, 0L)
+        if (System.currentTimeMillis() - lastCheck >= 6L * 60L * 60L * 1000L) {
+            prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, System.currentTimeMillis()).apply()
+            checkForUpdate(manual = false)
+        }
     }
 
     override fun onPause() {
@@ -5331,26 +5354,35 @@ User request: $prompt"""
                     return@withContext
                 }
 
-                val dialog = AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Sentinal Security update")
-                    .setMessage(
-                        buildString {
+                val changelog = ScrollView(this@MainActivity).apply {
+                    addView(TextView(this@MainActivity).apply {
+                        text = buildString {
                             append("Installed build: ").append(installedCode).append("\n")
                             append("New build: ")
                                 .append(if (info.versionCode > 0) info.versionCode else "unknown")
                                 .append("\n")
+                            append("Auto-download on launch: ON\n")
+                            if (info.sha256 != null) append("Checksum: SHA-256 verified\n")
                             if (info.notes.isNotBlank()) {
-                                append("\nWhat's new:\n").append(info.notes.take(1500)).append("\n")
+                                append("\nWhat's new:\n").append(info.notes.take(3000))
                             }
-                            append("\nDownload and install it now?")
                         }
-                    )
+                        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+                        textSize = 12f
+                        setLineSpacing(dp(2).toFloat(), 1f)
+                        setPadding(dp(16), dp(12), dp(16), dp(12))
+                    })
+                }
+                val dialog = AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Sentinal Security update")
+                    .setView(changelog)
                     .setPositiveButton("Update") { _, _ ->
                         downloadAndInstall(info, prefs)
                     }
-                    .setNegativeButton("Later") { _, _ ->
+                    .setNeutralButton("Skip this build") { _, _ ->
                         prefs.edit().putString(KEY_SKIPPED_RELEASE, info.id).apply()
                     }
+                    .setNegativeButton("Later", null)
                     .create()
                 dialog.window?.setWindowAnimations(R.style.SentinalDialogAnimation)
                 dialog.show()
@@ -5391,14 +5423,19 @@ User request: $prompt"""
                     .trim()
                 val assets = json.getJSONArray("assets")
                 var downloadUrl = ""
+                var sha256: String? = null
                 for (index in 0 until assets.length()) {
                     val asset = assets.getJSONObject(index)
                     if (asset.getString("name").endsWith(".apk")) {
                         downloadUrl = asset.getString("browser_download_url")
+                        val digest = asset.optString("digest", "")
+                        sha256 = digest.removePrefix("sha256:").takeIf { it.length == 64 }
                         break
                     }
                 }
-                if (downloadUrl.isEmpty()) null else UpdateInfo(id, downloadUrl, versionCode, notes)
+                if (downloadUrl.isEmpty()) null else {
+                    UpdateInfo(id, downloadUrl, versionCode, notes, sha256)
+                }
             }
         } catch (_: Exception) {
             if (attempt < 3) {
@@ -5441,21 +5478,49 @@ User request: $prompt"""
                     }
                 }
 
+                info.sha256?.let { expected ->
+                    val actual = sha256Of(file)
+                    if (!actual.equals(expected, ignoreCase = true)) {
+                        file.delete()
+                        throw IOException("APK checksum mismatch; download discarded.")
+                    }
+                }
+
+                prefs.edit()
+                    .putString(KEY_LAST_RELEASE, info.id)
+                    .putInt(KEY_PENDING_UPDATE, info.versionCode)
+                    .apply()
+                val silentlyInstalled = trySilentInstall(file)
                 withContext(Dispatchers.Main) {
                     progress.dismiss()
-                    prefs.edit().putString(KEY_LAST_RELEASE, info.id).apply()
-                    appendChat("\n\n[*] Update downloaded (${file.length() / 1024} KB). Opening installer…")
-                    val uri = FileProvider.getUriForFile(
-                        this@MainActivity,
-                        "${packageName}.fileprovider",
-                        file,
+                    appendChat(
+                        "\n\n[*] Update downloaded (${file.length() / 1024} KB)." +
+                            if (silentlyInstalled) {
+                                " Installed automatically. Restart the app to use it."
+                            } else {
+                                " Opening installer…"
+                            },
                     )
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, "application/vnd.android.package-archive")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    if (!silentlyInstalled) {
+                        val uri = FileProvider.getUriForFile(
+                            this@MainActivity,
+                            "${packageName}.fileprovider",
+                            file,
+                        )
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                    } else {
+                        prefs.edit().remove(KEY_PENDING_UPDATE).apply()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Update installed. Restart Sentinal Security to use it.",
+                            Toast.LENGTH_LONG,
+                        ).show()
                     }
-                    startActivity(intent)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -5469,6 +5534,36 @@ User request: $prompt"""
                 }
             }
         }
+    }
+
+    /** Silent install when the device allows it (root / privileged installer). */
+    private fun trySilentInstall(apk: File): Boolean {
+        return try {
+            val source = apk.absolutePath.replace("'", "'\\''")
+            val temporary = "/data/local/tmp/sentinal-update.apk"
+            val command =
+                "cat '$source' > $temporary && chmod 0644 $temporary && " +
+                    "pm install -r $temporary; rc=\$?; rm -f $temporary; exit \$rc"
+            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            val exitCode = process.waitFor()
+            exitCode == 0 && output.contains("Success", ignoreCase = true)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun sha256Of(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(16 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun downloadUpdateApk(
