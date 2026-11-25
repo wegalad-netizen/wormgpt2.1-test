@@ -5595,7 +5595,9 @@ User request: $prompt"""
                         break
                     }
                 }
-                if (downloadUrl.isEmpty()) null else {
+                if (downloadUrl.isEmpty() || sha256 == null) {
+                    null
+                } else {
                     UpdateInfo(id, downloadUrl, versionCode, notes, sha256)
                 }
             }
@@ -5640,12 +5642,12 @@ User request: $prompt"""
                     }
                 }
 
-                info.sha256?.let { expected ->
-                    val actual = sha256Of(file)
-                    if (!actual.equals(expected, ignoreCase = true)) {
-                        file.delete()
-                        throw IOException("APK checksum mismatch; download discarded.")
-                    }
+                val expected = info.sha256
+                    ?: throw IOException("Update checksum unavailable; install blocked.")
+                val actual = sha256Of(file)
+                if (!actual.equals(expected, ignoreCase = true)) {
+                    file.delete()
+                    throw IOException("APK checksum mismatch; download discarded.")
                 }
 
                 prefs.edit()
