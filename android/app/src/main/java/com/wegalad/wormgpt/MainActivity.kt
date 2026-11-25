@@ -290,6 +290,7 @@ Rules:
     private var netJob: Job? = null
     private lateinit var chatScroll: ScrollView
     private lateinit var chatStage: FrameLayout
+    private lateinit var chatParticlesView: View
     private lateinit var chatMessages: LinearLayout
     private lateinit var jumpLatestButton: Button
     private val chatHistory = mutableListOf<ChatMessage>()
@@ -317,6 +318,7 @@ Rules:
     private lateinit var pulseBackground: GradientDrawable
     private var backgroundPulseAnimator: ValueAnimator? = null
     private var busyPulseAnimator: ValueAnimator? = null
+    private var chatStatusPulse: ValueAnimator? = null
     private var ownerPulseAnimator: ValueAnimator? = null
     private var currentPage: String? = null
     private var dashboardEntrancePlayed = false
@@ -517,6 +519,7 @@ Rules:
         drawerLayout.background = pulseBackground
         chatScroll = findViewById(R.id.chatScroll)
         chatStage = findViewById(R.id.chatStage)
+        chatParticlesView = findViewById(R.id.chatParticlesView)
         chatMessages = findViewById(R.id.chatMessages)
         startChatBackdropAnimation()
         jumpLatestButton = findViewById(R.id.jumpLatestButton)
@@ -596,8 +599,11 @@ Rules:
         drawerLayout.setScrimColor(0x99000000.toInt())
         pulseOwnerStatusDot()
 
-        chatScroll.setOnScrollChangeListener { _, _, _, _, _ ->
+        chatScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             stickToBottom = !chatScroll.canScrollVertically(1)
+            if (::chatParticlesView.isInitialized && animationsEnabled()) {
+                chatParticlesView.translationY = -(scrollY * 0.12f)
+            }
         }
         chatScroll.setOnClickListener { focusPrompt() }
         findViewById<View>(R.id.composerBar).setOnClickListener { focusPrompt() }
@@ -916,6 +922,8 @@ Rules:
         scoreCountAnimator = null
         ownerPulseAnimator?.cancel()
         ownerPulseAnimator = null
+        chatStatusPulse?.cancel()
+        chatStatusPulse = null
         stopChatBackdropAnimation()
         backgroundPulseAnimator?.cancel()
         backgroundPulseAnimator = null
@@ -5214,6 +5222,22 @@ User request: $prompt"""
                 if (isBusy) R.color.sentinal_amber else R.color.sentinal_cyan,
             ),
         )
+        chatStatusPulse?.cancel()
+        chatStatusPulse = null
+        status.alpha = 1f
+        status.scaleX = 1f
+        if (isBusy && animationsEnabled()) {
+            chatStatusPulse = ValueAnimator.ofFloat(0.55f, 1f).apply {
+                duration = 900L
+                repeatCount = ValueAnimator.INFINITE
+                repeatMode = ValueAnimator.REVERSE
+                addUpdateListener { animator ->
+                    status.alpha = animator.animatedValue as Float
+                    status.scaleX = 0.98f + (animator.animatedValue as Float) * 0.02f
+                }
+                start()
+            }
+        }
     }
 
     private fun updateSendButtonState() {
@@ -5598,6 +5622,7 @@ User request: $prompt"""
             Toast.makeText(this, "Message copied.", Toast.LENGTH_SHORT).show()
             true
         }
+        if (message.role != "system") applyPressFeedback(bubble)
         column.addView(bubble)
 
         val row = LinearLayout(this).apply {
