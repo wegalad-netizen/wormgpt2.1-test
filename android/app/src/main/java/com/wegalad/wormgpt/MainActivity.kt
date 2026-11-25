@@ -1109,7 +1109,8 @@ Rules:
                     .alpha(0f)
                     .scaleX(1.06f)
                     .scaleY(1.06f)
-                    .setDuration(280L)
+                    .rotation(4f)
+                    .setDuration(320L)
                     .setInterpolator(AccelerateDecelerateInterpolator())
                     .withEndAction { view.remove() }
                     .start()

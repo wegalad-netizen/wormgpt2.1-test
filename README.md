@@ -100,6 +100,8 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - Light system-bar icons matched to the dark Sentinal theme
 - Branded Android 12+ splash screen with a smooth scale/fade exit
 - Activity open/close transition animations
+- Splash icon rotates while scaling out
+- Dialogs now slide up with an overshoot/settle entrance and a smooth collapse exit
 - Keyboard composer lifts with a smooth animated inset instead of jumping
 - Page transitions use a soft scale/slide entrance with reduced-motion fallbacks
 - Launch seal rotates into view and the launch overlay exits with a scale/fade
