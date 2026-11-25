@@ -391,9 +391,19 @@ object SpamPrefs {
             .filter { it.isNotBlank() }
 
     fun addLog(context: Context, entry: String) {
-        val line = "${timestampNow()} · $entry"
+        val sanitized = sanitizeLogEntry(entry)
+        val line = "${timestampNow()} · $sanitized"
         val updated = (listOf(line) + log(context)).take(LOG_LIMIT)
         prefs(context).edit().putString(KEY_LOG, updated.joinToString("\n")).apply()
+    }
+
+    /** Phones, emails, long tokens and OTP-like codes never enter persisted logs. */
+    private fun sanitizeLogEntry(entry: String): String {
+        var value = Regex("""[\w.+-]+@[\w-]+(?:\.[\w-]+)+""")
+            .replace(entry, "[EMAIL REDACTED]")
+        value = Regex("""(?:\+?94|0)?7\d{8}""").replace(value, "[PHONE REDACTED]")
+        value = Regex("""\b\d{4,8}\b""").replace(value, "[CODE REDACTED]")
+        return Regex("""[A-Za-z0-9+/=]{32,}""").replace(value, "[TOKEN REDACTED]")
     }
 
     private fun timestampNow(): String =

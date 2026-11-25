@@ -136,6 +136,9 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - Call screening now flags spam/fraud/telemarketing caller-ID labels in addition to operator markers
 - Recent screened-call log with verdicts, clearable from the blocklist dialog
 - Reports show trusted count, strict mode, call history, and risk as a 0–100% value
+- Guard logs sanitize phone numbers, emails, OTP-like codes, and long tokens before persistence
+- Off states for STRICT SMS / OPERATOR SPAM are highlighted in amber in the status line
+- API key entries are checked against provider prefix format locally before saving (with a save-anyway override)
 
 ### avast-inspired defensive additions
 

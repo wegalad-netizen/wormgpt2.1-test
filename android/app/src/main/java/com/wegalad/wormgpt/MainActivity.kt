@@ -1601,6 +1601,14 @@ Rules:
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
         }
+        Regex("(STRICT SMS|OPERATOR SPAM): OFF\\b").findAll(guardText).forEach { match ->
+            guardSpannable.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.sentinal_amber)),
+                match.range.first,
+                match.range.last + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
         guardStatus.text = guardSpannable
 
         findViewById<TextView>(R.id.dashboardStatus)?.let { status ->
@@ -3238,6 +3246,23 @@ Rules:
             "${key.take(6)}••••${key.takeLast(4)}"
         }
 
+    private fun apiKeyPrefixWarning(key: String, provider: String): String? {
+        val expected = when (provider) {
+            "gemini" -> "AIza"
+            "openai", "together" -> "sk-"
+            "openrouter" -> "sk-or-"
+            "anthropic" -> "sk-ant-"
+            "groq" -> "gsk_"
+            "opencode" -> null
+            else -> null
+        } ?: return null
+        return if (key.startsWith(expected, ignoreCase = true)) {
+            null
+        } else {
+            "This does not look like a $provider key (expected $expected…)."
+        }
+    }
+
     private fun renderApiProfiles() {
         if (!::apiProfilesList.isInitialized) return
         apiProfilesList.removeAllViews()
@@ -3362,6 +3387,7 @@ Rules:
             })
             addView(modelInput)
         }
+        var warningShown = false
         val dialog = AlertDialog.Builder(this)
             .setTitle(if (existing == null) "ADD API KEY" else "EDIT API KEY")
             .setView(layout)
@@ -3388,6 +3414,17 @@ Rules:
                     detectProviderFromKey(key)
                 } else {
                     normalizeProvider(selectedProvider)
+                }
+                val warning = apiKeyPrefixWarning(key, provider)
+                if (warning != null && !warningShown) {
+                    warningShown = true
+                    keyInput.error = warning
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Tap SAVE again to save anyway.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    return@setOnClickListener
                 }
                 val typedModel = modelInput.text.toString().trim()
                 val model = typedModel.takeIf { it.isNotEmpty() }?.let {
