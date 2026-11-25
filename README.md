@@ -91,6 +91,8 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 
 - Animated protection-score gauge with tick marks, breathing glow, and scanner sweep
 - Score counts up and changes colour as guards/permissions/setup improve
+- Dashboard quick-action row: SMART SCAN, IMPROVE, and CHAT jump directly from Home
+- Animated segmented progress during Smart Scan
 - Sliding bottom-navigation indicator between Home / Chat / Tools
 - Staggered dashboard card entrance and reduced-motion support
 

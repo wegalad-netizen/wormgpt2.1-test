@@ -227,6 +227,15 @@
                             android:text="QUICK CHECK"
                             android:textColor="@color/sentinal_bg"
                             android:background="@drawable/pill_cyan" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal">
+                            <Button android:id="@+id/dashScanButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:text="SMART SCAN" android:textSize="9sp" />
+                            <Button android:id="@+id/dashImprovementButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="IMPROVE" android:textSize="9sp" />
+                            <Button android:id="@+id/dashChatButton" style="@style/SentinalButton.Outline" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="CHAT" android:textSize="9sp" />
+                        </LinearLayout>
                     </LinearLayout>
 
                     <LinearLayout

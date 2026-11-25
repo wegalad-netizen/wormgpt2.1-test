@@ -815,6 +815,11 @@ Rules:
         findViewById<Button>(R.id.autoImproveButton).setOnClickListener { runAutoImprovement(manual = true) }
         findViewById<Button>(R.id.smartScanButton).setOnClickListener { runSmartScan() }
         findViewById<Button>(R.id.storageToolButton).setOnClickListener { showStorageTool() }
+        findViewById<Button>(R.id.dashScanButton).setOnClickListener { runSmartScan() }
+        findViewById<Button>(R.id.dashImprovementButton).setOnClickListener {
+            runAutoImprovement(manual = true)
+        }
+        findViewById<Button>(R.id.dashChatButton).setOnClickListener { showMainPage("chat") }
         findViewById<Button>(R.id.navDashboard).setOnClickListener { showMainPage("dashboard") }
         findViewById<Button>(R.id.navChat).setOnClickListener { showMainPage("chat") }
         findViewById<Button>(R.id.navTools).setOnClickListener { showMainPage("tools") }
@@ -841,6 +846,9 @@ Rules:
             R.id.autoImproveButton,
             R.id.smartScanButton,
             R.id.storageToolButton,
+            R.id.dashScanButton,
+            R.id.dashImprovementButton,
+            R.id.dashChatButton,
             R.id.ownerButton,
             R.id.brandRow,
             R.id.linkToolCard,
@@ -924,6 +932,8 @@ Rules:
         ownerPulseAnimator = null
         chatStatusPulse?.cancel()
         chatStatusPulse = null
+        scanBarAnimator?.cancel()
+        scanBarAnimator = null
         stopChatBackdropAnimation()
         backgroundPulseAnimator?.cancel()
         backgroundPulseAnimator = null
@@ -2496,13 +2506,13 @@ Rules:
             try {
                 steps.forEachIndexed { index, step ->
                     status.text = "Checking ${step.first}…"
-                    bar.progress = index
+                    animateProgressBar(bar, index)
                     if (animationsEnabled()) delay(180L)
                     val (ok, detail) = step.second()
                     if (ok) passed++
                     lines += "${if (ok) "PASS" else "REVIEW"}  ${step.first}\n      $detail"
                 }
-                bar.progress = steps.size
+                animateProgressBar(bar, steps.size)
                 status.text = "Scan complete"
                 if (animationsEnabled()) delay(220L)
             } catch (e: Exception) {
@@ -2521,6 +2531,22 @@ Rules:
                 append("This is a local configuration review, not a malware scan. It cannot detect infections or guarantee safety.")
             }
             showToolResult("SMART SCAN RESULT", report)
+        }
+    }
+
+    private var scanBarAnimator: ValueAnimator? = null
+
+    private fun animateProgressBar(bar: ProgressBar, target: Int) {
+        scanBarAnimator?.cancel()
+        if (!animationsEnabled()) {
+            bar.progress = target
+            return
+        }
+        scanBarAnimator = ValueAnimator.ofInt(bar.progress, target).apply {
+            duration = 220L
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { animator -> bar.progress = animator.animatedValue as Int }
+            start()
         }
     }
 
@@ -5193,6 +5219,8 @@ User request: $prompt"""
             R.id.autoImproveButton,
             R.id.smartScanButton,
             R.id.storageToolButton,
+            R.id.dashScanButton,
+            R.id.dashImprovementButton,
         ).forEach { id ->
             findViewById<Button>(id).isEnabled = !busy
         }
