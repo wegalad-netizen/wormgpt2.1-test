@@ -128,6 +128,15 @@ Android: use **AUTO IMPROVEMENT RESEARCH** in Tools / Security Tools, or enable 
 - Security tools menu uses staggered sliding rows instead of a plain list
 - Owner profile tool buttons have press feedback and the dialog keeps its staggered reveal
 
+### Call and SMS guard upgrades
+
+- Trusted-number allowlist: saved numbers are never blocked or quarantined (manage in MANAGE BLOCKLIST → TRUSTED)
+- Strict SMS mode lowers the spam threshold for unknown senders
+- Sinhala spam phrase detection
+- Call screening now flags spam/fraud/telemarketing caller-ID labels in addition to operator markers
+- Recent screened-call log with verdicts, clearable from the blocklist dialog
+- Reports show trusted count, strict mode, call history, and risk as a 0–100% value
+
 ### avast-inspired defensive additions
 
 Inspired by common commercial-suite features, implemented as local, privacy-preserving checks:

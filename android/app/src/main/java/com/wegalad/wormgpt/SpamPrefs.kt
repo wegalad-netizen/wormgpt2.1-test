@@ -34,8 +34,12 @@ object SpamPrefs {
     private const val KEY_SMS_ENABLED = "sms_guard_enabled"
     private const val KEY_LAST_CALL = "last_screened_call"
     private const val KEY_QUARANTINE = "quarantine_entries"
+    private const val KEY_ALLOWED = "allowed_numbers"
+    private const val KEY_STRICT_SMS = "strict_sms"
+    private const val KEY_RECENT_CALLS = "recent_calls"
     private const val MAX_QUARANTINE = 80
     private const val LOG_LIMIT = 200
+    private const val CALL_HISTORY_LIMIT = 60
 
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -92,6 +96,42 @@ object SpamPrefs {
         prefs(context).edit().remove(KEY_BLOCKED).apply()
     }
 
+    // ---- Trusted senders (never filtered) ----
+
+    fun allowedNumbers(context: Context): Set<String> =
+        prefs(context).getStringSet(KEY_ALLOWED, emptySet()) ?: emptySet()
+
+    fun addAllowed(context: Context, value: String) {
+        val normalized = normalizePattern(value)
+        if (normalized.isEmpty() || normalized.count { it.isDigit() } < 4) return
+        prefs(context).edit()
+            .putStringSet(KEY_ALLOWED, allowedNumbers(context) + normalized)
+            .apply()
+    }
+
+    fun removeAllowed(context: Context, value: String) {
+        prefs(context).edit()
+            .putStringSet(KEY_ALLOWED, allowedNumbers(context) - value)
+            .apply()
+    }
+
+    fun clearAllowed(context: Context) {
+        prefs(context).edit().remove(KEY_ALLOWED).apply()
+    }
+
+    fun isAllowed(context: Context, number: String?): Boolean {
+        val incoming = digits(number.orEmpty())
+        if (incoming.length < 4) return false
+        return allowedNumbers(context).any { entry -> isBlockedEntry(incoming, entry) }
+    }
+
+    fun strictSmsEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_STRICT_SMS, false)
+
+    fun setStrictSmsEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_STRICT_SMS, enabled).apply()
+    }
+
     /**
      * Match exact digits, or compare the last 10 digits so country codes and
      * trunk prefixes (for example +91 98765 43210 vs 098765 43210) still match.
@@ -135,6 +175,21 @@ object SpamPrefs {
 
     fun lastScreenedCall(context: Context): String? =
         prefs(context).getString(KEY_LAST_CALL, null)
+
+    fun recentCalls(context: Context): List<String> =
+        prefs(context).getString(KEY_RECENT_CALLS, "").orEmpty()
+            .lines()
+            .filter { it.isNotBlank() }
+
+    fun addRecentCall(context: Context, label: String, blocked: Boolean) {
+        val line = "${timestampNow()} · $label · ${if (blocked) "BLOCKED" else "ALLOWED"}"
+        val updated = (listOf(line) + recentCalls(context)).take(CALL_HISTORY_LIMIT)
+        prefs(context).edit().putString(KEY_RECENT_CALLS, updated.joinToString("\n")).apply()
+    }
+
+    fun clearRecentCalls(context: Context) {
+        prefs(context).edit().remove(KEY_RECENT_CALLS).apply()
+    }
 
     fun callGuardEnabled(context: Context): Boolean =
         prefs(context).getBoolean(KEY_CALL_ENABLED, true)
@@ -240,6 +295,9 @@ object SpamPrefs {
         "update your payment", "update your payment details",
         "invoice attached", "unpaid invoice", "overdue invoice",
         "package delayed", "your package is delayed",
+        "ජයග්‍රහණය", "තෑගිය", "ත්‍යාගය", "පරීක්ෂා කරන්න", "දැන්ම ක්ලික් කරන්න",
+        "ගෙවීම් යාවත්කාලීන", "ගිණුම අත්හිටුවීම", "කරුණාකර තහවුරු කරන්න",
+        "අමතර මුදලක්", "මුදල් ආපසු", "විශේෂ දීමනාව", "දිනුම් දැමීම",
         "unsubscribe from this message", "please unsubscribe",
         "urgent", "don't miss out", "limited quantity", "today only",
         "expires soon", "earn money", "investment opportunity", "invest now",
@@ -271,6 +329,7 @@ object SpamPrefs {
      */
     fun isSpamSms(context: Context, body: String, sender: String = ""): Boolean {
         if (!keywordFilter(context)) return false
+        if (isAllowed(context, sender)) return false
         return spamScore(context, body, sender) >= spamThreshold(context, sender)
     }
 
@@ -313,12 +372,15 @@ object SpamPrefs {
 
     private fun spamThreshold(context: Context, sender: String): Int {
         val senderDigits = sender.filter(Char::isDigit)
+        val strict = strictSmsEnabled(context)
         return when {
-            isOperatorSender(sender) && operatorSpamEnabled(context) -> 2
-            senderDigits.isNotEmpty() -> 2
-            else -> 4
+            isOperatorSender(sender) && operatorSpamEnabled(context) -> if (strict) 1 else 2
+            senderDigits.isNotEmpty() -> if (strict) 1 else 2
+            else -> if (strict) 2 else 4
         }
     }
+
+    fun riskPercent(score: Int): Int = (score * 18).coerceIn(0, 100)
 
     private fun isEmailSender(sender: String): Boolean =
         EMAIL_SENDER.containsMatchIn(sender)
@@ -375,6 +437,8 @@ object SpamPrefs {
             .append(SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()))
             .append("\n")
         sb.append("\nBlocked numbers: ").append(blockedNumbers(context).size)
+        sb.append("\nTrusted numbers: ").append(allowedNumbers(context).size)
+        sb.append("\nStrict SMS mode: ").append(if (strictSmsEnabled(context)) "On" else "Off")
         sb.append("\nQuarantined messages: ").append(quarantineCount(context))
         sb.append("\nAlerts logged: ").append(log(context).size)
         sb.append("\nLast screened call: ").append(lastScreenedCall(context) ?: "none yet")
@@ -385,7 +449,7 @@ object SpamPrefs {
         if (items.isEmpty()) sb.append("- (none)\n")
         items.take(25).forEach { q ->
             sb.append("- ").append(q.sender)
-                .append(" · RISK ").append(q.score).append("%")
+                .append(" · RISK ").append(riskPercent(q.score)).append("%")
                 .append(" · ").append(formatTimestamp(q.created))
                 .append(" · ").append(q.preview.ifBlank { "(no preview)" })
             if (q.signals.isNotEmpty()) {
@@ -393,6 +457,10 @@ object SpamPrefs {
             }
             sb.append("\n")
         }
+        sb.append("\nRecent screened calls (newest first):\n")
+        val calls = recentCalls(context)
+        if (calls.isEmpty()) sb.append("- (none)\n")
+        calls.take(20).forEach { sb.append("- ").append(it).append("\n") }
         sb.append("\nRecent alert history (newest first):\n")
         log(context).forEach { sb.append("- ").append(it).append("\n") }
         return sb.toString()

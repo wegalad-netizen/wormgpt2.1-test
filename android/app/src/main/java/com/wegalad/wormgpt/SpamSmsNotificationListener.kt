@@ -46,6 +46,7 @@ class SpamSmsNotificationListener : NotificationListenerService() {
         if (body.isBlank()) return
 
         val sender = title.ifBlank { body.substringBefore(":").trim().take(32) }
+        if (SpamPrefs.isAllowed(this, sender)) return
         val otpHit = hideOtp && SpamPrefs.isOneTimeCodeMessage(body)
         val numberHit = hideSpam && SpamPrefs.isBlocked(this, sender)
         val keywordHit = hideSpam && SpamPrefs.isSpamSms(this, body, sender)

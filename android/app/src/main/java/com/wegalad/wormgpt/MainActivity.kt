@@ -1566,6 +1566,10 @@ Rules:
             append("\nBLOCKED: ").append(SpamPrefs.blockedNumbers(this@MainActivity).size)
             append("   |   QUARANTINED: ").append(SpamPrefs.quarantineCount(this@MainActivity))
             append("   |   CAUGHT: ").append(SpamPrefs.log(this@MainActivity).size)
+            append("\nTRUSTED: ").append(SpamPrefs.allowedNumbers(this@MainActivity).size)
+            append("   |   STRICT SMS: ")
+                .append(if (SpamPrefs.strictSmsEnabled(this@MainActivity)) "ON" else "OFF")
+            append("   |   CALLS LOGGED: ").append(SpamPrefs.recentCalls(this@MainActivity).size)
             append("\nLAST SCREENED: ").append(
                 SpamPrefs.lastScreenedCall(this@MainActivity) ?: "none yet",
             )
@@ -2065,6 +2069,108 @@ Rules:
         requestGuardPermissions.launch(permissions.toTypedArray())
     }
 
+    private fun showTrustedNumbersDialog() {
+        val input = EditText(this).apply {
+            hint = "Number to always allow"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_text))
+            setHintTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+            setBackgroundResource(R.drawable.input_bg)
+        }
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = ScrollView(this).apply { addView(list) }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(14), dp(18), dp(6))
+            addView(input)
+            addView(
+                scroll,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(220),
+                ).apply { topMargin = dp(10) },
+            )
+        }
+
+        fun render() {
+            list.removeAllViews()
+            val numbers = SpamPrefs.allowedNumbers(this).sorted()
+            if (numbers.isEmpty()) {
+                list.addView(TextView(this).apply {
+                    text = "No trusted numbers yet."
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
+                    textSize = 12f
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                })
+                return
+            }
+            numbers.forEach { number ->
+                val row = TextView(this).apply {
+                    text = "$number   ✕"
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_emerald))
+                    textSize = 12f
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                    setOnClickListener {
+                        SpamPrefs.removeAllowed(this@MainActivity, number)
+                        render()
+                    }
+                }
+                list.addView(row)
+            }
+        }
+        render()
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("TRUSTED NUMBERS")
+            .setMessage("Trusted senders are never blocked or quarantined.")
+            .setView(content)
+            .setPositiveButton("ADD", null)
+            .setNeutralButton("CLEAR ALL", null)
+            .setNegativeButton("DONE", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val value = input.text.toString().trim()
+                if (value.isBlank()) {
+                    input.error = "Enter a number"
+                    return@setOnClickListener
+                }
+                SpamPrefs.addAllowed(this, value)
+                input.text?.clear()
+                render()
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                SpamPrefs.clearAllowed(this)
+                render()
+            }
+        }
+        dialog.show()
+    }
+
+    private fun showCallHistoryDialog() {
+        val calls = SpamPrefs.recentCalls(this)
+        val body = if (calls.isEmpty()) {
+            "No calls screened yet.\n\nCall guard records calls locally only."
+        } else {
+            calls.take(40).joinToString("\n")
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("RECENT SCREENED CALLS")
+            .setMessage(body)
+            .setPositiveButton("DONE", null)
+            .setNeutralButton("CLEAR LOG", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                SpamPrefs.clearRecentCalls(this)
+                dialog.dismiss()
+                Toast.makeText(this, "Call log cleared.", Toast.LENGTH_SHORT).show()
+            }
+        }
+        dialog.show()
+    }
+
     private fun showBlocklistDialog() {
         val view = layoutInflater.inflate(R.layout.dialog_blocklist, null)
         val input = view.findViewById<EditText>(R.id.numberInput)
@@ -2125,6 +2231,25 @@ Rules:
             .create()
 
         dialog.setOnShowListener {
+            view.findViewById<Button>(R.id.trustedButton).setOnClickListener {
+                showTrustedNumbersDialog()
+            }
+            view.findViewById<Button>(R.id.strictSmsButton).setOnClickListener {
+                val enabled = !SpamPrefs.strictSmsEnabled(this)
+                SpamPrefs.setStrictSmsEnabled(this, enabled)
+                view.findViewById<Button>(R.id.strictSmsButton).text =
+                    if (enabled) "STRICT: ON" else "STRICT SMS"
+                Toast.makeText(
+                    this,
+                    if (enabled) "Strict SMS filtering enabled." else "Strict SMS filtering disabled.",
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            view.findViewById<Button>(R.id.callHistoryButton).setOnClickListener {
+                showCallHistoryDialog()
+            }
+            view.findViewById<Button>(R.id.strictSmsButton).text =
+                if (SpamPrefs.strictSmsEnabled(this)) "STRICT: ON" else "STRICT SMS"
             view.findViewById<Button>(R.id.importButton).setOnClickListener {
                 val pasted = view.findViewById<EditText>(R.id.blocklistImportInput).text.toString()
                 val count = SpamPrefs.importBlocklist(this, pasted)

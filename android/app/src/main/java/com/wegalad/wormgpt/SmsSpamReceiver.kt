@@ -25,6 +25,7 @@ class SmsSpamReceiver : BroadcastReceiver() {
         }
 
         for ((sender, bodyBuilder) in bySender) {
+            if (SpamPrefs.isAllowed(context, sender)) continue
             val body = bodyBuilder.toString()
             val numberHit = SpamPrefs.isBlocked(context, sender)
             val keywordHit = SpamPrefs.isSpamSms(context, body, sender)

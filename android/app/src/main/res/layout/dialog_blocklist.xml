@@ -60,6 +60,48 @@
             android:textStyle="bold" />
     </LinearLayout>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/trustedButton"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:text="TRUSTED"
+            android:textColor="@color/sentinal_emerald"
+            android:background="@drawable/pill_outline"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/strictSmsButton"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="STRICT SMS"
+            android:textColor="@color/sentinal_amber"
+            android:background="@drawable/pill_outline"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/callHistoryButton"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="CALL LOG"
+            android:textColor="@color/sentinal_cyan"
+            android:background="@drawable/pill_outline"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <EditText
         android:id="@+id/blocklistImportInput"
         android:layout_width="match_parent"
