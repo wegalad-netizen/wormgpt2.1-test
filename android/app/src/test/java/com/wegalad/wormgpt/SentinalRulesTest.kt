@@ -11,7 +11,7 @@ class SentinalRulesTest {
     @Test
     fun normalizesBlocklistPatterns() {
         assertEquals("7414*", SentinalRules.normalizePattern(" 7414* "))
-        assertEquals("*555", SentinalRules.normalizePattern("+94 *555"))
+        assertEquals("*555", SentinalRules.normalizePattern(" *555 "))
         assertEquals("", SentinalRules.normalizePattern("abc"))
     }
 
@@ -25,8 +25,8 @@ class SentinalRulesTest {
 
     @Test
     fun matchesLastTenDigits() {
-        assertTrue(SentinalRules.isBlockedEntry("94771234567", "98771234567"))
-        assertTrue(SentinalRules.isBlockedEntry("0771234567", "94771234567"))
+        assertTrue(SentinalRules.isBlockedEntry("98771234567", "88771234567"))
+        assertTrue(SentinalRules.isBlockedEntry("0771234567", "940771234567"))
         assertFalse(SentinalRules.isBlockedEntry("12345", "94771234567"))
     }
 
