@@ -48,7 +48,7 @@ Update checks now show the new features from the release commit message in the u
 - App lock with device biometric/PIN, 2-minute auto-lock, and Recents hiding (`FLAG_SECURE`); enable in Settings → APP LOCK
 - Update endpoints and asset hosts are certificate-pinned; APK installation requires both SHA-256 digest and matching signing certificate
 - CI now runs unit tests and lint checks before publishing
-- Dashboard shows community reach as total GitHub APK downloads (not active users — no analytics are collected); tap to refresh
+- Dashboard, chat, tools, settings, and owner profile show **ACTIVE USERS ≈ N** across the app. The number is an estimate derived from public GitHub APK downloads; no analytics or tracking are collected, so it is not a true active-session count. Tap the dashboard card to refresh.
 
 Note: exact active-user counts require analytics/backend infrastructure. The app deliberately shows verifiable public download counts instead of estimates. The updater auto-downloads on launch and every 6 hours, requires a valid SHA-256 digest from GitHub and blocks installation if it is missing or does not match, then installs silently when the device permits it (root/privileged installer) and otherwise opens the installer screen. The dialog offers Update / Skip this build / Later.
 

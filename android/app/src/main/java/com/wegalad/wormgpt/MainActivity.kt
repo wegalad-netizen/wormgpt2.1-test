@@ -345,6 +345,10 @@ Rules:
     private lateinit var securityScoreText: TextView
     private lateinit var navIndicator: View
     private lateinit var communityStatsText: TextView
+    private lateinit var communityChatText: TextView
+    private lateinit var communityToolsText: TextView
+    private lateinit var communitySettingsText: TextView
+    private var communityEstimate = -1L
     private var scoreCountAnimator: ValueAnimator? = null
     private var chatBackdrop: GradientDrawable? = null
     private var chatBackdropAnimator: ValueAnimator? = null
@@ -680,7 +684,13 @@ Rules:
         securityScoreText = findViewById(R.id.securityScoreText)
         navIndicator = findViewById(R.id.navIndicator)
         communityStatsText = findViewById(R.id.communityStatsText)
+        communityChatText = findViewById(R.id.communityChatText)
+        communityToolsText = findViewById(R.id.communityToolsText)
+        communitySettingsText = findViewById(R.id.communitySettingsText)
         communityStatsText.setOnClickListener { refreshCommunityStats(force = true) }
+        communityEstimate = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getLong(KEY_COMMUNITY_STATS, -1L)
+        renderCommunityLabels()
         keywordSwitch = findViewById(R.id.keywordSwitch)
         unknownSwitch = findViewById(R.id.unknownSwitch)
         operatorSpamSwitch = findViewById(R.id.operatorSpamSwitch)
@@ -1666,6 +1676,13 @@ Rules:
             ).apply { topMargin = dp(10) },
         )
 
+        content.addView(TextView(this).apply {
+            val estimate = if (communityEstimate >= 0) communityEstimate.toString() else "—"
+            text = "COMMUNITY · ACTIVE USERS ≈ $estimate"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+            textSize = 11f
+            setPadding(0, dp(10), 0, 0)
+        })
         content.addView(TextView(this).apply {
             text = "Tap a social card to open the owner’s profile or contact."
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_faint))
@@ -5776,24 +5793,46 @@ User request: $prompt"""
         val cached = prefs.getLong(KEY_COMMUNITY_STATS, -1L)
         val cachedAt = prefs.getLong(KEY_COMMUNITY_STATS_AT, 0L)
         if (!force && cached >= 0 && System.currentTimeMillis() - cachedAt < 30L * 60L * 1000L) {
-            communityStatsText.text = "COMMUNITY · $cached APK downloads · tap to refresh"
+            communityEstimate = cached
+            renderCommunityLabels()
             return
         }
-        communityStatsText.text = "COMMUNITY · loading downloads…"
+        communityEstimate = cached
+        renderCommunityLabels()
         lifecycleScope.launch(Dispatchers.IO) {
             val downloads = fetchApkDownloadCount()
             withContext(Dispatchers.Main) {
                 if (downloads == null) {
-                    communityStatsText.text = "COMMUNITY · offline · tap to retry"
+                    communityStatsText.text = "ACTIVE USERS ≈ — · offline · tap to retry"
+                    communityChatText.text = "ACTIVE USERS ≈ —"
+                    communityToolsText.text = "ACTIVE USERS ≈ —"
+                    communitySettingsText.text = "ACTIVE USERS ≈ —"
                 } else {
+                    communityEstimate = downloads
                     getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
                         .putLong(KEY_COMMUNITY_STATS, downloads)
                         .putLong(KEY_COMMUNITY_STATS_AT, System.currentTimeMillis())
                         .apply()
-                    communityStatsText.text =
-                        "COMMUNITY · $downloads APK downloads · tap to refresh"
+                    renderCommunityLabels()
                 }
             }
+        }
+    }
+
+    private fun renderCommunityLabels() {
+        if (!::communityStatsText.isInitialized) return
+        val label = if (communityEstimate >= 0) {
+            "ACTIVE USERS ≈ $communityEstimate"
+        } else {
+            "ACTIVE USERS ≈ —"
+        }
+        communityChatText.text = label
+        communityToolsText.text = label
+        communitySettingsText.text = label
+        communityStatsText.text = if (communityEstimate >= 0) {
+            "$label\nFrom $communityEstimate public APK downloads · tap to refresh"
+        } else {
+            "$label\nTap to load from GitHub"
         }
     }
 

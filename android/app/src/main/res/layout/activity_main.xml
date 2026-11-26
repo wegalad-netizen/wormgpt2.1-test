@@ -459,6 +459,15 @@
                         android:indeterminate="true"
                         android:visibility="gone" />
                 </LinearLayout>
+                <TextView
+                    android:id="@+id/communityChatText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:paddingBottom="4dp"
+                    android:text="ACTIVE USERS ≈ —"
+                    android:textColor="@color/sentinal_faint"
+                    android:textSize="9sp" />
                 <FrameLayout
                     android:id="@+id/chatStage"
                     android:layout_width="match_parent"
@@ -620,7 +629,16 @@
                     android:orientation="vertical"
                     android:paddingTop="10dp">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Security tools" android:textColor="@color/sentinal_text" android:textSize="22sp" android:textStyle="bold" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="4dp" android:paddingBottom="12dp" android:text="Local checks and authorized assessment helpers" android:textColor="@color/sentinal_muted" android:textSize="12sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="4dp" android:paddingBottom="6dp" android:text="Local checks and authorized assessment helpers" android:textColor="@color/sentinal_muted" android:textSize="12sp" />
+                    <TextView
+                        android:id="@+id/communityToolsText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:text="ACTIVE USERS ≈ —"
+                        android:textColor="@color/sentinal_cyan"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
                     <Button android:id="@+id/wifiDetailsButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:text="WI-FI DETAILS" />
                     <Button android:id="@+id/permissionSummaryButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="APP PERMISSION SUMMARY" />
                     <Button android:id="@+id/toolsSpamLogButton" style="@style/SentinalButton.Outline" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="8dp" android:text="SECURITY ALERTS LOG" />
@@ -1269,6 +1287,17 @@
                     android:text="SENTINAL SECURITY // TOOLS"
                     android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/communitySettingsText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="ACTIVE USERS ≈ —"
+                    android:textColor="@color/sentinal_cyan"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
             </LinearLayout>
         </ScrollView>
     </LinearLayout>
