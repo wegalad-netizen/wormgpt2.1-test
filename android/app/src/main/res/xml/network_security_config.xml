@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.github.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">P5437A6f5e2OnunPOzNhRV2iWeOE1XGTN9xskQ53yTk=</pin>
+            <pin digest="SHA-256">ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=</pin>
+            <pin digest="SHA-256">sLVjNUaFYfW7n6EtgBeEpjOlcnBdNPMrZDRF36iwBdE=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">github.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">8gWWkWa8AfAz0khtRYRodss7ieQPpu8Sd7DppK94eVo=</pin>
+            <pin digest="SHA-256">ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=</pin>
+            <pin digest="SHA-256">sLVjNUaFYfW7n6EtgBeEpjOlcnBdNPMrZDRF36iwBdE=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">objects.githubusercontent.com</domain>
+        <domain includeSubdomains="false">release-assets.githubusercontent.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">lNuax9RNol8Xx1GETur9frjXt+himsZHCLKOginvFyw=</pin>
+            <pin digest="SHA-256">LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=</pin>
+            <pin digest="SHA-256">fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

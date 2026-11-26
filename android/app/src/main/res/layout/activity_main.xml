@@ -167,10 +167,24 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:paddingTop="3dp"
-                        android:paddingBottom="12dp"
+                        android:paddingBottom="6dp"
                         android:text="A quick view of protection available on this device"
                         android:textColor="@color/sentinal_muted"
                         android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/communityStatsText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:background="@drawable/card_bg"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="10dp"
+                        android:text="COMMUNITY · loading downloads…"
+                        android:textColor="@color/sentinal_cyan"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -939,6 +953,34 @@
                     android:text="Bundled Jarvis voice plus futuristic button sounds. Disable all audio anytime."
                     android:textColor="@color/sentinal_faint"
                     android:textSize="9sp" />
+
+                <Switch
+                    android:id="@+id/appLockSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:buttonTint="@color/sentinal_cyan"
+                    android:switchMinWidth="34dp"
+                    android:text="APP LOCK"
+                    android:textColor="@color/sentinal_text"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:text="Locks Sentinal Security with device biometric/PIN and hides content in Recents. Auto-locks 2 minutes after you leave the app."
+                    android:textColor="@color/sentinal_faint"
+                    android:textSize="9sp" />
+
+                <Button
+                    android:id="@+id/lockNowButton"
+                    style="@style/SentinalButton.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="6dp"
+                    android:text="LOCK NOW" />
 
                 <Switch
                     android:id="@+id/autoImproveSwitch"

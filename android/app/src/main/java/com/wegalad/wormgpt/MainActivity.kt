@@ -54,6 +54,7 @@ import android.util.Base64
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.AccelerateDecelerateInterpolator
@@ -78,6 +79,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import androidx.core.view.WindowCompat
@@ -95,6 +98,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.CertificatePinner
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -144,6 +148,8 @@ class MainActivity : AppCompatActivity() {
         const val KEY_SHOW_NET = "show_net_speed"
         const val KEY_JARVIS_VOICE = "jarvis_voice_feedback"
         const val KEY_AUTO_IMPROVE = "auto_improve"
+        const val KEY_APP_LOCK = "app_lock"
+        const val KEY_APP_LOCK_TIMEOUT = "app_lock_timeout"
         const val KEY_SINHALA_MODE = "sinhala_mode"
         const val KEY_LAST_AUTO_IMPROVE = "last_auto_improve"
         const val OWNER_TIKTOK =
@@ -199,6 +205,10 @@ class MainActivity : AppCompatActivity() {
         const val MAX_API_PROFILES = 5
         const val RELEASE_API =
             "https://api.github.com/repos/wegalad-netizen/wormgpt2.1-test/releases/latest"
+        const val RELEASES_API =
+            "https://api.github.com/repos/wegalad-netizen/wormgpt2.1-test/releases?per_page=100"
+        const val KEY_COMMUNITY_STATS = "community_stats"
+        const val KEY_COMMUNITY_STATS_AT = "community_stats_at"
 
         const val MASTER_PROMPT = """You are Sentinal Security, a security assistant.
 
@@ -334,6 +344,7 @@ Rules:
     private lateinit var securityGauge: SecurityGaugeView
     private lateinit var securityScoreText: TextView
     private lateinit var navIndicator: View
+    private lateinit var communityStatsText: TextView
     private var scoreCountAnimator: ValueAnimator? = null
     private var chatBackdrop: GradientDrawable? = null
     private var chatBackdropAnimator: ValueAnimator? = null
@@ -348,6 +359,11 @@ Rules:
     private lateinit var otpBlockSwitch: Switch
     private lateinit var jarvisVoiceSwitch: Switch
     private lateinit var autoImproveSwitch: Switch
+    private lateinit var appLockSwitch: Switch
+    private var lockOverlay: View? = null
+    private var isLocked = false
+    private var lastInteractionAt = 0L
+    private var pausedAt = 0L
     private var jarvisVoicePlayer: MediaPlayer? = null
     private var uiSoundPool: SoundPool? = null
     private var uiClickSoundId = 0
@@ -484,6 +500,34 @@ Rules:
             .writeTimeout(45, TimeUnit.SECONDS)
             .callTimeout(3, TimeUnit.MINUTES)
             .retryOnConnectionFailure(true)
+            .certificatePinner(
+                CertificatePinner.Builder()
+                    .add(
+                        "api.github.com",
+                        "sha256/P5437A6f5e2OnunPOzNhRV2iWeOE1XGTN9xskQ53yTk=",
+                        "sha256/ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=",
+                        "sha256/sLVjNUaFYfW7n6EtgBeEpjOlcnBdNPMrZDRF36iwBdE=",
+                    )
+                    .add(
+                        "github.com",
+                        "sha256/8gWWkWa8AfAz0khtRYRodss7ieQPpu8Sd7DppK94eVo=",
+                        "sha256/ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=",
+                        "sha256/sLVjNUaFYfW7n6EtgBeEpjOlcnBdNPMrZDRF36iwBdE=",
+                    )
+                    .add(
+                        "objects.githubusercontent.com",
+                        "sha256/lNuax9RNol8Xx1GETur9frjXt+himsZHCLKOginvFyw=",
+                        "sha256/LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=",
+                        "sha256/fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=",
+                    )
+                    .add(
+                        "release-assets.githubusercontent.com",
+                        "sha256/lNuax9RNol8Xx1GETur9frjXt+himsZHCLKOginvFyw=",
+                        "sha256/LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=",
+                        "sha256/fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=",
+                    )
+                    .build(),
+            )
             .build()
     }
 
@@ -635,6 +679,8 @@ Rules:
         securityGauge = findViewById(R.id.securityGaugeView)
         securityScoreText = findViewById(R.id.securityScoreText)
         navIndicator = findViewById(R.id.navIndicator)
+        communityStatsText = findViewById(R.id.communityStatsText)
+        communityStatsText.setOnClickListener { refreshCommunityStats(force = true) }
         keywordSwitch = findViewById(R.id.keywordSwitch)
         unknownSwitch = findViewById(R.id.unknownSwitch)
         operatorSpamSwitch = findViewById(R.id.operatorSpamSwitch)
@@ -714,6 +760,24 @@ Rules:
             animateSystemToggle(jarvisVoiceSwitch)
             if (checked) playJarvisClip(R.raw.jarvis2) else stopJarvisVoice()
         }
+        appLockSwitch = findViewById(R.id.appLockSwitch)
+        appLockSwitch.isChecked = prefs.getBoolean(KEY_APP_LOCK, false)
+        appLockSwitch.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(KEY_APP_LOCK, checked).apply()
+            applyAppLockPolicy()
+            animateSystemToggle(appLockSwitch)
+            if (checked) promptUnlock(force = true) else dismissLockOverlay()
+        }
+        findViewById<Button>(R.id.lockNowButton).setOnClickListener {
+            if (!prefs.getBoolean(KEY_APP_LOCK, false)) {
+                prefs.edit().putBoolean(KEY_APP_LOCK, true).apply()
+                appLockSwitch.isChecked = true
+                applyAppLockPolicy()
+            }
+            promptUnlock(force = true)
+        }
+        applyAppLockPolicy()
+
         autoImproveSwitch = findViewById(R.id.autoImproveSwitch)
         autoImproveSwitch.isChecked = prefs.getBoolean(KEY_AUTO_IMPROVE, false)
         autoImproveSwitch.setOnCheckedChangeListener { _, checked ->
@@ -873,6 +937,9 @@ Rules:
             R.id.quickPromptThreat,
             R.id.quickPromptSinhala,
             R.id.addApiKeyButton,
+            R.id.lockNowButton,
+            R.id.appLockSwitch,
+            R.id.communityStatsText,
         ).forEach { id -> applyPressFeedback(findViewById(id)) }
 
         val waInput = findViewById<EditText>(R.id.waNumberInput)
@@ -901,6 +968,7 @@ Rules:
             .apply()
         checkForUpdate(manual = false)
         updateGuardStatus()
+        refreshCommunityStats(force = false)
         chatScroll.postDelayed({ maybeAutoImproveOnLaunch() }, 5000)
     }
 
@@ -922,9 +990,11 @@ Rules:
             prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, System.currentTimeMillis()).apply()
             checkForUpdate(manual = false)
         }
+        maybeLockOnResume()
     }
 
     override fun onPause() {
+        pausedAt = System.currentTimeMillis()
         busyPulseAnimator?.pause()
         cryptoAutoRefreshJob?.cancel()
         cryptoRefreshJob?.cancel()
@@ -972,6 +1042,7 @@ Rules:
     override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
         val action = event.actionMasked
         if (action == android.view.MotionEvent.ACTION_DOWN) {
+            lastInteractionAt = System.currentTimeMillis()
             uiTouchTarget = findUiClickTarget(window.decorView, event.rawX, event.rawY)
         }
         val clickTarget = if (action == android.view.MotionEvent.ACTION_UP) {
@@ -1149,6 +1220,165 @@ Rules:
                     .start()
             }
         }
+    }
+
+    private fun applyAppLockPolicy() {
+        val enabled = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_APP_LOCK, false)
+        if (enabled) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            dismissLockOverlay()
+        }
+    }
+
+    private fun maybeLockOnResume() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_APP_LOCK, false)) {
+            dismissLockOverlay()
+            return
+        }
+        val timeout = prefs.getLong(KEY_APP_LOCK_TIMEOUT, 2L * 60L * 1000L)
+        val away = if (pausedAt == 0L) 0L else System.currentTimeMillis() - pausedAt
+        if (pausedAt == 0L || away >= timeout) {
+            promptUnlock(force = false)
+        }
+    }
+
+    private fun dismissLockOverlay() {
+        isLocked = false
+        lockOverlay?.let { overlay ->
+            (overlay.parent as? ViewGroup)?.removeView(overlay)
+        }
+        lockOverlay = null
+        lastInteractionAt = System.currentTimeMillis()
+    }
+
+    private fun promptUnlock(force: Boolean) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_APP_LOCK, false)) return
+        if (isLocked && !force) return
+        isLocked = true
+        if (lockOverlay?.parent != null) return
+
+        val overlay = FrameLayout(this).apply {
+            setBackgroundColor(Color.rgb(7, 10, 16))
+            isClickable = true
+            isFocusable = true
+            elevation = dp(200).toFloat()
+        }
+        val title = TextView(this).apply {
+            text = "SENTINAL LOCKED"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_cyan))
+            textSize = 18f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            letterSpacing = 0.12f
+            gravity = Gravity.CENTER
+        }
+        val hint = TextView(this).apply {
+            text = "Unlock with your biometric or device PIN"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_muted))
+            textSize = 11f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(8), 0, 0)
+        }
+        val unlockButton = Button(this).apply {
+            text = "UNLOCK"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.sentinal_bg))
+            setBackgroundResource(R.drawable.pill_cyan)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(44),
+            ).apply { topMargin = dp(18) }
+            setOnClickListener { startBiometricUnlock() }
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            addView(
+                OwnerBadgeView(this@MainActivity),
+                LinearLayout.LayoutParams(dp(100), dp(100)),
+            )
+            addView(
+                title,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(20) },
+            )
+            addView(
+                hint,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+            addView(unlockButton)
+        }
+        overlay.addView(
+            content,
+            FrameLayout.LayoutParams(
+                dp(260),
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER,
+            ),
+        )
+        (window.decorView as? ViewGroup)?.addView(
+            overlay,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        lockOverlay = overlay
+        startBiometricUnlock()
+    }
+
+    private fun startBiometricUnlock() {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        val status = BiometricManager.from(this).canAuthenticate(authenticators)
+        if (status != BiometricManager.BIOMETRIC_SUCCESS) {
+            Toast.makeText(
+                this,
+                "Set up a device biometric or screen lock to unlock Sentinal Security.",
+                Toast.LENGTH_LONG,
+            ).show()
+            return
+        }
+        val callback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                super.onAuthenticationSucceeded(result)
+                dismissLockOverlay()
+            }
+
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                super.onAuthenticationError(errorCode, errString)
+                if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                    errorCode != BiometricPrompt.ERROR_CANCELED
+                ) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Unlock failed: $errString",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+                Toast.makeText(this@MainActivity, "Not recognized.", Toast.LENGTH_SHORT).show()
+            }
+        }
+        val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), callback)
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock Sentinal Security")
+            .setSubtitle("Confirm your identity to continue")
+            .setAllowedAuthenticators(authenticators)
+            .setConfirmationRequired(false)
+            .build()
+        prompt.authenticate(info)
     }
 
     /** Keep system bars insets on the root and lift only the composer above the IME. */
@@ -3085,15 +3315,7 @@ Rules:
         }
     }
 
-    private fun looksLikeApiKey(raw: String): Boolean {
-        val value = raw.trim()
-        return value.length >= 24 && (
-            value.startsWith("sk-", ignoreCase = true) ||
-                value.startsWith("gsk_", ignoreCase = true) ||
-                value.startsWith("AIza", ignoreCase = true) ||
-                (value.length >= 32 && !value.contains('/') && !value.startsWith("gemini", ignoreCase = true))
-            )
-    }
+    private fun looksLikeApiKey(raw: String): Boolean = SentinalRules.looksLikeApiKey(raw)
 
     private fun detectProviderFromKey(key: String): String = when {
         key.startsWith("oc_sk_", ignoreCase = true) || key.startsWith("oc_", ignoreCase = true) -> "opencode"
@@ -3246,22 +3468,8 @@ Rules:
             "${key.take(6)}••••${key.takeLast(4)}"
         }
 
-    private fun apiKeyPrefixWarning(key: String, provider: String): String? {
-        val expected = when (provider) {
-            "gemini" -> "AIza"
-            "openai", "together" -> "sk-"
-            "openrouter" -> "sk-or-"
-            "anthropic" -> "sk-ant-"
-            "groq" -> "gsk_"
-            "opencode" -> null
-            else -> null
-        } ?: return null
-        return if (key.startsWith(expected, ignoreCase = true)) {
-            null
-        } else {
-            "This does not look like a $provider key (expected $expected…)."
-        }
-    }
+    private fun apiKeyPrefixWarning(key: String, provider: String): String? =
+        SentinalRules.apiKeyPrefixWarning(key, provider)
 
     private fun renderApiProfiles() {
         if (!::apiProfilesList.isInitialized) return
@@ -5562,6 +5770,60 @@ User request: $prompt"""
         }
     }
 
+    private fun refreshCommunityStats(force: Boolean) {
+        if (!::communityStatsText.isInitialized) return
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val cached = prefs.getLong(KEY_COMMUNITY_STATS, -1L)
+        val cachedAt = prefs.getLong(KEY_COMMUNITY_STATS_AT, 0L)
+        if (!force && cached >= 0 && System.currentTimeMillis() - cachedAt < 30L * 60L * 1000L) {
+            communityStatsText.text = "COMMUNITY · $cached APK downloads · tap to refresh"
+            return
+        }
+        communityStatsText.text = "COMMUNITY · loading downloads…"
+        lifecycleScope.launch(Dispatchers.IO) {
+            val downloads = fetchApkDownloadCount()
+            withContext(Dispatchers.Main) {
+                if (downloads == null) {
+                    communityStatsText.text = "COMMUNITY · offline · tap to retry"
+                } else {
+                    getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                        .putLong(KEY_COMMUNITY_STATS, downloads)
+                        .putLong(KEY_COMMUNITY_STATS_AT, System.currentTimeMillis())
+                        .apply()
+                    communityStatsText.text =
+                        "COMMUNITY · $downloads APK downloads · tap to refresh"
+                }
+            }
+        }
+    }
+
+    private fun fetchApkDownloadCount(): Long? {
+        return try {
+            val request = Request.Builder()
+                .url(RELEASES_API)
+                .header("Accept", "application/vnd.github+json")
+                .header("User-Agent", "SentinalSecurity-Android")
+                .build()
+            updateClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val releases = JSONArray(response.body?.string().orEmpty())
+                var total = 0L
+                for (index in 0 until releases.length()) {
+                    val assets = releases.optJSONObject(index)?.optJSONArray("assets") ?: continue
+                    for (assetIndex in 0 until assets.length()) {
+                        val asset = assets.optJSONObject(assetIndex) ?: continue
+                        if (asset.optString("name", "").endsWith(".apk")) {
+                            total += asset.optLong("download_count", 0L)
+                        }
+                    }
+                }
+                total
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun fetchLatestRelease(attempt: Int = 1): UpdateInfo? {
         return try {
             val request = Request.Builder()
@@ -5575,11 +5837,7 @@ User request: $prompt"""
                 val json = JSONObject(response.body?.string().orEmpty())
                 val id = json.getString("published_at")
                 val body = json.optString("body", "")
-                val versionCode = Regex("Build number:\\s*(\\d+)")
-                    .find(body)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toIntOrNull() ?: 0
+                val versionCode = SentinalRules.parseBuildNumber(body) ?: 0
                 val notes = Regex("\\s*Build number:\\s*\\d+\\.?")
                     .replace(body, " ")
                     .trim()
@@ -5649,6 +5907,10 @@ User request: $prompt"""
                     file.delete()
                     throw IOException("APK checksum mismatch; download discarded.")
                 }
+                if (!verifyApkSignature(file)) {
+                    file.delete()
+                    throw IOException("APK signature mismatch; install blocked.")
+                }
 
                 prefs.edit()
                     .putString(KEY_LAST_RELEASE, info.id)
@@ -5716,6 +5978,23 @@ User request: $prompt"""
             false
         }
     }
+
+    @Suppress("DEPRECATION")
+    private fun verifyApkSignature(apk: File): Boolean {
+        val flags = PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
+        val installed = packageManager.getPackageInfo(packageName, flags)
+        val downloaded = packageManager.getPackageArchiveInfo(apk.absolutePath, flags)
+            ?: return false
+        val installedDigests = installed.signatures?.map { sha256Bytes(it.toByteArray()) }.orEmpty()
+        val downloadedDigests = downloaded.signatures?.map { sha256Bytes(it.toByteArray()) }.orEmpty()
+        return installedDigests.isNotEmpty() &&
+            downloadedDigests.isNotEmpty() &&
+            installedDigests.any { it in downloadedDigests }
+    }
+
+    private fun sha256Bytes(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it) }
 
     private fun sha256Of(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")

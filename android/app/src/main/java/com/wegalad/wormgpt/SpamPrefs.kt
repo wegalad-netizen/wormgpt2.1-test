@@ -44,7 +44,7 @@ object SpamPrefs {
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    private fun digits(value: String): String = value.filter(Char::isDigit)
+    private fun digits(value: String): String = SentinalRules.digits(value)
 
     fun blockedNumbers(context: Context): Set<String> =
         prefs(context).getStringSet(KEY_BLOCKED, emptySet()) ?: emptySet()
@@ -83,8 +83,7 @@ object SpamPrefs {
     fun exportBlocklist(context: Context): String =
         blockedNumbers(context).sorted().joinToString("\n")
 
-    private fun normalizePattern(raw: String): String =
-        raw.trim().lowercase().filter { it.isDigit() || it == '*' }
+    private fun normalizePattern(raw: String): String = SentinalRules.normalizePattern(raw)
 
     fun removeBlocked(context: Context, number: String) {
         prefs(context).edit().apply {
@@ -143,28 +142,8 @@ object SpamPrefs {
         return blockedNumbers(context).any { entry -> isBlockedEntry(incoming, entry) }
     }
 
-    private fun isBlockedEntry(incoming: String, entry: String): Boolean {
-        if (entry.contains('*')) return wildcardMatch(entry, incoming)
-        val saved = digits(entry)
-        if (saved.length < 4) return false
-        if (incoming == saved) return true
-        val compared = minOf(incoming.length, saved.length, 10)
-        return compared >= 7 && incoming.takeLast(compared) == saved.takeLast(compared)
-    }
-
-    /** Leading/trailing '*' wildcard: "7414*", "*555", "*9*". */
-    private fun wildcardMatch(entry: String, incoming: String): Boolean {
-        val starStart = entry.startsWith("*")
-        val starEnd = entry.endsWith("*")
-        val body = entry.removePrefix("*").removeSuffix("*").trim()
-        if (body.isEmpty()) return true
-        return when {
-            starStart && starEnd -> incoming.contains(body)
-            starStart -> incoming.endsWith(body)
-            starEnd -> incoming.startsWith(body) || incoming.endsWith(body)
-            else -> false
-        }
-    }
+    private fun isBlockedEntry(incoming: String, entry: String): Boolean =
+        SentinalRules.isBlockedEntry(incoming, entry)
 
     fun recordScreenedCall(context: Context, label: String, blocked: Boolean) {
         val shown = label.ifBlank { "Hidden / unknown" }
@@ -398,13 +377,7 @@ object SpamPrefs {
     }
 
     /** Phones, emails, long tokens and OTP-like codes never enter persisted logs. */
-    private fun sanitizeLogEntry(entry: String): String {
-        var value = Regex("""[\w.+-]+@[\w-]+(?:\.[\w-]+)+""")
-            .replace(entry, "[EMAIL REDACTED]")
-        value = Regex("""(?:\+?94|0)?7\d{8}""").replace(value, "[PHONE REDACTED]")
-        value = Regex("""\b\d{4,8}\b""").replace(value, "[CODE REDACTED]")
-        return Regex("""[A-Za-z0-9+/=]{32,}""").replace(value, "[TOKEN REDACTED]")
-    }
+    private fun sanitizeLogEntry(entry: String): String = SentinalRules.sanitizeLogEntry(entry)
 
     private fun timestampNow(): String =
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())

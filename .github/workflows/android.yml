@@ -36,6 +36,19 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Run unit tests
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        working-directory: android
+        run: gradle testDebugUnitTest --no-daemon -PBUILD_NUMBER="$BUILD_NUMBER"
+
+      - name: Run lint checks
+        continue-on-error: true
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        working-directory: android
+        run: gradle lintDebug --no-daemon -PBUILD_NUMBER="$BUILD_NUMBER"
+
       - name: Build debug APK
         env:
           BUILD_NUMBER: ${{ github.run_number }}

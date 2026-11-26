@@ -42,7 +42,15 @@ Supported providers: `gemini`, `openai` / `chatgpt`, `openrouter`, `groq`, `toge
 
 The Android app now stores each API key separately in Settings → **SAVED API KEYS**: tap **ADD API KEY**, choose a provider (or AUTO), paste one key, and optionally set a model. Up to 5 keys are saved individually; each row can be tapped to edit or removed with **DEL**. The provider can be left on AUTO and is detected from the key prefix.
 
-Update checks now show the new features from the release commit message in the update dialog, not just the build number. The updater auto-downloads on launch and every 6 hours, requires a valid SHA-256 digest from GitHub and blocks installation if it is missing or does not match, then installs silently when the device permits it (root/privileged installer) and otherwise opens the installer screen. The dialog offers Update / Skip this build / Later.
+Update checks now show the new features from the release commit message in the update dialog, not just the build number.
+
+**Security and quality upgrades**
+- App lock with device biometric/PIN, 2-minute auto-lock, and Recents hiding (`FLAG_SECURE`); enable in Settings → APP LOCK
+- Update endpoints and asset hosts are certificate-pinned; APK installation requires both SHA-256 digest and matching signing certificate
+- CI now runs unit tests and lint checks before publishing
+- Dashboard shows community reach as total GitHub APK downloads (not active users — no analytics are collected); tap to refresh
+
+Note: exact active-user counts require analytics/backend infrastructure. The app deliberately shows verifiable public download counts instead of estimates. The updater auto-downloads on launch and every 6 hours, requires a valid SHA-256 digest from GitHub and blocks installation if it is missing or does not match, then installs silently when the device permits it (root/privileged installer) and otherwise opens the installer screen. The dialog offers Update / Skip this build / Later.
 
 For a home-screen shortcut, copy `termux-widget/wormgpt` into `~/.shortcuts/` and add a Termux:Widget widget.
 
