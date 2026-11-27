@@ -159,6 +159,14 @@ Inspired by common commercial-suite features, implemented as local, privacy-pres
 
 These are local checks only. The app does not scan for malware, run a firewall/VPN, or upload device data.
 
+### AI system upgrades
+
+- AI mode selector in chat: **DEFENSIVE / CODE REVIEW / THREAT BRIEF / GENERAL**, persisted across restarts
+- **TEMPLATES** button with seven ready-made security prompts (phishing triage, link review, code review, threat brief, incident checklist, SOC handoff, Sinhala brief)
+- Model health now includes a cooldown after retryable failures, so failing models are skipped temporarily
+- Responses are cleaned before display (removes boilerplate openers and collapses excess blank lines)
+- Chat status shows the active AI mode
+
 ## Commands
 
 - `exit`, `quit`, `q` — leave the app

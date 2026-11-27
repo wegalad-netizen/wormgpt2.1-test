@@ -150,6 +150,7 @@ class MainActivity : AppCompatActivity() {
         const val KEY_AUTO_IMPROVE = "auto_improve"
         const val KEY_APP_LOCK = "app_lock"
         const val KEY_APP_LOCK_TIMEOUT = "app_lock_timeout"
+        const val KEY_AI_MODE = "ai_mode"
         const val KEY_SINHALA_MODE = "sinhala_mode"
         const val KEY_LAST_AUTO_IMPROVE = "last_auto_improve"
         const val OWNER_TIKTOK =
@@ -233,6 +234,23 @@ Rules:
 - Do not suggest illegal, abusive, or evasion techniques.
 - Output a concise numbered list: priority, area, concrete change, and expected benefit.
 - End with a short 'Quick wins' section of 3 low-effort improvements."""
+
+        val AI_MODES = listOf(
+            "DEFENSIVE" to "You are Sentinal Security, a defensive security assistant. Prioritize authorized, defensive guidance and explain mitigations clearly.",
+            "CODE REVIEW" to "Review the supplied code for security flaws. Provide corrected snippets and explain each risk. Never execute code.",
+            "THREAT BRIEF" to "Produce a concise threat brief: indicators, impact, likelihood, mitigations, and confidence.",
+            "GENERAL" to "",
+        )
+
+        val PROMPT_TEMPLATES = listOf(
+            "Phishing triage" to "Analyze this suspicious message for phishing indicators. List red flags, likely goal, and safe next steps.\n\nMessage:\n",
+            "Link safety review" to "Review this URL for phishing and safety signals. Explain the reasoning and safer alternatives.\nURL: ",
+            "Code security review" to "Review this code for security issues. Provide a corrected version and explain each fix.\n\n```\n\n```",
+            "Threat brief" to "Give me a concise threat brief for a security researcher with practical next steps.",
+            "Incident checklist" to "Produce a step-by-step incident response checklist for a suspected account compromise.",
+            "SOC handoff summary" to "Summarize the following alerts into a SOC handoff brief with severity and recommended actions.\n\nAlerts:\n",
+            "Sinhala quick brief" to "සිංහලෙන් කෙටි සාරාංශයක් දෙන්න: ",
+        )
     }
 
     private data class ApiProfile(
@@ -253,6 +271,7 @@ Rules:
         val successes: Int,
         val failures: Int,
         val lastUsed: Long,
+        val cooldownUntil: Long = 0L,
     )
 
     /** Draws a thin accent bar beside code blocks and quoted lines. */
@@ -320,6 +339,7 @@ Rules:
     private lateinit var quickPrompts: HorizontalScrollView
     private var isBusy = false
     private var sinhalaMode = false
+    private var aiMode = "DEFENSIVE"
     private var restoringChat = false
     private var stickToBottom = true
     private lateinit var promptInput: EditText
@@ -582,6 +602,11 @@ Rules:
         chatBusyBar = findViewById(R.id.chatBusyBar)
         chatSignalLine = findViewById(R.id.chatSignalLine)
         quickPrompts = findViewById(R.id.quickPrompts)
+        aiMode = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_AI_MODE, "DEFENSIVE").orEmpty().ifBlank { "DEFENSIVE" }
+        updateAiModeButton()
+        findViewById<Button>(R.id.aiModeButton).setOnClickListener { cycleAiMode() }
+        findViewById<Button>(R.id.templatesButton).setOnClickListener { showTemplatesDialog() }
         sinhalaMode = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_SINHALA_MODE, false)
         updateSinhalaControls()
@@ -950,6 +975,8 @@ Rules:
             R.id.lockNowButton,
             R.id.appLockSwitch,
             R.id.communityStatsText,
+            R.id.aiModeButton,
+            R.id.templatesButton,
         ).forEach { id -> applyPressFeedback(findViewById(id)) }
 
         val waInput = findViewById<EditText>(R.id.waNumberInput)
@@ -3753,13 +3780,19 @@ Rules:
         lifecycleScope.launch(Dispatchers.IO) {
             val result = try {
                 val chartImage = chartUri?.let(::encodeChartScreenshot)
-                val languageInstruction = if (sinhalaMode && containsSinhala(prompt)) {
-                    "Respond in Sinhala (සිංහල) using clear native script. " +
-                        "Keep technical terms understandable.\n\n"
-                } else {
-                    ""
+                val instructionBlock = buildString {
+                    val modeInstruction = aiModeInstruction()
+                    if (modeInstruction.isNotBlank()) {
+                        append(modeInstruction).append("\n\n")
+                    }
+                    if (sinhalaMode && containsSinhala(prompt)) {
+                        append(
+                            "Respond in Sinhala (සිංහල) using clear native script. " +
+                                "Keep technical terms understandable.\n\n",
+                        )
+                    }
                 }
-                val effectivePrompt = languageInstruction + if (chartImage != null) {
+                val effectivePrompt = instructionBlock + if (chartImage != null) {
                     """Analyze the attached cryptocurrency chart screenshot as a technical-analysis snapshot.
 Report: visible asset/ticker and timeframe (or unknown), observed trend, visible support/resistance levels only when readable, any visible indicators, a short-term directional scenario (bullish/neutral/bearish), confidence (low/medium/high) with evidence, and what would invalidate that scenario. Do not invent prices, indicators, market data, or certainty. This is an uncertain chart interpretation, not a guaranteed prediction or personalized financial recommendation.
 
@@ -3778,7 +3811,7 @@ User request: $prompt"""
                 if (result.error != null) {
                     appendChat("\n\n── ERROR\n${result.error}", R.color.sentinal_red_bright)
                 } else {
-                    lastResponse = result.text.orEmpty()
+                    lastResponse = cleanAiResponse(result.text.orEmpty())
                     appendChat("\n\n── RESPONSE (${result.model ?: MODEL})\n$lastResponse", R.color.sentinal_green)
                 }
             }
@@ -4160,6 +4193,7 @@ User request: $prompt"""
                     successes = item.optInt("ok", 0),
                     failures = item.optInt("fail", 0),
                     lastUsed = item.optLong("used", 0L),
+                    cooldownUntil = item.optLong("cooldown", 0L),
                 )
             }
             result
@@ -4177,7 +4211,8 @@ User request: $prompt"""
                     .put("latency", stat.latencyMs)
                     .put("ok", stat.successes)
                     .put("fail", stat.failures)
-                    .put("used", stat.lastUsed),
+                    .put("used", stat.lastUsed)
+                    .put("cooldown", stat.cooldownUntil),
             )
         }
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
@@ -4190,7 +4225,12 @@ User request: $prompt"""
         val failurePenalty = minOf(stat.failures, 10) * 120_000L
         val latency = stat.latencyMs.coerceIn(100L, 120_000L)
         val unknownPenalty = if (stat.successes == 0) 30_000L else 0L
-        return failurePenalty + latency + unknownPenalty
+        val cooldownPenalty = if (stat.cooldownUntil > System.currentTimeMillis()) {
+            10_000_000L
+        } else {
+            0L
+        }
+        return failurePenalty + latency + unknownPenalty + cooldownPenalty
     }
 
     private fun recordModelResult(
@@ -4198,6 +4238,7 @@ User request: $prompt"""
         model: String,
         latencyMs: Long,
         success: Boolean,
+        cooldownMs: Long = 0L,
     ) {
         val stats = loadModelStats()
         val key = modelStatKey(provider, model)
@@ -4216,6 +4257,11 @@ User request: $prompt"""
             successes = (previous?.successes ?: 0) + if (success) 1 else 0,
             failures = (previous?.failures ?: 0) + if (success) 0 else 1,
             lastUsed = System.currentTimeMillis(),
+            cooldownUntil = if (success || cooldownMs <= 0L) {
+                0L
+            } else {
+                System.currentTimeMillis() + cooldownMs
+            },
         )
         saveModelStats(stats)
     }
@@ -4266,9 +4312,16 @@ User request: $prompt"""
                 recordModelResult(profile.provider, profile.model, latency, success = true)
                 return result.copy(model = profile.model, attempts = attemptCount)
             }
-            recordModelResult(profile.provider, profile.model, latency, success = false)
+            val retryable = isRetryableError(error)
+            recordModelResult(
+                profile.provider,
+                profile.model,
+                latency,
+                success = false,
+                cooldownMs = if (retryable) 60_000L else 0L,
+            )
             failures += "${profile.provider}/${profile.model}: $error"
-            if (profile.provider == "gemini" && isRetryableError(error)) {
+            if (profile.provider == "gemini" && retryable) {
                 val refreshed = availableGeminiModels(profile.apiKey, force = true)
                 refreshed.forEach { model ->
                     if (model != profile.model &&
@@ -5653,7 +5706,7 @@ User request: $prompt"""
         status.text = if (isBusy) {
             "SECURE CHANNEL · THINKING"
         } else {
-            "SECURE CHANNEL · READY · $count MSG"
+            "SECURE CHANNEL · $aiMode · $count MSG"
         }
         status.setTextColor(
             ContextCompat.getColor(
@@ -6648,6 +6701,51 @@ User request: $prompt"""
                 if (stickToBottom) chatScroll.fullScroll(ScrollView.FOCUS_DOWN)
             }, 80)
         }
+    }
+
+    private fun updateAiModeButton() {
+        if (!::quickPrompts.isInitialized) return
+        findViewById<Button>(R.id.aiModeButton).text = "MODE: $aiMode"
+    }
+
+    private fun cycleAiMode() {
+        val modes = AI_MODES.map { it.first }
+        val current = modes.indexOf(aiMode).takeIf { it >= 0 } ?: 0
+        aiMode = modes[(current + 1) % modes.size]
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_AI_MODE, aiMode)
+            .apply()
+        updateAiModeButton()
+        Toast.makeText(this, "AI mode: $aiMode", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun aiModeInstruction(): String =
+        AI_MODES.firstOrNull { it.first == aiMode }?.second.orEmpty()
+
+    private fun showTemplatesDialog() {
+        val labels = PROMPT_TEMPLATES.map { it.first }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("PROMPT TEMPLATES")
+            .setItems(labels) { _, index ->
+                val template = PROMPT_TEMPLATES.getOrNull(index)?.second.orEmpty()
+                promptInput.setText(template)
+                promptInput.setSelection(template.length)
+                focusPrompt()
+                Toast.makeText(this, "Template loaded into composer.", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+            .window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+    }
+
+    private fun cleanAiResponse(raw: String): String {
+        var text = raw.trim()
+        text = Regex(
+            "^\\s*(?:as an ai(?: language model)?|i'm sorry,? but|i cannot)\\s*[,:-]?\\s*",
+            RegexOption.IGNORE_CASE,
+        ).replace(text, "")
+        text = Regex("\\n{3,}").replace(text, "\n\n")
+        return text.trim()
     }
 
     private fun updateSinhalaControls() {
