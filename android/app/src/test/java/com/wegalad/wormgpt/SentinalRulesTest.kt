@@ -54,6 +54,18 @@ class SentinalRulesTest {
     }
 
     @Test
+    fun knowledgeEntriesAreWellFormed() {
+        assertTrue(SecurityKnowledge.entries.size >= 8)
+        SecurityKnowledge.entries.forEach { entry ->
+            assertTrue(entry.title.isNotBlank())
+            assertTrue(entry.points.isNotEmpty())
+            val formatted = SecurityKnowledge.format(entry)
+            assertTrue(formatted.contains(entry.title))
+            assertTrue(formatted.contains("- "))
+        }
+    }
+
+    @Test
     fun sanitizesLogs() {
         val input = "SMS 0771234567 user@example.com code 1234 token abcdefghijklmnopqrstuvwxyz1234567890"
         val output = SentinalRules.sanitizeLogEntry(input)

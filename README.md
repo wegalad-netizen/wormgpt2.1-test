@@ -165,6 +165,9 @@ These are local checks only. The app does not scan for malware, run a firewall/V
 - **TEMPLATES** button with seven ready-made security prompts (phishing triage, link review, code review, threat brief, incident checklist, SOC handoff, Sinhala brief)
 - Model health now includes a cooldown after retryable failures, so failing models are skipped temporarily
 - Responses are cleaned before display (removes boilerplate openers and collapses excess blank lines)
+- New **EXPERT** mode applies OWASP MASVS, MITRE ATT&CK, NIST CSF, STRIDE, and privacy-by-design, and requests structured output with evidence, risk, mitigations, validation, references, and confidence
+- **KNOWLEDGE** button opens an offline library of 10 defensive security references (OWASP, MITRE, NIST, STRIDE, kill chain, incident response, secure coding, privacy, Sinhala terms); selecting one injects it as prompt context
+- Added a **Deep security assessment** template
 - Chat status shows the active AI mode
 
 ## Commands

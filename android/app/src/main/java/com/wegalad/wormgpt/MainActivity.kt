@@ -239,6 +239,13 @@ Rules:
             "DEFENSIVE" to "You are Sentinal Security, a defensive security assistant. Prioritize authorized, defensive guidance and explain mitigations clearly.",
             "CODE REVIEW" to "Review the supplied code for security flaws. Provide corrected snippets and explain each risk. Never execute code.",
             "THREAT BRIEF" to "Produce a concise threat brief: indicators, impact, likelihood, mitigations, and confidence.",
+            "EXPERT" to (
+                "You are a senior defensive security architect. Apply OWASP MASVS, MITRE ATT&CK, " +
+                    "NIST CSF, STRIDE, and privacy-by-design where relevant. Structure answers as: " +
+                    "Summary, Findings, Risk (likelihood/impact), Evidence, Mitigations, " +
+                    "Validation steps, and References. State confidence and assumptions. " +
+                    "Stay defensive and authorized; never provide offensive instructions."
+                ),
             "GENERAL" to "",
         )
 
@@ -249,6 +256,7 @@ Rules:
             "Threat brief" to "Give me a concise threat brief for a security researcher with practical next steps.",
             "Incident checklist" to "Produce a step-by-step incident response checklist for a suspected account compromise.",
             "SOC handoff summary" to "Summarize the following alerts into a SOC handoff brief with severity and recommended actions.\n\nAlerts:\n",
+            "Deep security assessment" to "Perform a defensive security assessment using OWASP MASVS, MITRE ATT&CK and STRIDE where applicable. Return: Summary, Findings, Risk, Evidence, Mitigations, Validation, References, and Confidence. Be concise and practical.",
             "Sinhala quick brief" to "සිංහලෙන් කෙටි සාරාංශයක් දෙන්න: ",
         )
     }
@@ -607,6 +615,7 @@ Rules:
         updateAiModeButton()
         findViewById<Button>(R.id.aiModeButton).setOnClickListener { cycleAiMode() }
         findViewById<Button>(R.id.templatesButton).setOnClickListener { showTemplatesDialog() }
+        findViewById<Button>(R.id.knowledgeButton).setOnClickListener { showKnowledgeDialog() }
         sinhalaMode = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_SINHALA_MODE, false)
         updateSinhalaControls()
@@ -977,6 +986,7 @@ Rules:
             R.id.communityStatsText,
             R.id.aiModeButton,
             R.id.templatesButton,
+            R.id.knowledgeButton,
         ).forEach { id -> applyPressFeedback(findViewById(id)) }
 
         val waInput = findViewById<EditText>(R.id.waNumberInput)
@@ -6732,6 +6742,32 @@ User request: $prompt"""
                 promptInput.setSelection(template.length)
                 focusPrompt()
                 Toast.makeText(this, "Template loaded into composer.", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+            .window?.setWindowAnimations(R.style.SentinalDialogAnimation)
+    }
+
+    private fun showKnowledgeDialog() {
+        val titles = SecurityKnowledge.entries.map { it.title }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("SECURITY KNOWLEDGE")
+            .setItems(titles) { _, index ->
+                val entry = SecurityKnowledge.entries.getOrNull(index) ?: return@setItems
+                val formatted = SecurityKnowledge.format(entry)
+                val contextPrompt = buildString {
+                    append("Use this security knowledge context:\n\n")
+                    append(formatted)
+                    append("\nAnswer the following question with practical, defensive guidance.\n\nQuestion: ")
+                }
+                promptInput.setText(contextPrompt)
+                promptInput.setSelection(contextPrompt.length)
+                focusPrompt()
+                Toast.makeText(
+                    this,
+                    "${entry.title} loaded into composer.",
+                    Toast.LENGTH_SHORT,
+                ).show()
             }
             .setNegativeButton("CLOSE", null)
             .show()
