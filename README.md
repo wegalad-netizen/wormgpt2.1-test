@@ -168,6 +168,8 @@ These are local checks only. The app does not scan for malware, run a firewall/V
 - New **EXPERT** mode applies OWASP MASVS, MITRE ATT&CK, NIST CSF, STRIDE, and privacy-by-design, and requests structured output with evidence, risk, mitigations, validation, references, and confidence
 - **KNOWLEDGE** button opens an offline library of 10 defensive security references (OWASP, MITRE, NIST, STRIDE, kill chain, incident response, secure coding, privacy, Sinhala terms); selecting one injects it as prompt context
 - Added a **Deep security assessment** template
+- New **SMART** mode detects intent locally (code, link, phishing, threat, incident, Sinhala) and applies a matching expert instruction automatically
+- **VERIFY**, **SUMMARIZE**, and **SIMPLIFY** actions work on the last response to self-review, condense, or explain it more simply
 - Chat status shows the active AI mode
 
 ## Commands

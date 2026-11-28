@@ -236,6 +236,7 @@ Rules:
 - End with a short 'Quick wins' section of 3 low-effort improvements."""
 
         val AI_MODES = listOf(
+            "SMART" to "__SMART__",
             "DEFENSIVE" to "You are Sentinal Security, a defensive security assistant. Prioritize authorized, defensive guidance and explain mitigations clearly.",
             "CODE REVIEW" to "Review the supplied code for security flaws. Provide corrected snippets and explain each risk. Never execute code.",
             "THREAT BRIEF" to "Produce a concise threat brief: indicators, impact, likelihood, mitigations, and confidence.",
@@ -917,6 +918,31 @@ Rules:
         findViewById<Button>(R.id.quickPromptSinhala).setOnClickListener {
             useQuickPrompt("සිංහලෙන් උත්තර දෙන්න. ", focusForTyping = true)
         }
+        findViewById<Button>(R.id.verifyButton).setOnClickListener {
+            withLastResponse { previous ->
+                useQuickPrompt(
+                    "Review the previous answer for unsupported claims, missing mitigations, and confidence. " +
+                        "Reply with a corrected concise version.\n\nPrevious answer:\n$previous\n\nQuestion: ",
+                    focusForTyping = true,
+                )
+            }
+        }
+        findViewById<Button>(R.id.summarizeButton).setOnClickListener {
+            withLastResponse { previous ->
+                useQuickPrompt(
+                    "Summarize the previous answer in five concise bullet points.\n\nPrevious answer:\n$previous",
+                    focusForTyping = false,
+                )
+            }
+        }
+        findViewById<Button>(R.id.simplifyButton).setOnClickListener {
+            withLastResponse { previous ->
+                useQuickPrompt(
+                    "Explain the previous answer in simple language for a non-specialist, keeping the key actions.\n\nPrevious answer:\n$previous",
+                    focusForTyping = false,
+                )
+            }
+        }
         findViewById<Button>(R.id.securityToolsButton).setOnClickListener { showSecurityTools() }
         findViewById<Button>(R.id.blocklistButton).setOnClickListener { showBlocklistDialog() }
         findViewById<Button>(R.id.spamLogButton).setOnClickListener { showSpamLogDialog() }
@@ -987,6 +1013,9 @@ Rules:
             R.id.aiModeButton,
             R.id.templatesButton,
             R.id.knowledgeButton,
+            R.id.verifyButton,
+            R.id.summarizeButton,
+            R.id.simplifyButton,
         ).forEach { id -> applyPressFeedback(findViewById(id)) }
 
         val waInput = findViewById<EditText>(R.id.waNumberInput)
@@ -3791,7 +3820,7 @@ Rules:
             val result = try {
                 val chartImage = chartUri?.let(::encodeChartScreenshot)
                 val instructionBlock = buildString {
-                    val modeInstruction = aiModeInstruction()
+                    val modeInstruction = aiModeInstruction(prompt)
                     if (modeInstruction.isNotBlank()) {
                         append(modeInstruction).append("\n\n")
                     }
@@ -6729,8 +6758,10 @@ User request: $prompt"""
         Toast.makeText(this, "AI mode: $aiMode", Toast.LENGTH_SHORT).show()
     }
 
-    private fun aiModeInstruction(): String =
-        AI_MODES.firstOrNull { it.first == aiMode }?.second.orEmpty()
+    private fun aiModeInstruction(prompt: String): String {
+        val configured = AI_MODES.firstOrNull { it.first == aiMode }?.second.orEmpty()
+        return if (configured == "__SMART__") AiIntent.smartInstruction(prompt) else configured
+    }
 
     private fun showTemplatesDialog() {
         val labels = PROMPT_TEMPLATES.map { it.first }.toTypedArray()
@@ -6820,6 +6851,14 @@ User request: $prompt"""
                 quickPrompts.alpha = 0f
             }.start()
         }
+    }
+
+    private fun withLastResponse(action: (String) -> Unit) {
+        if (lastResponse.isBlank()) {
+            Toast.makeText(this, "Ask something first, then use this action.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        action(sanitizeForAi(lastResponse).take(2500))
     }
 
     private fun useQuickPrompt(text: String, focusForTyping: Boolean) {

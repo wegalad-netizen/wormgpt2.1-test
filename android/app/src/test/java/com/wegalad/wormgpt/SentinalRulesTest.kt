@@ -54,6 +54,16 @@ class SentinalRulesTest {
     }
 
     @Test
+    fun detectsAiIntent() {
+        assertEquals("CODE", AiIntent.detect("fix this python function with a stack trace"))
+        assertEquals("LINK", AiIntent.detect("is https://example.com safe?"))
+        assertEquals("PHISHING", AiIntent.detect("suspicious sms asking to verify your account"))
+        assertEquals("INCIDENT", AiIntent.detect("we had a breach, need containment steps"))
+        assertEquals("SINHALA", AiIntent.detect("සිංහලෙන් පැහැදිලි කරන්න"))
+        assertTrue(AiIntent.smartInstruction("review this code").contains("code", true))
+    }
+
+    @Test
     fun knowledgeEntriesAreWellFormed() {
         assertTrue(SecurityKnowledge.entries.size >= 8)
         SecurityKnowledge.entries.forEach { entry ->
